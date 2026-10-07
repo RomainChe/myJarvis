@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 import time
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from jarvis.core.router import fold
 from jarvis.core.tools import Level, tool
@@ -23,22 +23,29 @@ SEARCH_DEADLINE_S = 5.0
 # ponytail: noms par défaut ; un dossier redirigé (OneDrive) exigera SHGetKnownFolderPath.
 KNOWN_FOLDERS = {"documents": "Documents", "telechargements": "Downloads", "images": "Pictures",
                  "photos": "Pictures", "bureau": "Desktop", "musique": "Music", "videos": "Videos"}
-RESERVED_NAMES = {"con", "prn", "aux", "nul", *(f"{p}{i}" for p in ("com", "lpt") for i in range(1, 10))}
+RESERVED_NAMES = {"con", "prn", "aux", "nul", "conin$", "conout$", "clock$",
+                  *(f"{p}{i}" for p in ("com", "lpt") for i in [*range(1, 10), "¹", "²", "³"])}
 
 
 def _allowed_root(folder: str) -> Path:
     """Dossier de recherche résolu, sous le dossier utilisateur ; refusé AVANT tout accès disque s'il est suspect."""
-    folder = KNOWN_FOLDERS.get(fold(folder), folder)
-    # UNC (\\hôte : fuite du hash NTLM), \\?\, \\.\ ; « : » ailleurs qu'après la lettre de lecteur (flux ADS).
-    if folder.startswith(("\\\\", "//")) or ":" in folder[2:] or re.fullmatch(r"[A-Za-z]:", folder):
+    folder = KNOWN_FOLDERS.get(fold(folder), folder).replace("/", "\\")
+    # Lecteur autre que « X: » : UNC (\\hôte, \/hôte : fuite du hash NTLM), \\?\, \\.\.
+    # « : » ailleurs qu'après la lettre de lecteur : flux ADS ; « C: » seul : relatif au lecteur.
+    drive = PureWindowsPath(folder).drive
+    if (drive and not re.fullmatch(r"[A-Za-z]:", drive)) or ":" in folder[2:] or re.fullmatch(r"[A-Za-z]:", folder):
         raise ValueError(f"chemin refusé : {folder}")
-    if any(part.split(".")[0].strip().lower() in RESERVED_NAMES for part in re.split(r"[\\/]", folder)):
+    if any(part.split(".")[0].strip().lower() in RESERVED_NAMES for part in folder.split("\\")):
         raise ValueError(f"nom réservé Windows : {folder}")
     # ponytail: seule racine autorisée = dossier utilisateur ; d'autres racines viendront d'un réglage N3.
-    home = Path.home().resolve()
+    home = Path.home()
     root = Path(folder).expanduser()
+    root = Path(os.path.abspath(root if root.is_absolute() else home / root))  # « .. » réduit sans accès disque
+    if not root.is_relative_to(home):
+        raise ValueError(f"hors du dossier utilisateur : {folder}")
+    home = home.resolve()
     try:
-        root = (root if root.is_absolute() else home / root).resolve(strict=True)  # suit liens et jonctions
+        root = root.resolve(strict=True)  # suit liens et jonctions : on revérifie la racine ensuite
     except OSError:
         raise ValueError(f"dossier introuvable : {folder}") from None
     if not root.is_relative_to(home):

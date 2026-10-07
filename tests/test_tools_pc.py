@@ -127,8 +127,10 @@ class SearchFilesTest(PcToolTest):
     def test_dossier_hors_racine_refuse_sans_acces_disque(self):
         # Sécurité constat 1 : UNC (fuite du hash NTLM), \\?\, ADS, nom réservé, sortie de la racine.
         for folder in (r"\\hote-attaquant\x", "//hote/x", r"\\?\C:\Windows", r"\\.\PhysicalDrive0",
-                       r"C:\Windows", r"..\..\..", "NUL", r"documents\com1.txt",f"{self.tmp.name}:flux", "C:"):
-            with mock.patch.object(Path, "is_dir", side_effect=AssertionError("accès disque")):
+                       r"C:\Windows", r"..\..\..", "NUL", r"documents\com1.txt", f"{self.tmp.name}:flux", "C:",
+                       r"\/hote/x", r"/\hote\x", "CONIN$", "CLOCK$", "documents/COM¹"):
+            with mock.patch.object(Path, "is_dir", side_effect=AssertionError("accès disque")), \
+                    mock.patch.object(Path, "resolve", side_effect=AssertionError("accès disque")):
                 with self.assertRaises(ValueError, msg=folder):
                     system.search_files("x", folder)
 
