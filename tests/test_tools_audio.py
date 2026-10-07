@@ -7,6 +7,27 @@ from jarvis.tools.pc import audio
 from pcbase import PcBase
 
 
+class ComBalanceTest(unittest.TestCase):
+    """S10 : chaque CoInitializeEx réussi est suivi d'un CoUninitialize, même si l'accès au périphérique échoue."""
+
+    def enter(self, init_result):
+        ole = mock.MagicMock()
+        ole.CoInitializeEx.return_value = init_result
+        ole.CoCreateInstance.return_value = -1  # périphérique audio indisponible
+        with mock.patch.object(audio, "_ole32", ole):
+            with self.assertRaises(OSError):
+                with audio._endpoint():
+                    pass
+        return ole
+
+    def test_init_reussie_est_equilibree(self):
+        for result in (0, 1):  # S_OK, S_FALSE (déjà initialisé dans ce thread : il faut aussi équilibrer)
+            self.enter(result).CoUninitialize.assert_called_once_with()
+
+    def test_init_en_echec_n_est_pas_equilibree(self):
+        self.enter(-2147417850).CoUninitialize.assert_not_called()  # RPC_E_CHANGED_MODE
+
+
 class VolumeTest(PcBase):
     def test_niveaux(self):
         for name in ("set_volume", "mute", "media_control"):

@@ -37,7 +37,7 @@ def _call(obj, index: int, *args, check: bool = True) -> None:
 @contextmanager
 def _endpoint():
     """Interface IAudioEndpointVolume de la sortie par défaut."""
-    _ole32.CoInitializeEx(None, 0)  # déjà initialisé dans ce thread : sans importance
+    initialized = _ole32.CoInitializeEx(None, 0) >= 0  # S_FALSE (déjà initialisé) compte aussi : à équilibrer
     enum, device, volume = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
     try:
         if _ole32.CoCreateInstance(ctypes.byref(CLSID_ENUMERATOR), None, CLSCTX_ALL, ctypes.byref(IID_ENUMERATOR),
@@ -51,6 +51,8 @@ def _endpoint():
         for com in (volume, device, enum):
             if com:
                 _call(com, 2, check=False)  # Release renvoie un compteur, pas un HRESULT
+        if initialized:
+            _ole32.CoUninitialize()
 
 
 def _set_volume(percent: int) -> None:
