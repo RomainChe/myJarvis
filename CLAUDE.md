@@ -29,6 +29,7 @@ enceintes, caméras, etc.). JARVIS doit être :
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
 - Budget mensuel API IA : 0 € → LLM 100 % local (Ollama), aucune API payante.
 - Architecture et roadmap : voir docs/ARCHITECTURE.md et docs/ROADMAP.md.
+- **En début de session, lire la section « État actuel » de docs/ROADMAP.md.** La tenir à jour à chaque fin de tâche.
 
 ## 3. Architecture cible (à valider en Phase 0, modifiable avec justification)
 1. JARVIS CORE (cerveau) : service Python (FastAPI) ou Node (TypeScript), qui reçoit les

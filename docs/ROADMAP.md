@@ -2,10 +2,17 @@
 
 Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et** du propriétaire.
 
+## État actuel (à lire en reprise de session)
+- Phase en cours : **Phase 1**, étapes 1 à 3 faites ; Ollama 0.40.0 installé (écoute 127.0.0.1:11434, aucun modèle téléchargé).
+- **En pause** : le propriétaire ajoute des prompts de contexte (experts, etc.). Ne pas reprendre les tâches avant son signal.
+- Prochaine action, au choix du propriétaire : étape 4 (routeur d'intentions) ou étape 5 (benchmark des modèles, 5 à 10 Go par modèle).
+- Question en attente : nombre de volets (un module Shelly 2PM par volet, Phase 2).
+- Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07).
+
 ## Phase 0 — Cadrage ✅
 - [x] Inventaire du matériel (PC, smartphone, budget)
 - [x] Architecture : `docs/ARCHITECTURE.md`
-- [x] Marques et modèles : TV, clims, box volets filaires → modules Shelly
+- [x] Marques et modèles : TV, barre de son, clims, box ; volets filaires → modules Shelly
 - [x] Validation des 4 décisions (ARCHITECTURE §6)
 
 ## Phase 1 — Core + outils PC
@@ -14,9 +21,9 @@ Ordre imposé par l'Expert Sécurité : socle d'abord, outils ensuite.
 1. [x] Squelette : `pyproject.toml`, CLI texte (`python -m jarvis`). FastAPI arrive avec son premier client (voix ou PWA).
 2. [x] Interface `Tool` + registre + garde de permissions N0–N3 + confirmations.
 3. [x] Journal d'audit SQLite (ajout seul, protégé par triggers) et `python -m jarvis audit`.
-4. Routeur d'intentions (YAML + `difflib`) et mesure de latence.
-5. Ollama : benchmark de 2 ou 3 modèles sur 30 commandes, choix, tool calling.
-6. Les 15 premiers outils PC (tests : cas nominal, entrée invalide, permission refusée) :
+4. [ ] Routeur d'intentions (YAML + `difflib`) et mesure de latence.
+5. [ ] Ollama (installé) : benchmark de 2 ou 3 modèles sur 30 commandes, choix, tool calling.
+6. [ ] Les 15 premiers outils PC (tests : cas nominal, entrée invalide, permission refusée) :
 
 | # | Outil | Niveau |
 |---|---|---|
