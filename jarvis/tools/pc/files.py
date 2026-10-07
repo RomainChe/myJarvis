@@ -12,6 +12,12 @@ from jarvis.tools.pc.system import KNOWN_FOLDERS, RESERVED_NAMES, _allowed_root
 
 FO_DELETE, FOF_SILENT, FOF_NOCONFIRMATION, FOF_ALLOWUNDO, FOF_NOERRORUI, FOF_WANTNUKEWARNING = (
     3, 0x4, 0x10, 0x40, 0x400, 0x4000)
+DRIVE_FIXED = 3
+RECYCLE_MAX_BYTES = 1 << 30  # au-delà, la corbeille risque de refuser : pas de suppression définitive silencieuse
+RECYCLE_MAX_ENTRIES = 50_000
+_shell32 = ctypes.WinDLL("shell32")
+_kernel32 = ctypes.WinDLL("kernel32")
+_kernel32.GetDriveTypeW.argtypes = [wintypes.LPCWSTR]
 BAD_NAME_CHARS = set('<>:"|?*')  # « : » = flux ADS ; « * » et « ? » seraient des jokers pour SHFileOperation
 
 
@@ -21,13 +27,40 @@ class _FileOp(ctypes.Structure):
                 ("mappings", ctypes.c_void_p), ("title", wintypes.LPCWSTR)]
 
 
+def _drive_type(path: Path) -> int:
+    return _kernel32.GetDriveTypeW(path.anchor)
+
+
+def _too_big(path: Path) -> bool:
+    """Taille cumulée au-dessus de la limite (ou trop d'entrées) ; les jonctions ne sont pas suivies."""
+    if path.is_file():
+        return path.stat().st_size > RECYCLE_MAX_BYTES
+    total = entries = 0
+    for folder, dirs, names in os.walk(path):
+        dirs[:] = [d for d in dirs if not os.path.isjunction(os.path.join(folder, d))]
+        for name in names:
+            entries += 1
+            try:
+                total += os.lstat(os.path.join(folder, name)).st_size
+            except OSError:
+                pass
+            if total > RECYCLE_MAX_BYTES or entries > RECYCLE_MAX_ENTRIES:
+                return True
+    return False
+
+
 def _recycle(path: Path) -> None:
+    # SHFileOperation ne sait pas refuser seul : sans FOF_WANTNUKEWARNING un fichier non recyclable est supprimé
+    # définitivement, avec lui il peut afficher une boîte qui bloque le Core. On écarte donc d'avance les cas
+    # qui échouent (lecteur amovible ou réseau, taille au-dessus de la limite) et on n'envoie que des flags sans UI.
+    if _drive_type(path) != DRIVE_FIXED:
+        raise ValueError("la corbeille n'est disponible que sur un disque fixe")
+    if _too_big(path):
+        raise ValueError("trop volumineux pour la corbeille : à supprimer à la main")
     source = ctypes.create_unicode_buffer(str(path) + "\0")  # liste de chemins terminée par un double zéro
-    # Pas de FOF_NOCONFIRMATION sans FOF_WANTNUKEWARNING : un fichier qui ne peut pas aller à la corbeille
-    # (trop gros, disque amovible) provoque un avertissement au lieu d'une suppression définitive silencieuse.
     op = _FileOp(None, FO_DELETE, ctypes.cast(source, wintypes.LPCWSTR), None,
-                 FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT | FOF_WANTNUKEWARNING, 0, None, None)
-    code = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+                 FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT, 0, None, None)
+    code = _shell32.SHFileOperationW(ctypes.byref(op))
     if code or op.aborted:
         raise OSError(f"corbeille : échec (code {code:#x})")
 

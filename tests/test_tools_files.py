@@ -74,6 +74,51 @@ class DeleteFileTest(FilesBase):
             recycle.assert_not_called()
 
 
+class RecycleTest(FilesBase):
+    """S6 : _recycle ne bloque jamais sur une boîte de dialogue et ne supprime jamais définitivement."""
+
+    def recycle(self, path, drive=files.DRIVE_FIXED, shell_code=0):
+        flags = []
+
+        def shell(ref):
+            flags.append(ref._obj.fFlags)
+            return shell_code
+
+        with mock.patch.object(files, "_drive_type", return_value=drive),                 mock.patch.object(files, "_shell32") as sh:
+            sh.SHFileOperationW.side_effect = shell
+            files._recycle(path)
+        return flags
+
+    def test_nominal_flags_sans_dialogue_ni_suppression_definitive(self):
+        (flags,) = self.recycle(self.root / "a.txt")
+        for needed in (files.FOF_ALLOWUNDO, files.FOF_SILENT, files.FOF_NOCONFIRMATION, files.FOF_NOERRORUI):
+            self.assertTrue(flags & needed, hex(needed))
+        self.assertFalse(flags & files.FOF_WANTNUKEWARNING)  # partiellement incompatible avec NOCONFIRMATION : dialogue
+
+    def test_lecteur_non_fixe_refuse(self):
+        for drive in (2, 4, 5, 0):  # amovible, réseau, CD, inconnu
+            with self.assertRaises(ValueError, msg=drive):
+                self.recycle(self.root / "a.txt", drive=drive)
+
+    def test_fichier_ou_dossier_trop_gros_refuse(self):
+        (self.root / "dossier" / "x.bin").write_bytes(b"x" * 100)
+        with mock.patch.object(files, "RECYCLE_MAX_BYTES", 50):
+            for name in ("dossier", "dossier/x.bin"):
+                with self.assertRaises(ValueError, msg=name):
+                    self.recycle(self.root / name)
+        self.recycle(self.root / "a.txt")  # petit : accepté
+
+    def test_echec_du_shell(self):
+        with self.assertRaises(OSError):
+            self.recycle(self.root / "a.txt", shell_code=0x7C)
+
+    def test_delete_file_ne_supprime_pas_si_refus(self):
+        with mock.patch.object(files, "_drive_type", return_value=2),                 mock.patch.object(files, "_shell32") as sh:
+            with self.assertRaises(ValueError):
+                self.run_tool("delete_file", {"path": str(self.root / "a.txt")}, confirm=yes)
+        sh.SHFileOperationW.assert_not_called()
+
+
 class MoveFileTest(FilesBase):
     def test_niveau(self):
         self.assertEqual(REGISTRY["move_file"].level, Level.N2)
