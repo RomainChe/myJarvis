@@ -163,3 +163,21 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Retour** : `power` (l'action). Veille : l'appel ne rend la main qu'au réveil.
 - **Exemple** : `python -m jarvis run power action=sleep`.
 - **Notes** : veille par `SetSuspendState` ; arrêt et redémarrage par `System32\shutdown.exe /s|/r /t 10` (liste d'arguments, sans `/f` : les applications peuvent réclamer l'enregistrement ; `shutdown /a` annule pendant les 10 s). Aucune intention du routeur : « éteins le PC » passe par le LLM puis la confirmation. Testé avec des mocks, jamais en réel.
+
+## clipboard_write
+
+- **Description** : copie un texte dans le presse-papiers (remplace son contenu).
+- **Niveau** : N1.
+- **Paramètres** : `text` (texte, 1 000 caractères au plus).
+- **Retour** : `chars`.
+- **Exemple** : `python -m jarvis run clipboard_write text=bonjour`.
+- **Notes** : `CF_UNICODETEXT` via `ctypes`. Le paramètre `text` est journalisé comme tout paramètre : ne jamais y passer un secret.
+
+## clipboard_read
+
+- **Description** : lit le texte du presse-papiers (peut contenir un mot de passe).
+- **Niveau** : N2 (confirmation). Drapeaux `private` (contenu jamais journalisé, ni dans une erreur) et `external` (contenu tiers : pas d'action N2/N3 ensuite dans la même demande).
+- **Paramètres** : aucun.
+- **Retour** : `text` (4 000 caractères au plus), `chars` (longueur réelle), `truncated`. Texte vide si le presse-papiers est vide ou non textuel.
+- **Exemple** : `python -m jarvis run clipboard_read`.
+- **Notes** : le LLM reçoit le contenu encadré par `<data>` et tronqué à 2 000 caractères (`as_data`) : c'est une donnée, jamais un ordre.
