@@ -72,7 +72,8 @@ class Router:
             for phrase in intent.get("phrases", []):
                 self.phrases[_core(normalize(phrase))] = intent["tool"]
             for pattern in intent.get("patterns", []):
-                regex = re.sub(r"\{(\w+)\}", r"(?P<\1>.+?)", fold(pattern))
+                # casefold seul : le motif garde ses accents (« [eé] »), comme le texte des slots.
+                regex = re.sub(r"\{(\w+)\}", r"(?P<\1>.+?)", pattern.casefold())
                 choices = {k: {fold(v) for v in vs} for k, vs in intent.get("choices", {}).items()}
                 self.patterns.append((re.compile(regex, re.IGNORECASE), intent["tool"], intent.get("defaults", {}),
                                       choices))
@@ -90,6 +91,12 @@ class Router:
                     return None
                 if any(fold(slots[k]) not in allowed for k, allowed in choices.items() if k in slots):
                     return None  # valeur hors liste blanche : au LLM, pas au motif suivant
+                params = REGISTRY[tool].params
+                for k in slots:  # un slot est du texte : un paramètre entier n'accepte que des chiffres (la borne est celle de l'outil)
+                    if params[k] is int:
+                        if not slots[k].isascii() or not slots[k].isdigit():
+                            return None
+                        slots[k] = int(slots[k])
                 return tool, {**defaults, **slots}
         core = _core(normalize(text))
         best = difflib.get_close_matches(core, self.phrases, n=1, cutoff=CUTOFF)

@@ -22,5 +22,34 @@
     ],
     "defaults": {"folder": "~"},
     "choices": {"folder": ["documents", "telechargements", "images", "photos", "bureau", "musique", "videos"]}
+  },
+  {
+    "tool": "set_volume",
+    "patterns": ["((mets|met|r[eéè]gle) )?(le )?(volume|son) (à|a|sur|au) {level} ?(%|pour ?cent)?"]
+  },
+  {
+    "tool": "mute",
+    "patterns": ["(coupe|couper) (le )?(son|volume)( du pc)?", "sourdine|mute", "(mets|met) (le pc )?en sourdine"],
+    "defaults": {"muted": true}
+  },
+  {
+    "tool": "mute",
+    "patterns": ["(remets|remet|r[eé]tablis|r[eé]active|active) (le )?(son|volume)", "(d[eé]sactive|enl[eè]ve) (la )?sourdine|unmute"],
+    "defaults": {"muted": false}
+  },
+  {
+    "tool": "media_control",
+    "patterns": ["((mets|met|remets|remet) )?(la )?(pause|lecture)|play|reprends( la lecture)?|(mets|met) en pause"],
+    "defaults": {"action": "play_pause"}
+  },
+  {
+    "tool": "media_control",
+    "patterns": ["((passe|saute)( au| le| à la| a la)? )?((morceau|titre|piste|chanson|musique) )?suivante?|next"],
+    "defaults": {"action": "next"}
+  },
+  {
+    "tool": "media_control",
+    "patterns": ["((reviens|retourne|passe)( au| le| à la| a la)? )?((morceau|titre|piste|chanson|musique) )?pr[eé]c[eé]dente?|previous"],
+    "defaults": {"action": "previous"}
   }
 ]

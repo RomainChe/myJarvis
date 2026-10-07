@@ -114,3 +114,27 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Retour** : `killed` (pid) et `name`.
 - **Exemple** : `python -m jarvis run kill_process pid=4242 name=notepad.exe`.
 - **Notes** : un seul handle sert à vérifier le nom puis à terminer (un PID réattribué est refusé). Refusés : PID ≤ 4, le processus Jarvis lui-même, tout exécutable situé sous le dossier Windows. Test réel limité à un PID inexistant ; l'arrêt est testé avec un mock.
+
+## set_volume
+
+- **Description** : règle le volume principal du PC.
+- **Niveau** : N1.
+- **Paramètres** : `level` (entier 0 à 100).
+- **Retour** : `volume`. Un volume > 0 lève aussi la sourdine.
+- **Exemple** : « mets le volume à 30 » ou `python -m jarvis run set_volume level=30`.
+- **Notes** : Core Audio (`IAudioEndpointVolume`) via `ctypes`, sortie par défaut. Le routeur ne transmet que des chiffres ASCII (« à fort » part au LLM).
+
+## mute
+
+- **Description** : coupe le son du PC ou le rétablit.
+- **Niveau** : N1.
+- **Paramètres** : `muted` (booléen).
+- **Exemple** : « coupe le son », « remets le son » ou `python -m jarvis run mute muted=true`.
+
+## media_control
+
+- **Description** : touche multimédia envoyée au lecteur actif.
+- **Niveau** : N1.
+- **Paramètres** : `action` : `play_pause`, `next`, `previous` ou `stop`.
+- **Exemple** : « pause », « morceau suivant » ou `python -m jarvis run media_control action=next`.
+- **Notes** : touches `VK_MEDIA_*` (`keybd_event`) ; pas de retour sur l'état du lecteur.
