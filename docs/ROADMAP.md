@@ -65,6 +65,7 @@ Sortie de phase : commande simple < 1 s, tous les tests verts, `docs/TOOLS.md` �
 4. Notifications Web Push.
 
 ## Phase 4 — Voix
+Micro du téléphone via la PWA (appui pour parler), audio transcrit sur le PC : aucune API payante. Mot de réveil mains libres : seulement sur un appareil allumé en permanence (tablette murale ou satellite).
 openWakeWord (« hey jarvis »), faster-whisper sur le GPU, Piper en français ; confirmation vocale pour le N2. Le N3 reste sur mobile.
 
 ## Phase 5 — Durcissement
