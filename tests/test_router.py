@@ -44,6 +44,17 @@ class RouterTest(unittest.TestCase):
         for intent in json.loads(CATALOGUE.read_text(encoding="utf-8")):
             self.assertIn(intent["tool"], REGISTRY)
 
+    def test_catalogue_ne_vise_aucun_outil_n2_ou_plus(self):
+        """S12/C4 : une phrase entendue (voix, TV) ne doit jamais atteindre une action sensible, même confirmable."""
+        for intent in json.loads(CATALOGUE.read_text(encoding="utf-8")):
+            self.assertLess(REGISTRY[intent["tool"]].level, Level.N2, intent["tool"])
+
+    def test_le_test_c4_detecte_un_outil_n2(self):
+        raised = dataclasses.replace(REGISTRY["lock_session"], level=Level.N2)
+        with mock.patch.dict(_registry, {"lock_session": raised}):
+            with self.assertRaises(AssertionError):
+                self.test_catalogue_ne_vise_aucun_outil_n2_ou_plus()
+
     def test_catalogue_personnalise(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "intents.json")
