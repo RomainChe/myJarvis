@@ -147,3 +147,4 @@ myJarvis/
 2. Une PWA au lieu de Tauri + React Native (§3.5).
 3. Home Assistant OS dans Hyper-V, en acceptant qu'il s'arrête avec le PC (§3.4).
 4. LLM 100 % local via Ollama, sans API payante (§3.3).
+5. Risque accepté : journal d'audit chaîné par SHA-256 sans HMAC. La clé serait lisible par tout processus du compte, donc inutile contre un attaquant local ; la chaîne détecte les erreurs, l'ancre externe (Phase 5) apportera la garantie (docs/SECURITY_REVIEW_PHASE_1.md, C1).
