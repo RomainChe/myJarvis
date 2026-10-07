@@ -3,13 +3,14 @@
 Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et** du propriétaire.
 
 ## État actuel (à lire en reprise de session)
-- Phase en cours : **Phase 1**, étapes 1 à 3 faites ; Ollama 0.40.0 installé (écoute 127.0.0.1:11434, aucun modèle téléchargé).
+- Phase en cours : **Phase 1**, étapes 1 à 3 faites ; Ollama 0.40.0 installé (écoute 127.0.0.1:11434) ; qwen3:8b, ministral-3:8b et qwen3:14b téléchargés le 2026-10-07.
 - **2026-10-07** : 9 experts lancés en parallèle. Docs + tests des 8 experts fusionnés dans `main` (68 tests, 19 échecs attendus = failles connues).
 - F1–F12 (docs/SECURITY_REVIEW_PHASE_1.md) et BUG-01..06 (docs/QA_REPORT_PHASE_1.md) corrigés le 2026-10-07, puis la contre-revue (C1–C7, C2bis) : 82 tests verts. Veto N2/N3 levé pour le Core ; écart C1 (pas de HMAC) accepté par le propriétaire (ARCHITECTURE §6.5).
 - Branche `worktree-agent-a0058f7db3245d1e9` (routeur + 3 outils N0) : en attente de revue QA puis Sécurité, non fusionnée.
-- Prochaine action : revue QA + Sécurité de la branche routeur (`worktree-agent-a0058f7db3245d1e9`), à rebaser sur le nouveau Core.
+- Branche `routeur` (routeur + 3 outils N0, fusionnée sur le nouveau Core) : QA-R1..R4 corrigés, CLI en phrase ; en revue QA + Sécurité. À mesurer : `list_processes` sous charge (p95 457 ms au repos).
+- Prochaine action : fusion de `routeur` après feux verts, puis benchmark des 3 modèles (étape 5).
 - Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7.
-- Décisions propriétaire en attente : téléchargement des 3 modèles (~20,5 Go), destination des sauvegardes, lecture de `.env`, reste de DOMOTIQUE_PLAN §7.
+- Décisions propriétaire en attente : destination des sauvegardes, lecture de `.env`, reste de DOMOTIQUE_PLAN §7.
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 
 ## Phase 0 — Cadrage ✅

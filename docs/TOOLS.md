@@ -10,11 +10,17 @@ Essai en ligne de commande : `python -m jarvis run <outil> [clé=valeur ...]`.
 `jarvis/core/router.py` reconnaît les commandes simples sans LLM, à partir du catalogue
 `jarvis/intents.json` :
 
-- `phrases` : phrases sans paramètre, reconnues de façon approchée (`difflib`, seuil 0,8).
-- `patterns` : expressions régulières sur le texte normalisé ; `{slot}` devient un paramètre (texte).
+- `phrases` : phrases sans paramètre, reconnues de façon approchée (`difflib`, seuil 0,8), après
+  normalisation (minuscules, accents et ponctuation retirés, « Jarvis » retiré) et retrait des mots
+  vides (« quel est l'état du PC » → « etat pc »). Un verbe d'action (« tue », « ferme »…) absent de
+  la phrase reconnue annule la correspondance.
+- `patterns` : expressions régulières, insensibles à la casse, sur le texte presque brut (seuls
+  « Jarvis » en tête et la ponctuation finale sont retirés) : les slots gardent accents,
+  parenthèses et chemins. `{slot}` devient un paramètre (texte).
 - `defaults` : paramètres par défaut, complétés par les slots.
 
-Le texte est normalisé (minuscules, accents et ponctuation retirés, mot « Jarvis » retiré).
+Depuis la CLI : `python -m jarvis "cherche facture dans mes documents"`. Phrase non reconnue :
+message clair, aucune action.
 Le routeur renvoie `(outil, paramètres)` ou `None` (la demande ira au LLM). Il propose
 seulement : c'est la garde de permissions qui décide. Latence mesurée par un test : < 50 ms.
 
@@ -48,7 +54,8 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
 - **Paramètres** :
   - `name` (texte, non vide) : comparaison sans casse ni accents (« ecran » trouve « Écran.png »).
   - `folder` (texte) : dossier existant ; `~` est le dossier utilisateur, un chemin relatif part
-    du dossier utilisateur (« documents » donne le dossier Documents).
+    du dossier utilisateur ; les noms français sont traduits (« téléchargements » → Downloads,
+    « images » → Pictures, « bureau » → Desktop…).
 - **Retour** : `results` (chemins, 50 au plus) et `complete` (`false` si la recherche a été
   coupée par la limite de 50 résultats ou par le délai de 5 s).
 - **Exemple** : « cherche le fichier facture dans mes documents » ou

@@ -19,6 +19,10 @@ GB = 1024 ** 3
 MAX_PROCESSES = 50
 MAX_RESULTS = 50
 SEARCH_DEADLINE_S = 5.0
+# Noms français des dossiers utilisateur -> nom réel sur le disque.
+# ponytail: noms par défaut ; un dossier redirigé (OneDrive) exigera SHGetKnownFolderPath.
+KNOWN_FOLDERS = {"documents": "Documents", "telechargements": "Downloads", "images": "Pictures",
+                 "photos": "Pictures", "bureau": "Desktop", "musique": "Music", "videos": "Videos"}
 
 
 class _MemoryStatus(ctypes.Structure):
@@ -94,7 +98,8 @@ def search_files(name: str, folder: str) -> dict:
     needle = fold(name.strip())
     if not needle:
         raise ValueError("name ne doit pas être vide")
-    root = Path(folder.strip()).expanduser()
+    folder = folder.strip()
+    root = Path(KNOWN_FOLDERS.get(fold(folder), folder)).expanduser()
     if not root.is_absolute():
         root = Path.home() / root  # « documents » -> dossier Documents de l'utilisateur
     if not root.is_dir():

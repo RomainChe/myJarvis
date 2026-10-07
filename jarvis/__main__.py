@@ -1,5 +1,6 @@
 """Interface texte minimale.
 
+    python -m jarvis "<phrase>"
     python -m jarvis run <outil> [clé=valeur ...]
     python -m jarvis audit [n]
 """
@@ -10,6 +11,7 @@ from pathlib import Path
 
 from jarvis.core.audit import Audit
 from jarvis.core.permissions import Refused, execute
+from jarvis.core.router import Router
 from jarvis.core.tools import Tool, masked
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 
@@ -42,7 +44,7 @@ def no_strong_auth(tool: Tool, args: dict) -> bool:
 
 
 def main(argv: list[str]) -> int:
-    if not argv or argv[0] not in ("run", "audit"):
+    if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return 2
     if str(DB_PATH) == ":memory:" or str(DB_PATH).startswith("file:"):
@@ -54,12 +56,20 @@ def main(argv: list[str]) -> int:
         for row in audit.last(int(argv[1]) if len(argv) > 1 else 20):
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
-    if len(argv) < 2:
-        print(__doc__)
-        return 2
+    if argv[0] == "run":
+        if len(argv) < 2:
+            print(__doc__)
+            return 2
+        name, args = argv[1], argv[2:]
+    else:
+        routed = Router().route(" ".join(argv))
+        if routed is None:
+            print("Je n'ai pas compris. Le LLM local prendra le relais à l'étape 5 de la Phase 1.")
+            return 1
+        name, args = routed
     print(f"journal : {DB_PATH}", file=sys.stderr)
     try:
-        print(execute(argv[1], parse_args(argv[2:]), source="cli", audit=audit,
+        print(execute(name, parse_args(args) if isinstance(args, list) else args, source="cli", audit=audit,
                       confirm=confirm, strong_auth=no_strong_auth))
     except (ValueError, Refused) as e:
         print(e)
