@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from jarvis.core.audit import Audit
+from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
 from jarvis.core.tools import Tool, masked
@@ -62,10 +63,21 @@ def main(argv: list[str]) -> int:
             return 2
         name, args = argv[1], argv[2:]
     else:
-        routed = Router().route(" ".join(argv))
+        text = " ".join(argv)
+        routed = Router().route(text)
         if routed is None:
-            print("Je n'ai pas compris. Le LLM local prendra le relais à l'étape 5 de la Phase 1.")
-            return 1
+            try:
+                print(ask(text, audit=audit, confirm=confirm, strong_auth=no_strong_auth))
+            except LLMUnavailable as e:
+                print(e)
+                return 1
+            except (EOFError, KeyboardInterrupt):
+                print("\nAction annulée.")
+                return 1
+            except Exception as e:  # pas de trace : elle pourrait contenir des arguments ou des noms de fichiers
+                print(f"Erreur interne : {type(e).__name__}")
+                return 1
+            return 0
         name, args = routed
     print(f"journal : {DB_PATH}", file=sys.stderr)
     try:

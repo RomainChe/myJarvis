@@ -34,6 +34,7 @@ class Tool:
     params: dict[str, type]
     run: Callable[..., Any]
     private: bool = False  # résultat jamais journalisé en clair (presse-papiers, capture, fichier)
+    external: bool = False  # le résultat contient du contenu tiers (noms de fichiers, pages, emails)
 
     def check_args(self, args: dict) -> None:
         if type(args) is not dict:  # une sous-classe pourrait mentir sur keys() ou __getitem__
@@ -57,7 +58,7 @@ _registry: dict[str, Tool] = {}
 REGISTRY = MappingProxyType(_registry)  # lecture seule : un module ne peut pas remplacer un outil
 
 
-def tool(name: str, description: str, level: Level, /, *, private: bool = False, **params: type):
+def tool(name: str, description: str, level: Level, /, *, private: bool = False, external: bool = False, **params: type):
     """Décorateur : enregistre une fonction comme outil Jarvis.
 
     Arguments positionnels seulement : un outil peut avoir un paramètre `name` ou `level`.
@@ -71,6 +72,6 @@ def tool(name: str, description: str, level: Level, /, *, private: bool = False,
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
         if name in _registry:
             raise ValueError(f"outil déjà enregistré : {name}")
-        _registry[name] = Tool(name, description, Level(level), params, fn, private)
+        _registry[name] = Tool(name, description, Level(level), params, fn, private, external)
         return fn
     return register

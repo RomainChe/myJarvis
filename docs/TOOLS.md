@@ -50,7 +50,7 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
 ## search_files
 
 - **Description** : cherche les fichiers et dossiers dont le nom contient `name` sous `folder`.
-- **Niveau** : N0 (lecture).
+- **Niveau** : N0 (lecture). Drapeau `external` : après son appel, le LLM ne peut plus lancer d'action N2/N3 dans la même demande.
 - **Paramètres** :
   - `name` (texte, non vide) : comparaison sans casse ni accents (« ecran » trouve « Écran.png »).
   - `folder` (texte) : dossier existant ; `~` est le dossier utilisateur, un chemin relatif part

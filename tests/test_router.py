@@ -163,10 +163,11 @@ class CliPhraseTest(unittest.TestCase):
             code = cli.main(list(argv))
         return code, out.getvalue()
 
-    def test_phrase_inconnue_message_clair_sans_action(self):
-        code, out = self.main("raconte une blague")
+    def test_phrase_inconnue_confiee_au_llm_message_clair_si_absent(self):
+        with mock.patch.object(cli, "ask", side_effect=cli.LLMUnavailable("Ollama ne répond pas.")):
+            code, out = self.main("raconte une blague")
         self.assertEqual(code, 1)
-        self.assertIn("pas compris", out)
+        self.assertIn("Ollama ne répond pas", out)
         self.assertEqual(Audit(str(cli.DB_PATH)).last(), [])
 
     def test_phrase_reconnue_executee_et_journalisee(self):

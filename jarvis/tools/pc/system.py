@@ -107,7 +107,7 @@ def system_status() -> dict:
     }
 
 
-@tool("list_processes", f"Les {MAX_PROCESSES} processus qui utilisent le plus de mémoire.", Level.N0)
+@tool("list_processes", f"Les {MAX_PROCESSES} processus qui utilisent le plus de mémoire.", Level.N0, external=True)
 def list_processes() -> dict:
     out = subprocess.run([str(TASKLIST), "/fo", "csv", "/nh"], capture_output=True, timeout=10,
                          check=True, encoding="oem", errors="replace").stdout
@@ -121,7 +121,7 @@ def list_processes() -> dict:
 
 
 @tool("search_files", f"Cherche les fichiers et dossiers dont le nom contient `name` sous `folder` "
-                      f"({MAX_RESULTS} résultats max).", Level.N0, name=str, folder=str)
+                      f"({MAX_RESULTS} résultats max).", Level.N0, external=True, name=str, folder=str)
 def search_files(name: str, folder: str) -> dict:
     needle = fold(name.strip())
     if not needle:

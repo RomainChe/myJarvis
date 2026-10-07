@@ -131,3 +131,21 @@ Constats 1 à 6 et 9 corrigés. Verdict initial : veto, sur trois points.
 Constat 7 (résultats d'outils = données) : corrigé par `as_data` (`permissions.py`) : encadrement `<data>`, balises `data` du contenu neutralisées, troncature à 2 000 caractères. Test : `AsDataTest`. Le branchement du LLM doit l'appeler pour chaque résultat.
 
 Verdict final : **feu vert sous conditions**. R1 et R2 soldés (f8007cc). R3 accepté par le propriétaire le 2026-10-07 jusqu'en Phase 5 (ouverture des dossiers par handle).
+
+## Revue de l'étape 5 : LLM et mode jeu (2026-10-07)
+
+Verdict : **feu vert sous conditions**, conditions 1 à 4 soldées. Tests : `tests/test_llm.py`.
+
+| # | Constat | Gravité | Suite |
+|---|---|---|---|
+| 1 | `list_processes` (noms de processus = contenu tiers) sans drapeau `external` | Moyenne | Corrigé. Règle : tout outil dont le résultat contient un nom ou un texte venu d'un tiers est `external` (presse-papiers, fichiers, emails, Home Assistant, titres de fenêtres). |
+| 2 | Nombre d'appels par message non plafonné | Moyenne | Corrigé : `MAX_CALLS = 5`, les appels au-delà reçoivent « refusé ». |
+| 3 | `urllib` applique les proxys système : prompts hors machine | Moyenne | Corrigé : opener sans proxy ni redirection. `num_ctx` passé à 8192 pour ne pas tronquer le prompt système. |
+| 4 | Réponses malformées d'Ollama ou du modèle, exceptions d'outil : traces | Moyenne | Corrigé : formes validées, `Exception` rattrapée par appel (seul le type est renvoyé), CLI sans trace. |
+| 5 | La demande de l'utilisateur n'est pas journalisée | Basse | Reporté, décision RGPD du propriétaire (texte complet, tronqué ou hash). |
+| 6 | Arguments journalisés sans `check_args` sur le chemin « refusé après contenu externe » | Basse | Accepté : valeurs bornées par le journal. |
+| 7 | `tasklist` et `powershell` résolus via `SystemRoot` | Basse | Reporté en Phase 5. |
+| 8 | `games.txt` / `JARVIS_GAMES` sans limite de taille, UNC possible | Basse | Reporté en Phase 5 (64 Ko max, UNC refusé). |
+| 9 | Détection de jeu contournable ; le mode jeu n'est pas une garde (routeur et `run` restent actifs) | Basse | Accepté, sans impact sur la sécurité. |
+
+**Limite connue** : un outil N1 reste autorisé après la lecture de contenu externe (seuls N2 et N3 sont bloqués). Aucun N1 dangereux n'existe aujourd'hui. À rouvrir avant `open_app` et `run_script` : les bloquer aussi après contenu externe, ou valider leurs arguments par liste blanche.

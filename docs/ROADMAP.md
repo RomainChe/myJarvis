@@ -7,7 +7,7 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 - F1–F12 (docs/SECURITY_REVIEW_PHASE_1.md) et BUG-01..06 (docs/QA_REPORT_PHASE_1.md) corrigés le 2026-10-07, puis la contre-revue (C1–C7, C2bis). Veto N2/N3 levé pour le Core ; écart C1 (pas de HMAC) accepté par le propriétaire (ARCHITECTURE §6.5).
 - Routeur : constats Sécurité 1–6, 9 et contre-revue R1–R2 corrigés ; R3 (course jonction pendant `search_files`) accepté jusqu'en Phase 5. QA-R6, R7 corrigés. Constat 7 corrigé (`as_data` dans `permissions.py`, à utiliser pour tout résultat d'outil montré au LLM). Reste : QA-R5 (`list_processes` > 500 ms sous charge, bloque la sortie de Phase 1).
 - Benchmark fait (docs/MODEL_BENCHMARK.md) : qwen3:14b choisi.
-- Prochaine action : brancher le LLM (étape 5, résultats d'outils passés par `as_data`) ; QA-R5 en parallèle.
+- Étape 5 codée le 2026-10-07 (146 tests verts, essai réel sur qwen3:14b OK), revue Sécurité soldée, recette QA à faire. Prochaine action : recette QA de l'étape 5, puis étape 6 (les 16 outils PC) ; QA-R5 en parallèle.
 - Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7 ; Jarvis peut lire `.env` ; LLM = qwen3:14b sans réflexion, veille automatique pendant un jeu, déchargement après 15–30 min d'inactivité (ARCHITECTURE §6.6).
 - Décisions propriétaire en attente : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7.
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
@@ -25,7 +25,7 @@ Ordre imposé par l'Expert Sécurité : socle d'abord, outils ensuite.
 2. [x] Interface `Tool` + registre + garde de permissions N0–N3 + confirmations.
 3. [x] Journal d'audit SQLite (ajout seul, protégé par triggers) et `python -m jarvis audit`.
 4. [x] Routeur d'intentions (YAML + `difflib`) et mesure de latence.
-5. [ ] Ollama : benchmark fait, qwen3:14b choisi (docs/MODEL_BENCHMARK.md). Reste : tool calling branché, mode jeu, prompt au tutoiement, protection anti-injection.
+5. [x] Ollama : qwen3:14b (docs/MODEL_BENCHMARK.md), `jarvis/core/llm.py` : tool calling via la garde, résultats par `as_data`, pas de N2/N3 après un outil `external`, prompt au tutoiement, mode jeu (`jarvis/core/games.py` : Steam, LoL, Valorant, Genshin, Minecraft + `~/.jarvis/games.txt`). Revue Sécurité faite : feu vert, constats 1–4 corrigés (docs/SECURITY_REVIEW_PHASE_1.md), 5, 7, 8 reportés en Phase 5.
 6. [ ] Les 15 premiers outils PC (tests : cas nominal, entrée invalide, permission refusée) :
 
 | # | Outil | Niveau |
