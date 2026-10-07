@@ -74,6 +74,45 @@ class ScreenshotTest(PcBase):
             self.skipTest("pas de bureau interactif")
         self.assertEqual(len(pixels), w * h * 4)
 
+    def _calls_gdi(self, bitblt_ok=True):
+        gdi, user = mock.MagicMock(), mock.MagicMock()
+        user.GetSystemMetrics.side_effect = [0, 0, 2, 2]
+        gdi.SelectObject.return_value = 99
+        gdi.BitBlt.return_value = bitblt_ok
+        with mock.patch.object(screenshot, "_g32", gdi), mock.patch.object(screenshot, "_u32", user):
+            try:
+                screenshot._capture()
+            except OSError:
+                pass
+        wanted = {"SelectObject", "GetDIBits", "DeleteObject", "DeleteDC"}
+        return [(c[0], c[1][1] if c[0] == "SelectObject" else None) for c in gdi.mock_calls if c[0] in wanted]
+
+    def test_bitmap_deselectionne_avant_getdibits_et_suppression(self):
+        """S4 : SelectObject(ancien) -> GetDIBits -> DeleteObject(bitmap) -> DeleteDC."""
+        calls = self._calls_gdi()
+        names = [n for n, _ in calls]
+        self.assertEqual(names[-4:], ["SelectObject", "GetDIBits", "DeleteObject", "DeleteDC"])
+        self.assertEqual(calls[-4][1], 99)  # l'ancien objet du DC
+
+    def test_bitmap_deselectionne_meme_si_bitblt_echoue(self):
+        names = [n for n, _ in self._calls_gdi(bitblt_ok=False)]
+        self.assertEqual(names[-3:], ["SelectObject", "DeleteObject", "DeleteDC"])
+        self.assertNotIn("GetDIBits", names)
+
+    def test_captures_repetees_ne_fuient_pas_d_objets_gdi(self):
+        """S4 : le bitmap doit être désélectionné avant DeleteObject, sinon il fuit à chaque capture."""
+        import ctypes
+        user32, gdi_objects = ctypes.WinDLL("user32"), 0  # GR_GDIOBJECTS
+        process = ctypes.WinDLL("kernel32").GetCurrentProcess()
+        try:
+            screenshot._capture()
+        except OSError:
+            self.skipTest("pas de bureau interactif")
+        before = user32.GetGuiResources(process, gdi_objects)
+        for _ in range(20):
+            screenshot._capture()
+        self.assertLess(user32.GetGuiResources(process, gdi_objects) - before, 5)
+
     def test_sans_confirmation_rien_n_est_capture(self):
         with mock.patch.object(screenshot, "_capture") as capture:
             with self.assertRaises(Refused):

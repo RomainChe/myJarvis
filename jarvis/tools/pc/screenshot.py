@@ -45,11 +45,15 @@ def _capture() -> tuple[int, int, bytes]:
     screen = _u32.GetDC(None)
     memory = _g32.CreateCompatibleDC(screen)
     bitmap = _g32.CreateCompatibleBitmap(screen, w, h)
+    old = None
     try:
         if not (screen and memory and bitmap):
             raise OSError("capture impossible")
-        _g32.SelectObject(memory, bitmap)
-        if not _g32.BitBlt(memory, 0, 0, w, h, screen, x, y, SRCCOPY_CAPTUREBLT):
+        old = _g32.SelectObject(memory, bitmap)
+        copied = _g32.BitBlt(memory, 0, 0, w, h, screen, x, y, SRCCOPY_CAPTUREBLT)
+        _g32.SelectObject(memory, old)  # GetDIBits et DeleteObject exigent un bitmap non sélectionné
+        old = None
+        if not copied:
             raise OSError("capture impossible")
         header = _BitmapInfoHeader(ctypes.sizeof(_BitmapInfoHeader), w, -h, 1, 32, 0)  # hauteur < 0 : haut en bas
         pixels = ctypes.create_string_buffer(w * h * 4)
@@ -57,6 +61,8 @@ def _capture() -> tuple[int, int, bytes]:
             raise OSError("capture impossible")
         return w, h, pixels.raw
     finally:
+        if old:  # sortie en erreur entre la sélection et la restauration
+            _g32.SelectObject(memory, old)
         if bitmap:
             _g32.DeleteObject(bitmap)
         if memory:
