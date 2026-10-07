@@ -1,0 +1,152 @@
+{
+  "_doc": "Réponses courtes sans LLM. Forme neutre (ni tu ni vous). Placeholders {x} au format str.format. Chaque cas est une liste de variantes interchangeables : le Core en tire une au hasard. Cas courants : ok (ou un nom de résultat précis), empty, error, confirm (N2, avant exécution). Voir docs/PERSONNALITE.md.",
+  "system": {
+    "wake_ack": ["Oui ?"],
+    "not_understood": ["Je n'ai pas compris.", "Pardon, je n'ai pas saisi."],
+    "unknown_tool": ["Cet outil n'existe pas encore."],
+    "invalid_args": ["Commande incomplète : {detail}."],
+    "out_of_scope": ["Ça, je ne sais pas le faire."],
+    "thanks": ["Avec plaisir.", "Toujours."],
+    "generic_ok": ["C'est fait.", "Fait."],
+    "generic_ok_night": ["Fait."],
+    "generic_error": ["Échec : {raison}. Rien n'a été modifié."]
+  },
+  "permission": {
+    "n2_confirm_generic": ["Confirmation requise : {action} ?"],
+    "n2_confirmed": ["Confirmé. C'est fait."],
+    "n2_cancelled": ["Annulé. Rien n'a été fait."],
+    "n2_timeout": ["Sans réponse, j'annule."],
+    "n2_external_source": ["Demande issue d'un contenu externe ({source}). Confirmation requise : {action} ?"],
+    "n2_voice_not_owner": ["Voix non reconnue. Confirmation à faire dans l'application."],
+    "n3_phone": ["Action critique : validation sur le téléphone, avec l'empreinte."],
+    "n3_voice_refused": ["Pas de validation à la voix pour ça. Demande envoyée sur le téléphone."],
+    "n3_failed": ["Validation non reçue. Rien n'a été fait."],
+    "level_change": ["Changer un niveau de permission se valide sur le téléphone."]
+  },
+  "degraded": {
+    "llm_down": ["Mon module de raisonnement est arrêté. Les commandes simples marchent toujours."],
+    "llm_loading": ["Une seconde, je me réveille."],
+    "llm_gaming": ["Le GPU est occupé. Je reste sur les commandes simples."],
+    "ha_down": ["La domotique ne répond pas. Le PC reste pilotable."],
+    "device_unavailable": ["{appareil} est indisponible."],
+    "network_down": ["Pas de réseau local. Seul le PC est pilotable."],
+    "mic_down": ["Je n'entends rien : le micro est débranché ou bloqué."]
+  },
+  "tools": {
+    "system_status": {
+      "ok": ["Processeur {cpu} %, mémoire {ram} %, GPU {gpu} %."],
+      "error": ["Impossible de lire l'état du système."]
+    },
+    "list_processes": {
+      "ok": ["{n} processus actifs. Le plus gourmand : {top}."],
+      "error": ["Impossible de lister les processus."]
+    },
+    "search_files": {
+      "ok": ["{n} fichiers trouvés. Le premier : {premier}."],
+      "empty": ["Aucun fichier ne correspond à « {requete} »."],
+      "error": ["Recherche impossible : {raison}."]
+    },
+    "open_app": {
+      "ok": ["{app} est ouvert.", "J'ouvre {app}."],
+      "error": ["{app} est introuvable."]
+    },
+    "close_app": {
+      "ok": ["{app} est fermé."],
+      "not_running": ["{app} n'est pas ouvert."],
+      "error": ["{app} refuse de se fermer."]
+    },
+    "set_volume": {
+      "ok": ["Volume à {niveau}."],
+      "error": ["Impossible de régler le volume."]
+    },
+    "mute": {
+      "muted": ["Son coupé."], "unmuted": ["Son rétabli."],
+      "error": ["Impossible de couper le son."]
+    },
+    "media_control": {
+      "play": ["Lecture."], "pause": ["Pause."], "next": ["Piste suivante."], "previous": ["Piste précédente."],
+      "error": ["Aucun lecteur actif."]
+    },
+    "screen_off": {
+      "ok": ["Écran éteint."],
+      "error": ["Impossible d'éteindre l'écran."]
+    },
+    "lock_session": {
+      "ok": ["Session verrouillée."],
+      "error": ["Impossible de verrouiller la session."]
+    },
+    "clipboard_write": {
+      "ok": ["Copié."],
+      "error": ["Impossible d'écrire dans le presse-papiers."]
+    },
+    "clipboard_read": {
+      "confirm": ["Lire le presse-papiers ? Il peut contenir un mot de passe."],
+      "ok": ["Le presse-papiers contient : {contenu}."],
+      "empty": ["Le presse-papiers est vide."],
+      "error": ["Impossible de lire le presse-papiers."]
+    },
+    "screenshot": {
+      "confirm": ["Prendre une capture d'écran ?"],
+      "ok": ["Capture enregistrée."],
+      "error": ["Capture impossible."]
+    },
+    "move_file": {
+      "confirm": ["Déplacer {fichier} vers {destination} ?"],
+      "ok": ["{fichier} est déplacé."],
+      "error": ["Déplacement impossible : {raison}."]
+    },
+    "delete_file": {
+      "confirm": ["Supprimer {fichier} ? Il ira dans la corbeille."],
+      "ok": ["{fichier} est dans la corbeille."],
+      "error": ["Suppression impossible : {raison}."]
+    },
+    "kill_process": {
+      "confirm": ["Fermer de force {processus} ? Le travail non enregistré sera perdu."],
+      "ok": ["{processus} est arrêté."],
+      "error": ["{processus} résiste : {raison}."]
+    },
+    "power": {
+      "confirm_sleep": ["Mettre le PC en veille ? Jarvis ne répondra plus jusqu'au réveil."],
+      "confirm_restart": ["Redémarrer le PC ? Jarvis et la domotique seront coupés quelques minutes."],
+      "confirm_shutdown": ["Éteindre le PC ? Jarvis et la domotique seront coupés."],
+      "ok": ["À plus tard."],
+      "error": ["Windows a refusé : {raison}."]
+    },
+    "run_script": {
+      "confirm": ["Lancer le script {script} ?"],
+      "ok": ["Script {script} terminé."],
+      "not_allowed": ["{script} n'est pas dans la liste autorisée."],
+      "error": ["Le script {script} a échoué : {raison}."]
+    },
+    "home_state": {
+      "value": ["{valeur} dans {piece}."], "state": ["{appareil} : {etat}."],
+      "error": ["Impossible de lire {appareil}."]
+    },
+    "home_light": {
+      "on": ["Lumière de {piece} allumée."], "off": ["Lumière de {piece} éteinte."],
+      "error": ["La lumière de {piece} ne répond pas."]
+    },
+    "home_tv": {
+      "on": ["TV allumée."], "off": ["TV éteinte."], "channel": ["TV sur {chaine}."],
+      "error": ["La TV ne répond pas. Elle est peut-être en veille profonde."]
+    },
+    "home_cover": {
+      "open": ["Volets de {piece} ouverts."], "closed": ["Volets de {piece} fermés."], "position": ["Volets de {piece} à {position} %."],
+      "error": ["Le volet de {piece} n'a pas bougé : module hors ligne."]
+    },
+    "home_climate": {
+      "ok": ["{piece} réglée à {temperature} degrés."],
+      "error": ["La clim de {piece} ne répond pas."]
+    },
+    "home_climate_off": {
+      "confirm": ["Couper le chauffage de {piece} ?"],
+      "ok": ["Chauffage de {piece} coupé."],
+      "error": ["La clim de {piece} ne répond pas."]
+    },
+    "scene": {
+      "ok": ["Mode {scene} prêt."], "ok_bonne_nuit": ["Bonne nuit. Tout est éteint, les volets sont fermés."],
+      "partial": ["Mode {scene} lancé, sauf : {echecs}."],
+      "error": ["Le mode {scene} a échoué."]
+    }
+  }
+}
