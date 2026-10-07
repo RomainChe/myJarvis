@@ -21,8 +21,9 @@ enceintes, caméras, etc.). JARVIS doit être :
 ## 2. Contexte du propriétaire
 - Système d'exploitation du PC : Windows 11 Pro (i5-14600KF, 32 Go RAM, RTX 5070 Ti 16 Go)
 - Smartphone : Android
-- Box / routeur : [à préciser]
-- Appareils connus : TV / enceintes, volets / chauffage [marques à préciser]
+- Box / routeur : Bbox Wi-Fi 7 XT (Bouygues)
+- Appareils connus : TV Continental Edison Google TV ; 2 clims réversibles Mitsubishi
+  MSZ-HR25VFK2 (salon, chambre) = chauffage ; volets roulants Turol Industries (motorisation à préciser)
 - Matériel disponible pour un serveur domestique : aucun, tout tourne sur le PC
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
 - Budget mensuel API IA : 0 € → LLM 100 % local (Ollama), aucune API payante.

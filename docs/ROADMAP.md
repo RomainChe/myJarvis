@@ -2,11 +2,11 @@
 
 Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et** du propriétaire.
 
-## Phase 0 — Cadrage ✅ (en attente de validation)
+## Phase 0 — Cadrage ✅
 - [x] Inventaire du matériel (PC, smartphone, budget)
 - [x] Architecture : `docs/ARCHITECTURE.md`
-- [ ] Marques et modèles exacts : TV, enceintes, volets, chauffage, box
-- [ ] Validation des 4 décisions (ARCHITECTURE §6)
+- [x] Marques et modèles : TV, clims, box (motorisation des volets à préciser avant la Phase 2)
+- [x] Validation des 4 décisions (ARCHITECTURE §6)
 
 ## Phase 1 — Core + outils PC
 Ordre imposé par l'Expert Sécurité : socle d'abord, outils ensuite.

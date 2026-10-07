@@ -1,6 +1,6 @@
 # JARVIS — Architecture (Phase 0)
 
-Statut : **proposition, en attente de validation** (Expert Sécurité + propriétaire).
+Statut : **validée** par le propriétaire et l'Expert Sécurité le 2026-10-07.
 
 ## 1. Contraintes issues du cadrage
 
@@ -9,7 +9,7 @@ Statut : **proposition, en attente de validation** (Expert Sécurité + proprié
 | PC | Windows 11 Pro, i5-14600KF, 32 Go RAM, RTX 5070 Ti 16 Go | Assez puissant pour faire tourner un LLM et Whisper en local |
 | Serveur 24 h/24 | Aucun : tout tourne sur le PC | Jarvis et la domotique sont indisponibles quand le PC est éteint |
 | Smartphone | Android | Une PWA installable suffit (pas de store, pas de Mac) |
-| Appareils | TV / enceintes, volets / chauffage (marques à préciser) | Intégrations Home Assistant en Phase 2 |
+| Appareils | TV Google TV, 2 clims réversibles, volets roulants | Intégrations Home Assistant en Phase 2 (§3.4) |
 | Budget IA | **0 €** | Aucun appel d'API payante : LLM local via Ollama |
 
 Tout ce qui est retenu est gratuit et open source, ou gratuit pour un usage personnel (Tailscale).
@@ -72,7 +72,15 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 - C'est la méthode officiellement supportée sous Windows (Docker Desktop sous Windows ne gère pas le réseau `host` qu'exige la découverte des appareils).
 - La VM est en réseau ponté, donc HA a sa propre IP sur le réseau local.
 - Jarvis parle à HA uniquement via son API REST et WebSocket, avec un token longue durée rangé dans le keyring Windows.
-- **Risque accepté :** PC éteint = plus de domotique pilotée par Jarvis. Les plannings de chauffage restent donc **dans le thermostat** (ou dans son appli), jamais seulement dans HA.
+- **Risque accepté :** PC éteint = plus de domotique pilotée par Jarvis. Les plannings de chauffage restent donc **dans les clims** (minuterie ou appli MELCloud), jamais seulement dans HA.
+
+| Appareil | Intégration HA | Local ? | Matériel en plus |
+|---|---|---|---|
+| TV Continental Edison (Google TV) | Android TV Remote + Google Cast | oui | aucun |
+| 2 clims Mitsubishi MSZ-HR25VFK2 | MELCloud (officielle) | non, cloud Mitsubishi | aucun si le Wi-Fi est déjà configuré |
+| idem, option locale | ESPHome sur le connecteur CN105 | oui | un ESP32 par clim (~15 €), ouverture de l'unité intérieure |
+| Volets Turol Industries | dépend de la motorisation (Somfy RTS, Somfy io, filaire…) | à préciser | à préciser |
+| Bbox Wi-Fi 7 XT | aucune nécessaire | — | aucun (Tailscale n'ouvre aucun port) |
 
 ### 3.5 Applications : une PWA d'abord
 **Écart à valider :** au lieu de Tauri + React Native (deux apps, Rust à installer, deux bases de code), le Core sert **une seule PWA** responsive :
@@ -132,7 +140,7 @@ myJarvis/
 └─ tests/
 ```
 
-## 6. Décisions à valider par le propriétaire
+## 6. Décisions validées par le propriétaire (2026-10-07)
 
 1. Core et Agent PC fusionnés dans un seul processus en session utilisateur (§3.1).
 2. Une PWA au lieu de Tauri + React Native (§3.5).
