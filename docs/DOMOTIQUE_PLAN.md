@@ -150,9 +150,8 @@ Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le P
 | Adaptateur MAC-597IF-E | option A, si aucun adaptateur Wi-Fi sur les clims | ~90-130 € par clim |
 | ESP32 + câble CN105 | option B, clims en local | ~15-30 € par clim |
 | Shelly 1 Mini Gen4 | lumière du salon (marche/arrêt) | ~15-20 € |
-| Cuisine : ampoules WiZ « Tunable White » (E27 A60 ou GU10 selon les douilles), intégration *WiZ* locale | douilles classiques, choix du propriétaire | ~10-15 € l'ampoule |
-| Salle de bain, solution A : miroir LED IP44 sur Shelly 1 Mini + enceinte Google Cast + Music Assistant ; interface = PWA sur le téléphone | en attente du choix | ~150-200 € |
-| Salle de bain, solution B : miroir nu + ruban LED 24 V IP65 sur Shelly RGBW PM (variation, couleur) + enceinte Cast ; interface = tablette murale (PWA) hors volumes | en attente du choix | ~250-350 € |
+| Cuisine : 1 ampoule WiZ Tunable White A60 **E27** (douille nue au plafond, intégration *WiZ* locale) | choix du propriétaire | ~10-15 € |
+| Salle de bain (solution B retenue) : ruban LED 24 V IP65 autour du miroir + Mean Well LPV-60-24 + Shelly Plus RGBW PM ; Google Nest Mini (Cast, pas d'Echo Dot) ; interface = PWA sur le téléphone, tablette murale en option | combinaisons chiffrées le 2026-10-07 | ~100 € (base) à ~250 € (complet) |
 | Broadlink RM4 mini | seulement si le CEC ne suffit pas pour la barre de son | ~25 € |
 
 Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims ont déjà leur adaptateur Wi-Fi.

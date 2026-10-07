@@ -57,8 +57,11 @@ _registry: dict[str, Tool] = {}
 REGISTRY = MappingProxyType(_registry)  # lecture seule : un module ne peut pas remplacer un outil
 
 
-def tool(name: str, description: str, level: Level, *, private: bool = False, **params: type):
-    """Décorateur : enregistre une fonction comme outil Jarvis."""
+def tool(name: str, description: str, level: Level, /, *, private: bool = False, **params: type):
+    """Décorateur : enregistre une fonction comme outil Jarvis.
+
+    Arguments positionnels seulement : un outil peut avoir un paramètre `name` ou `level`.
+    """
     for key, typ in params.items():
         if typ not in PARAM_TYPES:
             raise ValueError(f"{name}.{key} : type {typ} non autorisé (str, int, float, bool)")

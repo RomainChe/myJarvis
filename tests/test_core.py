@@ -97,6 +97,10 @@ class GateTest(unittest.TestCase):
             self.run_tool("test_crash")
         self.assertEqual(self.audit.last(1)[0][6], "erreur : RuntimeError: boum")
 
+    def test_parametre_nomme_name_accepte(self):
+        tool("test_named", "paramètre name", Level.N0, name=str, level=int)(lambda name, level: name)
+        self.assertEqual(self.run_tool("test_named", {"name": "x", "level": 1}), "x")
+
     def test_double_enregistrement_interdit(self):
         with self.assertRaises(ValueError):
             tool("test_read", "doublon", Level.N0)(lambda: None)

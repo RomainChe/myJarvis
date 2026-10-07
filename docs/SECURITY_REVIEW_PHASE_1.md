@@ -70,7 +70,7 @@ ni dans l'historique.
    minimal. En dessous, la demande part au LLM et ne déclenche pas l'outil le plus proche.
 5. Les intentions N2/N3 ne sont jamais exécutées « parce que le score est haut » : la
    confirmation reste obligatoire.
-6. `intents.yaml` est chargé avec `yaml.safe_load` et validé : un motif ne peut viser qu'un
+6. `intents.json` est chargé avec `json.loads` et validé : un motif ne peut viser qu'un
    outil du registre, et ne porte pas de niveau (le niveau vient de l'outil).
 
 ## Règles pour les outils PC
@@ -117,3 +117,17 @@ Verdict initial : feu vert sous conditions. Tests : classe `ContreRevueTest` de 
 | C2bis | Journal coupé à 200 caractères alors que `check_args` en accepte 1 000 | Troncature par valeur alignée sur `STR_MAX` (1 000) : un appel valide est journalisé en entier. |
 
 Verdict final : **feu vert sous conditions, veto N2/N3 levé pour le Core**. Écart C1 (pas de HMAC) accepté par le propriétaire le 2026-10-07 (ARCHITECTURE §6.5).
+
+## Contre-revue de la branche `routeur` (2026-10-07)
+
+Constats 1 à 6 et 9 corrigés. Verdict initial : veto, sur trois points.
+
+| # | Constat | Gravité | Correctif |
+|---|---|---|---|
+| R1 | UNC non détecté sous la forme `\/hôte/partage` ou `/\hôte\partage` : `resolve()` contacte l'hôte (fuite du hash NTLM) | Haute | `/` remplacé par `\`, lecteur refusé s'il n'est pas `X:`. Sortie du dossier utilisateur vérifiée avec `os.path.abspath` **avant** `resolve()`. Le test interdit `is_dir` et `resolve`. |
+| R2 | Noms réservés `COM¹-³`, `LPT¹-³`, `CONIN$`, `CONOUT$`, `CLOCK$` absents | Basse | Ajoutés à `RESERVED_NAMES`. |
+| R3 | Course entre `resolve()` et `os.walk`, et entre l'élagage d'un dossier et la descente dedans (dossier remplacé par une jonction) | Basse | Pas de correctif en Phase 1 : l'attaque exige déjà le droit d'écrire dans le dossier utilisateur. **Risque résiduel à accepter par le propriétaire.** Correctif plus tard : ouvrir les dossiers par handle. |
+
+Le constat 7 (résultats d'outils = données) reste bloquant pour l'étape 5.
+
+Verdict final : **feu vert sous conditions**. R1 et R2 soldés (f8007cc). R3 accepté par le propriétaire le 2026-10-07 jusqu'en Phase 5 (ouverture des dossiers par handle).

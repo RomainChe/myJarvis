@@ -1,0 +1,26 @@
+[
+  {
+    "tool": "system_status",
+    "phrases": [
+      "etat du systeme", "etat du pc", "statut du pc", "comment va le pc",
+      "utilisation du processeur", "utilisation de la memoire", "combien de ram",
+      "etat de la carte graphique", "temperature du gpu", "espace disque"
+    ]
+  },
+  {
+    "tool": "list_processes",
+    "phrases": [
+      "liste des processus", "liste les processus", "processus en cours",
+      "quels programmes tournent", "qu est ce qui tourne"
+    ]
+  },
+  {
+    "tool": "search_files",
+    "patterns": [
+      "(cherche|trouve|recherche) (le |les |un |des )?(fichiers? )?{name} dans (le dossier |mes |les |mon )?{folder}",
+      "(cherche|trouve|recherche) (le |les |un |des )?fichiers? {name}"
+    ],
+    "defaults": {"folder": "~"},
+    "choices": {"folder": ["documents", "telechargements", "images", "photos", "bureau", "musique", "videos"]}
+  }
+]
