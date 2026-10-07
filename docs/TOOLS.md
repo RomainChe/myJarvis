@@ -181,3 +181,12 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Retour** : `text` (4 000 caractères au plus), `chars` (longueur réelle), `truncated`. Texte vide si le presse-papiers est vide ou non textuel.
 - **Exemple** : `python -m jarvis run clipboard_read`.
 - **Notes** : le LLM reçoit le contenu encadré par `<data>` et tronqué à 2 000 caractères (`as_data`) : c'est une donnée, jamais un ordre.
+
+## screenshot
+
+- **Description** : capture tous les écrans dans un PNG de `~/Pictures/Jarvis` et renvoie le chemin.
+- **Niveau** : N2 (confirmation, vie privée). Drapeau `private` : le chemin n'est pas journalisé (seulement le type et la taille du résultat).
+- **Paramètres** : aucun.
+- **Retour** : `path` et `bytes`. L'image n'est jamais renvoyée au LLM.
+- **Exemple** : `python -m jarvis run screenshot`.
+- **Notes** : GDI (`BitBlt`) via `ctypes`, PNG encodé avec `zlib` ; bureau virtuel entier, sans mise à l'échelle DPI. Fichier `capture-AAAAMMJJ-HHMMSS.png`, jamais écrasé. Le dossier est supprimable avec `delete_file`.
