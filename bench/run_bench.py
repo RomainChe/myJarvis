@@ -143,6 +143,7 @@ def bench(model, data, think):
 
 
 def main(argv=None):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # console Windows cp1252 : emojis des réponses
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("models", nargs="+")
     p.add_argument("--think", action="store_true", help="active le mode réflexion")
