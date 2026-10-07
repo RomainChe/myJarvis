@@ -128,6 +128,6 @@ Constats 1 à 6 et 9 corrigés. Verdict initial : veto, sur trois points.
 | R2 | Noms réservés `COM¹-³`, `LPT¹-³`, `CONIN$`, `CONOUT$`, `CLOCK$` absents | Basse | Ajoutés à `RESERVED_NAMES`. |
 | R3 | Course entre `resolve()` et `os.walk`, et entre l'élagage d'un dossier et la descente dedans (dossier remplacé par une jonction) | Basse | Pas de correctif en Phase 1 : l'attaque exige déjà le droit d'écrire dans le dossier utilisateur. **Risque résiduel à accepter par le propriétaire.** Correctif plus tard : ouvrir les dossiers par handle. |
 
-Le constat 7 (résultats d'outils = données) reste bloquant pour l'étape 5.
+Constat 7 (résultats d'outils = données) : corrigé par `as_data` (`permissions.py`) : encadrement `<data>`, balises `data` du contenu neutralisées, troncature à 2 000 caractères. Test : `AsDataTest`. Le branchement du LLM doit l'appeler pour chaque résultat.
 
 Verdict final : **feu vert sous conditions**. R1 et R2 soldés (f8007cc). R3 accepté par le propriétaire le 2026-10-07 jusqu'en Phase 5 (ouverture des dossiers par handle).

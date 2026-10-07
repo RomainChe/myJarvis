@@ -3,12 +3,28 @@
 Le LLM ou le routeur proposent un appel ; c'est ce code qui décide, jamais le prompt.
 Échec fermé : la décision est journalisée avant l'exécution ; si le journal échoue, rien ne s'exécute.
 """
+import re
 from typing import Any, Callable
 
 from .audit import Audit
 from .tools import REGISTRY, Level, Tool, masked
 
 ERROR_MAX = 200
+
+
+DATA_MAX = 2000
+_DATA_TAG = re.compile(r"<\s*/?\s*data\b", re.IGNORECASE)
+
+
+def as_data(result: Any) -> str:
+    """Résultat d'outil présenté au LLM : une donnée tronquée, jamais un ordre (constat 7).
+
+    Les balises `data` du contenu sont neutralisées : il ne peut pas fermer l'encadrement.
+    """
+    text = _DATA_TAG.sub("(balise)", str(result))
+    if len(text) > DATA_MAX:
+        text = text[:DATA_MAX] + f"… [tronqué, {len(text)} car.]"
+    return f"<data>{text}</data>"
 
 
 class Refused(Exception):

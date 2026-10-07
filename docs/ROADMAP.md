@@ -5,9 +5,9 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 ## État actuel (à lire en reprise de session)
 - Phase en cours : **Phase 1**, étapes 1 à 4 faites (routeur + 3 outils N0 fusionnés dans `main` le 2026-10-07) ; Ollama 0.40.0 (127.0.0.1:11434) ; qwen3:8b, ministral-3:8b et qwen3:14b téléchargés le 2026-10-07.
 - F1–F12 (docs/SECURITY_REVIEW_PHASE_1.md) et BUG-01..06 (docs/QA_REPORT_PHASE_1.md) corrigés le 2026-10-07, puis la contre-revue (C1–C7, C2bis). Veto N2/N3 levé pour le Core ; écart C1 (pas de HMAC) accepté par le propriétaire (ARCHITECTURE §6.5).
-- Routeur : constats Sécurité 1–6, 9 et contre-revue R1–R2 corrigés ; R3 (course jonction pendant `search_files`) accepté jusqu'en Phase 5. QA-R6, R7 corrigés. Restent : QA-R5 (`list_processes` > 500 ms sous charge, bloque la sortie de Phase 1) et le constat 7 (résultats d'outils = données, bloquant pour l'étape 5).
+- Routeur : constats Sécurité 1–6, 9 et contre-revue R1–R2 corrigés ; R3 (course jonction pendant `search_files`) accepté jusqu'en Phase 5. QA-R6, R7 corrigés. Constat 7 corrigé (`as_data` dans `permissions.py`, à utiliser pour tout résultat d'outil montré au LLM). Reste : QA-R5 (`list_processes` > 500 ms sous charge, bloque la sortie de Phase 1).
 - Benchmark fait (docs/MODEL_BENCHMARK.md) : qwen3:14b choisi.
-- Prochaine action : constat 7 (résultats d'outils encadrés `<data>` et tronqués), puis brancher le LLM (étape 5) ; QA-R5 en parallèle.
+- Prochaine action : brancher le LLM (étape 5, résultats d'outils passés par `as_data`) ; QA-R5 en parallèle.
 - Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7 ; Jarvis peut lire `.env` ; LLM = qwen3:14b sans réflexion, veille automatique pendant un jeu, déchargement après 15–30 min d'inactivité (ARCHITECTURE §6.6).
 - Décisions propriétaire en attente : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7.
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
