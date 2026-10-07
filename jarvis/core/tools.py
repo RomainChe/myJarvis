@@ -34,8 +34,11 @@ class Tool:
 REGISTRY: dict[str, Tool] = {}
 
 
-def tool(name: str, description: str, level: Level, **params: type):
-    """Décorateur : enregistre une fonction comme outil Jarvis."""
+def tool(name: str, description: str, level: Level, /, **params: type):
+    """Décorateur : enregistre une fonction comme outil Jarvis.
+
+    Arguments positionnels seulement : un outil peut avoir un paramètre `name` ou `level`.
+    """
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
         if name in REGISTRY:
             raise ValueError(f"outil déjà enregistré : {name}")
