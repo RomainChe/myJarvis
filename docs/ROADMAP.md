@@ -8,8 +8,8 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 - **Veto Sécurité** sur tout outil N2/N3 et sur le branchement routeur/LLM tant que F1–F8 (docs/SECURITY_REVIEW_PHASE_1.md) et BUG-01..06 (docs/QA_REPORT_PHASE_1.md) ne sont pas corrigés.
 - Branche `worktree-agent-a0058f7db3245d1e9` (routeur + 3 outils N0) : en attente de revue QA puis Sécurité, non fusionnée.
 - Prochaine action : Dev corrige F1–F8 / BUG-01..06, puis revue QA + Sécurité de sa branche.
-- Décisions propriétaire en attente : téléchargement des 3 modèles (~20,5 Go), registre (vous/tu), clims (cloud ou ESPHome), questions domotique (docs/DOMOTIQUE_PLAN.md §6), destination des sauvegardes, lecture de `.env`.
-- Question en attente : nombre de volets (un module Shelly 2PM par volet, Phase 2).
+- Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7.
+- Décisions propriétaire en attente : téléchargement des 3 modèles (~20,5 Go), destination des sauvegardes, lecture de `.env`, reste de DOMOTIQUE_PLAN §7.
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 
 ## Phase 0 — Cadrage ✅

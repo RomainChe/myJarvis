@@ -125,7 +125,7 @@ Implémentées en **scripts HA** (`script.jarvis_*`), car elles enchaînent des 
 | Scène | Actions | Niveau |
 |---|---|---|
 | « Mode cinéma » | Volets du salon fermés ; TV salon allumée (barre suivie par CEC) sur l'appli ou la source demandée ; volume préréglé | N1 |
-| « Je pars » | TV éteinte ; clims en consigne éco (ex. 17 °C, Q6) ; volets selon préférence (Q5) ; rapport des volets ouverts et appareils encore allumés ; option PC : verrouillage de session | N1 (N2 si l'option « clims éteintes » est choisie) |
+| « Je pars » | TV éteinte ; clims en consigne éco (Q6) ; **volets laissés tels quels** (chat à la maison) ; rapport des volets ouverts et appareils encore allumés ; option PC : verrouillage de session | N1 (N2 si l'option « clims éteintes » est choisie) |
 | « Bonne nuit » | TV éteinte ; volets fermés ; clim chambre en consigne nuit, clim salon en éco (Q6) ; option PC : écran éteint + verrouillage | N1 |
 
 Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le PC en veille n'est dans aucune scène (cela couperait HA).
@@ -156,6 +156,29 @@ Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims 
 10. Pose des Shelly : par vous-même (habilité 230 V) ou par un électricien ?
 11. Où copier les sauvegardes HA hors du PC (disque externe, NAS, autre) ?
 12. La Bbox a-t-elle la bande 2,4 GHz active avec un SSID séparable ou combiné ? (pas besoin de me donner son nom)
+
+## 7. Réponses du propriétaire (2026-10-07)
+
+| Q | Réponse | Conséquence |
+|---|---|---|
+| 1 | **1 seul volet** (pièce à confirmer) | 1 Shelly 2PM Gen4, ~35 € |
+| 2 | Le neutre se vérifie dans la boîte derrière l'interrupteur ; type d'interrupteur à tester | Voir §8 |
+| 4 | **Option A** (adaptateur officiel, cloud Mitsubishi) | Signalée à la Sécurité : cloud, Internet obligatoire |
+| 5 | « Je pars » : volets **tels quels** (chat) | Scène mise à jour §4 |
+| 6 | La consigne dépend de la consigne éco **et** de la baie vitrée ouverte ; appliquée **seulement sur demande ou programmation**, jamais déduite seule | Capteur d'ouverture sur la baie : Shelly BLU Door/Window (~20 €), relayé en Bluetooth par le Shelly 2PM Gen4, 100 % local. Baie ouverte → clim de la pièce coupée, refermée → consigne reprise. Règle programmée par le propriétaire : validation Sécurité requise (coupure = N2) |
+| 8 | TV joignable en veille : **oui** | Allumage à distance possible |
+| 9 | PC en **Ethernet** | Pont Hyper-V fiable, mDNS OK |
+| 12 | 2,4 GHz actif, canal 11, 20 MHz (auto) | Bon pour Shelly et l'adaptateur Mitsubishi. Si l'appairage échoue : SSID 2,4 GHz séparé ou WPA2 seul, MLO Wi-Fi 7 désactivé pour cet SSID |
+
+Restent : pièce du volet, type d'interrupteur, valeurs des consignes éco et nuit, présence d'un adaptateur Wi-Fi sur les clims (Q3), pose des Shelly (Q10), destination des sauvegardes (Q11).
+
+## 8. Pose du Shelly 2PM (volet)
+1. **Disjoncteur du volet coupé**, absence de tension vérifiée au testeur (VAT). Non habilité 230 V → électricien.
+2. Démonter l'interrupteur : chercher un fil **bleu (neutre)** dans la boîte. Sans neutre, le Shelly 2PM ne peut pas être posé.
+3. Type d'interrupteur : appuyer sur « monter » et lâcher. La touche reste enfoncée → **à bascule** ; elle revient au centre → **à poussoir**.
+4. Câblage (mode volet) : phase et neutre → `L` et `N` du Shelly ; fils moteur montée/descente → `O1`/`O2` ; sorties de l'interrupteur → `S1`/`S2` (l'interrupteur reste alimenté par la phase) ; la terre ne passe pas par le Shelly.
+5. Remettre le courant, appli Shelly : Wi-Fi 2,4 GHz, profil **volet**, type d'entrée (bascule/poussoir), **calibration** de la course, cloud Shelly désactivé, réservation DHCP dans la Bbox.
+6. Test : l'interrupteur mural doit toujours piloter le volet, avec et sans Wi-Fi.
 
 ## Sources consultées (2026-10-07)
 - Installation Windows / Hyper-V : https://www.home-assistant.io/installation/windows
