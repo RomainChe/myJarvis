@@ -10,7 +10,7 @@ from pathlib import Path
 
 from jarvis.core.audit import Audit
 from jarvis.core.permissions import Refused, execute
-from jarvis.core.tools import Tool
+from jarvis.core.tools import Tool, masked
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")
 
@@ -32,7 +32,7 @@ def confirm(tool: Tool, args: dict) -> bool:
     if not sys.stdin.isatty():  # `echo o | jarvis run ...` : pas d'humain devant l'écran
         print("Confirmation refusée : la CLI exige un terminal interactif.")
         return False
-    return input(f"Confirmer {tool.name} {args} ? [o/N] ").strip().lower() == "o"
+    return input(f"Confirmer {tool.name} {masked(args)} ? [o/N] ").strip().lower() == "o"
 
 
 def no_strong_auth(tool: Tool, args: dict) -> bool:
@@ -62,6 +62,9 @@ def main(argv: list[str]) -> int:
                       confirm=confirm, strong_auth=no_strong_auth))
     except (ValueError, Refused) as e:
         print(e)
+        return 1
+    except (EOFError, KeyboardInterrupt):
+        print("\nAction annulée.")
         return 1
     return 0
 

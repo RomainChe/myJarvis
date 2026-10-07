@@ -100,3 +100,17 @@ ni dans l'historique.
    son chemin.
 8. **Secrets** : uniquement dans le keyring Windows, jamais dans les arguments, le journal, les
    messages d'erreur ni `.env`.
+
+## Contre-revue des correctifs (2026-10-07)
+
+Verdict initial : feu vert sous conditions. Tests : classe `ContreRevueTest` de `tests/test_security.py`.
+
+| # | Constat | Correctif |
+|---|---|---|
+| C1 | `verify()` contournable (hash mis à NULL) | Colonne `hash NOT NULL`, plus de tolérance aux lignes non chaînées. HMAC **écarté** : sa clé (fichier ou keyring) est lisible par le même processus utilisateur que l'attaquant, il n'apporte rien de plus. Docstring honnête : la chaîne détecte une erreur, pas un attaquant local ; l'ancre externe (Phase 5) reste la vraie garantie. |
+| C2 | Troncature du JSON global : un paramètre long cache les suivants | Chaînes limitées à 1 000 caractères dans `check_args` ; journal tronqué valeur par valeur (200) ; `tool` et `source` bornés (100). |
+| C3 | Masquage fragile (`Password`, `apiKey`…) | Un nom de paramètre qui ressemble à un secret doit figurer exactement dans `SECRET_PARAMS`, sinon refus à l'enregistrement ; invite CLI masquée. |
+| C4 | Copie après validation, sous-classe de `dict` | `type(args) is dict` exigé, copie avant `check_args` ; types de paramètres limités à `str`, `int`, `float`, `bool` ; `NaN`/infini refusés. |
+| C5 | Ctrl+C à la confirmation non journalisé | `except BaseException` ; la CLI affiche « Action annulée » au lieu d'une trace. |
+| C6 | Message d'erreur d'un outil privé journalisé | Outil `private` : seul le type de l'exception est journalisé. |
+| C7 | Lignes « en cours » et résultat non liées | `log()` renvoie l'id ; colonne `ref` sur la ligne de résultat. |

@@ -6,21 +6,13 @@ Le LLM ou le routeur proposent un appel ; c'est ce code qui décide, jamais le p
 from typing import Any, Callable
 
 from .audit import Audit
-from .tools import REGISTRY, Level, Tool
+from .tools import REGISTRY, Level, Tool, masked
 
-# ponytail: masquage par nom de paramètre ; un outil à secret doit nommer son paramètre ainsi.
-SECRET_PARAMS = {"password", "token", "secret", "pin", "api_key"}
 ERROR_MAX = 200
 
 
 class Refused(Exception):
     """Le propriétaire a refusé l'action, ou l'authentification forte a échoué."""
-
-
-def _masked(args) -> Any:
-    if not isinstance(args, dict):
-        return args
-    return {k: "***" if k in SECRET_PARAMS else v for k, v in args.items()}
 
 
 def execute(
@@ -34,23 +26,23 @@ def execute(
 ) -> Any:
     tool = REGISTRY.get(name) if isinstance(name, str) else None
     if tool is None:
-        audit.log(source, str(name), _masked(args), None, "inconnu", None)
+        audit.log(source, str(name), masked(args), None, "inconnu", None)
         raise ValueError(f"outil inconnu : {name}")
+    # Copie avant validation : on valide, fait confirmer et exécute le même objet, que l'appelant ne tient plus.
+    if type(args) is dict:
+        args = dict(args)
     try:
         tool.check_args(args)
     except ValueError as e:
-        audit.log(source, name, _masked(args), tool.level, "invalide", e)
+        audit.log(source, name, masked(args), tool.level, "invalide", e)
         raise
-    # Copie : l'appelant ou le canal de confirmation ne peut plus modifier ce qui sera exécuté.
-    # ponytail: copie superficielle, suffisante tant que les paramètres sont des scalaires.
-    args = dict(args)
-    logged = _masked(args)
+    logged = masked(args)
 
     decision = "auto"
     if tool.level >= Level.N2:
         try:
             ok = confirm(tool, dict(args)) is True and (tool.level < Level.N3 or strong_auth(tool, dict(args)) is True)
-        except Exception as e:
+        except BaseException as e:  # Ctrl+C ou canal coupé : refus journalisé, puis l'exception remonte
             audit.log(source, name, logged, tool.level, "refusé", f"confirmation impossible : {type(e).__name__}")
             raise
         decision = "confirmé" if ok else "refusé"
@@ -58,12 +50,14 @@ def execute(
         audit.log(source, name, logged, tool.level, decision, None)
         raise Refused(f"{name} refusé")
 
-    audit.log(source, name, logged, tool.level, decision, "en cours")
+    start = audit.log(source, name, logged, tool.level, decision, "en cours")
     try:
         result = tool.run(**args)
     except Exception as e:
-        audit.log(source, name, logged, tool.level, decision, f"erreur : {type(e).__name__}: {str(e)[:ERROR_MAX]}")
+        # Le message d'un outil privé peut contenir ses données (octets du fichier, URL avec token).
+        detail = "" if tool.private else f": {str(e)[:ERROR_MAX]}"
+        audit.log(source, name, logged, tool.level, decision, f"erreur : {type(e).__name__}{detail}", ref=start)
         raise
     shown = f"<{type(result).__name__}, {len(str(result))} car.>" if tool.private else result
-    audit.log(source, name, logged, tool.level, decision, shown)
+    audit.log(source, name, logged, tool.level, decision, shown, ref=start)
     return result

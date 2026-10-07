@@ -164,6 +164,85 @@ class SecurityTest(unittest.TestCase):
         finally:
             importlib.reload(cli)
 
+class ContreRevueTest(unittest.TestCase):
+    """Constats 1 à 7 de la contre-revue (docs/SECURITY_REVIEW_PHASE_1.md)."""
+
+    def setUp(self):
+        calls.clear()
+        self.audit = Audit(":memory:")
+
+    def run_tool(self, name, args=None, confirm=no):
+        return execute(name, {} if args is None else args, source="test", audit=self.audit,
+                       confirm=confirm, strong_auth=no)
+
+    def test_c1_hash_vide_detecte(self):
+        for i in range(3):
+            self.audit.log("cli", "sec_read", {}, 0, "auto", i)
+        self.audit.db.executescript("DROP TRIGGER audit_no_update; DROP TRIGGER audit_no_delete;"
+                                    "UPDATE audit SET hash = ''; DELETE FROM audit WHERE id = 2;")
+        self.assertFalse(self.audit.verify())
+
+    def test_c2_chaine_trop_longue_refusee(self):
+        with self.assertRaises(ValueError):
+            self.run_tool("sec_delete", {"path": "a" * 1001}, confirm=lambda *_: True)
+        self.assertEqual(calls, [])
+
+    def test_c2_troncature_par_valeur_garde_toutes_les_cles(self):
+        self.audit.log("cli", "x" * 5000, {"pad": "a" * 5000, "cible": "C:/Windows"}, 0, "auto", None)
+        row = self.audit.last(1)[0]
+        self.assertIn("C:/Windows", row[3])
+        self.assertLessEqual(len(row[2]), 100)
+
+    def test_c3_nom_de_secret_non_standard_refuse(self):
+        for name in ("Password", "user_password", "pin_code", "apiKey"):
+            with self.assertRaises(ValueError, msg=name):
+                tool(f"sec_{name}", "secret mal nommé", Level.N1, **{name: str})(lambda **_: None)
+
+    def test_c3_confirmation_cli_masque_les_secrets(self):
+        out = io.StringIO()
+        with mock.patch("sys.stdin.isatty", return_value=True),                 mock.patch("builtins.input", lambda prompt: out.write(prompt) and "n"):
+            cli.confirm(REGISTRY["sec_login"], {"user": "moi", "password": "s3cr3t"})
+        self.assertNotIn("s3cr3t", out.getvalue())
+
+    def test_c4_sous_classe_de_dict_refusee(self):
+        class Trompeur(dict):
+            def keys(self):
+                return {"path": 1}.keys()
+        with self.assertRaises(ValueError):
+            self.run_tool("sec_delete", Trompeur(path="a.txt", extra="x"), confirm=lambda *_: True)
+        self.assertEqual(calls, [])
+
+    def test_c4_parametre_mutable_refuse(self):
+        with self.assertRaises(ValueError):
+            tool("sec_list", "liste", Level.N1, items=list)(lambda items: None)
+
+    def test_c4_nan_refuse(self):
+        tool("sec_float", "flottant", Level.N1, value=float)(lambda value: value)
+        with self.assertRaises(ValueError):
+            self.run_tool("sec_float", {"value": float("nan")})
+
+    def test_c5_ctrl_c_a_la_confirmation_journalise(self):
+        def ctrl_c(*_):
+            raise KeyboardInterrupt
+        with self.assertRaises(KeyboardInterrupt):
+            self.run_tool("sec_delete", {"path": "a.txt"}, confirm=ctrl_c)
+        self.assertEqual(self.audit.last(1)[0][5], "refusé")
+
+    def test_c6_erreur_d_outil_prive_sans_message(self):
+        def fuite():
+            raise ValueError("contenu-prive-du-fichier")
+        tool("sec_fuite", "privé", Level.N1, private=True)(fuite)
+        with self.assertRaises(ValueError):
+            self.run_tool("sec_fuite")
+        self.assertNotIn("contenu-prive", self.audit.last(1)[0][6])
+
+    def test_c7_resultat_lie_a_la_ligne_en_cours(self):
+        self.run_tool("sec_read")
+        (res_ref,), (start_ref,) = self.audit.db.execute("SELECT ref FROM audit ORDER BY id DESC LIMIT 2")
+        start_id = self.audit.db.execute("SELECT MAX(id) - 1 FROM audit").fetchone()[0]
+        self.assertIsNone(start_ref)
+        self.assertEqual(res_ref, start_id)
+
 
 @unittest.skipUnless(shutil.which("git"), "git requis")
 class GitignoreTest(unittest.TestCase):
