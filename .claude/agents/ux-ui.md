@@ -54,12 +54,12 @@ Android (à partir de la Phase 3 ; avant, accès PC uniquement) :
 - Le mobile contrôle TOUT : maison ET PC (apps, volume, veille, fichiers, mode gaming),
   y compris à distance via le réseau privé.
 - Présence : qui est à la maison, d'un coup d'œil.
-Écran mural (dernière phase, pas de tablette à ce jour) :
-- Tableau de bord plein écran, lisible à 3 m, mode nuit, aucune action N3 possible depuis l'écran.
 - Pièces, Conversation, Notifications, Réglages.
 - Écran de confirmation N2/N3 : clair, avec ce qui va se passer, et empreinte (WebAuthn) pour N3.
 - Raccourcis d'application Android (appui long sur l'icône) vers les scènes favorites.
   Les vrais widgets d'écran d'accueil ne sont pas possibles en PWA : ne pas les promettre.
+Écran mural (dernière phase, pas de tablette à ce jour) :
+- Tableau de bord plein écran, lisible à 3 m, mode nuit, aucune action N3 possible depuis l'écran.
 
 ## Méthode de travail
 1. Parcours utilisateur et wireframes basse fidélité d'abord (validation Manager).

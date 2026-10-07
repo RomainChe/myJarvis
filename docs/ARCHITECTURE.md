@@ -89,7 +89,7 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 - notifications Web Push, et biométrie Android via **WebAuthn** (empreinte) pour le N3 ;
 - un seul design system, par construction.
 
-Tauri reste une option en Phase 3 si une icône dans la barre des tâches ou un raccourci clavier global deviennent nécessaires.
+L'icône de la zone de notification Windows et le raccourci clavier global sont gérés par le programme JARVIS lui-même (il ouvre la fenêtre de la PWA) : Tauri n'est pas nécessaire.
 
 ### 3.6 Accès à distance : Tailscale
 - Offre gratuite pour un usage personnel, et **aucun port ouvert** sur la box.

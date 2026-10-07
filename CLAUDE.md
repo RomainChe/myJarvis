@@ -42,8 +42,10 @@ enceintes, caméras, etc.). JARVIS doit être :
    captures d'écran, mise en veille, etc.) via une API locale authentifiée.
 4. HUB DOMOTIQUE : Home Assistant (recommandé) comme couche d'abstraction unique pour tous les
    appareils. JARVIS parle à Home Assistant, jamais directement à 40 API différentes.
-5. APPLICATION BUREAU : Tauri (Rust + front web) de préférence à Electron (plus léger, plus sûr).
-6. APPLICATION MOBILE : React Native (Expo) ou Flutter, partageant le design system du bureau.
+5. APPLICATION : une seule PWA responsive servie par le Core, installée sur le PC et sur
+   Android (décision validée, voir docs/ARCHITECTURE.md §3.5). Icône de la zone de
+   notification et raccourci clavier global : gérés par le programme JARVIS lui-même.
+6. (fusionné avec 5 : pas d'application mobile séparée, même design system par construction.)
 7. ACCÈS À DISTANCE : réseau privé (Tailscale ou WireGuard). AUCUN port ouvert sur Internet.
 8. MÉMOIRE : base locale (SQLite + recherche vectorielle) pour préférences, routines, historique.
 9. JOURNAL D'AUDIT : chaque action exécutée est horodatée et enregistrée (qui, quoi, quand,
