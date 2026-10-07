@@ -150,6 +150,8 @@ Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le P
 | Adaptateur MAC-597IF-E | option A, si aucun adaptateur Wi-Fi sur les clims | ~90-130 € par clim |
 | ESP32 + câble CN105 | option B, clims en local | ~15-30 € par clim |
 | Shelly 1 Mini Gen4 | lumière du salon (marche/arrêt) | ~15-20 € |
+| Cuisine : Shelly 1 Mini (luminaire existant, marche/arrêt) ou ampoules WiZ (variation, Wi-Fi local, intégration *WiZ*) | selon le luminaire (à préciser) | ~15-20 € ou ~10-15 € l'ampoule |
+| Salle de bain : miroir LED classique IP44 + enceinte Wi-Fi Google Cast (ex. Nest Mini), musique via Music Assistant (HA) | Phase 2+ ; pose hors volumes 0-1, électricien | ~30-50 € l'enceinte |
 | Broadlink RM4 mini | seulement si le CEC ne suffit pas pour la barre de son | ~25 € |
 
 Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims ont déjà leur adaptateur Wi-Fi.
@@ -173,7 +175,7 @@ Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims 
 
 | Q | Réponse | Conséquence |
 |---|---|---|
-| 1 | **1 seul volet** (pièce à confirmer) | 1 Shelly 2PM Gen4, ~35 € |
+| 1 | **1 seul volet, au salon** | 1 Shelly 2PM Gen4, ~35 € |
 | 2 | Le neutre se vérifie dans la boîte derrière l'interrupteur ; type d'interrupteur à tester | Voir §8 |
 | 4 | **Option A** (adaptateur officiel, cloud Mitsubishi) | Signalée à la Sécurité : cloud, Internet obligatoire |
 | 5 | « Je pars » : volets **tels quels** (chat) | Scène mise à jour §4 |
@@ -183,7 +185,7 @@ Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims 
 | 9 | PC en **Ethernet** | Pont Hyper-V fiable, mDNS OK |
 | 12 | 2,4 GHz actif, canal 11, 20 MHz (auto) | Bon pour Shelly et l'adaptateur Mitsubishi. Si l'appairage échoue : SSID 2,4 GHz séparé ou WPA2 seul, MLO Wi-Fi 7 désactivé pour cet SSID |
 
-Restent : pièce du volet, type d'interrupteur, valeurs des consignes éco et nuit, présence d'un adaptateur Wi-Fi sur les clims (Q3), pose des Shelly (Q10), destination des sauvegardes (Q11).
+Restent : type d'interrupteur, valeurs des consignes éco et nuit, présence d'un adaptateur Wi-Fi sur les clims (Q3), pose des Shelly (Q10), destination des sauvegardes (Q11).
 
 ## 8. Pose du Shelly 2PM (volet)
 1. **Disjoncteur du volet coupé**, absence de tension vérifiée au testeur (VAT). Non habilité 230 V → électricien.
