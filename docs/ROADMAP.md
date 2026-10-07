@@ -5,7 +5,7 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 ## Phase 0 — Cadrage ✅
 - [x] Inventaire du matériel (PC, smartphone, budget)
 - [x] Architecture : `docs/ARCHITECTURE.md`
-- [x] Marques et modèles : TV, clims, box (motorisation des volets à préciser avant la Phase 2)
+- [x] Marques et modèles : TV, clims, box volets filaires → modules Shelly
 - [x] Validation des 4 décisions (ARCHITECTURE §6)
 
 ## Phase 1 — Core + outils PC
