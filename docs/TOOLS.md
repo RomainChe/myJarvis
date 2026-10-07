@@ -67,3 +67,50 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
   est résolu (liens et jonctions suivis) puis doit rester sous le dossier utilisateur. Pendant le
   parcours, les liens symboliques et les jonctions ne sont pas suivis. Un dossier introuvable ou un
   nom vide lève une erreur, journalisée.
+
+## Listes blanches (`~/.jarvis`)
+
+`open_app`, `close_app` et `run_script` ne reçoivent jamais un chemin ni une commande : un nom
+qui doit figurer dans une liste que le propriétaire édite à la main. Un fichier de configuration est
+une donnée : chaque entrée est revalidée à chaque appel.
+
+- `~/.jarvis/apps.json` : `{"navigateur": "C:\Program Files\...\chrome.exe"}`. Nom (sans casse ni
+  accents) → exécutable. Entrée ignorée si le chemin n'est pas absolu sur un lecteur local (`X:\`),
+  n'est pas un `.exe`, ou est un chemin réseau. Fichier limité à 64 Ko.
+- `~/.jarvis/scripts/` : dossier des scripts lançables (`.ps1`, `.bat`, `.cmd`).
+
+## open_app
+
+- **Description** : ouvre une application de la liste blanche, par son nom.
+- **Niveau** : N1.
+- **Paramètres** : `name` (texte) : un nom de `apps.json`.
+- **Retour** : `opened` (nom normalisé). Erreur si le nom est inconnu (la liste des noms autorisés est rappelée).
+- **Exemple** : `python -m jarvis run open_app name=navigateur`.
+- **Notes** : `subprocess.Popen([exécutable])`, jamais de shell, jamais d'argument, processus détaché.
+
+## close_app
+
+- **Description** : ferme proprement une application de la liste blanche (message `WM_CLOSE` à ses fenêtres visibles : l'application peut proposer d'enregistrer).
+- **Niveau** : N1.
+- **Paramètres** : `name` (texte) : un nom de `apps.json`.
+- **Retour** : `closed_windows` (nombre de fenêtres sollicitées). Les fenêtres retenues sont celles dont le processus est exactement l'exécutable listé.
+- **Exemple** : `python -m jarvis run close_app name=navigateur`.
+- **Notes** : ne tue aucun processus ; pour un processus bloqué, `kill_process`.
+
+## run_script
+
+- **Description** : lance un script du dossier `~/.jarvis/scripts`, désigné par son nom, sans argument.
+- **Niveau** : N2 (confirmation). Drapeaux `private` (sortie jamais journalisée) et `external` (la sortie est du contenu tiers : pas d'action N2/N3 ensuite dans la même demande).
+- **Paramètres** : `name` (texte) : `[A-Za-z0-9_-]+` suivi de `.ps1`, `.bat` ou `.cmd` ; ni chemin, ni espace, ni nom réservé Windows.
+- **Retour** : `exit_code` et `output` (stdout + stderr, 2 000 caractères au plus). Délai maximal 60 s.
+- **Exemple** : `python -m jarvis run run_script name=sauvegarde.bat`.
+- **Notes** : le fichier doit se trouver directement dans le dossier une fois les liens résolus. `.ps1` : `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\nom` ; `.bat`/`.cmd` : `cmd /d /c .\nom`. Interpréteurs par chemin absolu `System32`, `shell=False`, aucun autre argument.
+
+## kill_process
+
+- **Description** : termine de force un processus.
+- **Niveau** : N2 (confirmation).
+- **Paramètres** : `pid` (entier, > 4) et `name` (texte, ex. `notepad.exe`) : le nom doit être celui de l'image du processus au moment de l'arrêt.
+- **Retour** : `killed` (pid) et `name`.
+- **Exemple** : `python -m jarvis run kill_process pid=4242 name=notepad.exe`.
+- **Notes** : un seul handle sert à vérifier le nom puis à terminer (un PID réattribué est refusé). Refusés : PID ≤ 4, le processus Jarvis lui-même, tout exécutable situé sous le dossier Windows. Test réel limité à un PID inexistant ; l'arrêt est testé avec un mock.

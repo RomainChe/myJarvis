@@ -1,37 +1,15 @@
-import dataclasses
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from jarvis.core.audit import Audit
-from jarvis.core.permissions import Refused, execute
-from jarvis.core.tools import REGISTRY, Level, _registry
+from jarvis.core.tools import REGISTRY, Level
 from jarvis.tools.pc import system
+from pcbase import PcBase
 
 
-def no(*_):
-    return False
-
-
-class PcToolTest(unittest.TestCase):
-    def setUp(self):
-        self.audit = Audit(":memory:")
-
-    def run_tool(self, name, args=None, confirm=no):
-        return execute(name, args or {}, source="test", audit=self.audit, confirm=confirm, strong_auth=no)
-
-    def assert_refused_if_level_raised(self, name, args):
-        """Le propriétaire peut monter le niveau d'un outil : la garde doit alors bloquer."""
-        run = mock.Mock()
-        raised = dataclasses.replace(REGISTRY[name], level=Level.N2, run=run)
-        with mock.patch.dict(_registry, {name: raised}):  # REGISTRY est en lecture seule
-            with self.assertRaises(Refused):
-                self.run_tool(name, args, confirm=no)
-        run.assert_not_called()
-        self.assertEqual(self.audit.last(1)[0][5], "refusé")
-
+class PcToolTest(PcBase):
     def test_niveaux(self):
         for name in ("system_status", "list_processes", "search_files"):
             self.assertEqual(REGISTRY[name].level, Level.N0)
