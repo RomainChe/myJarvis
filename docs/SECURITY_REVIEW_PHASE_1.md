@@ -222,5 +222,5 @@ S3 (liens physiques déjà refusés ; reste la substitution entre confirmation e
 `git grep` : aucune adresse IP, aucun jeton ni mot de passe réel, aucun chemin personnel ni adresse e-mail dans les fichiers suivis. Seules occurrences : l'identifiant GitHub public du dépôt et `homeassistant.local` (nom générique). Aucun `.env`, base, journal ou clé suivis.
 
 ### Conditions
-- C5 : (avant que `delete_file` serve sur des données réelles, Phase 5 au plus tard) remplacer la suppression par `IFileOperation`/`FOFX_RECYCLEONDELETE` ou contrôler quota et `NukeOnDelete` ; le test manuel S6 (QA §6, étape 4) reste à faire par le propriétaire et à consigner.
+- C5 : **SOLDÉE** (2026-10-07) : `delete_file` utilise `IFileOperation` + `FOFX_RECYCLEONDELETE` (échec explicite, jamais de suppression définitive) ; test S6 manuel du propriétaire toujours à faire. Texte d'origine : (avant que `delete_file` serve sur des données réelles, Phase 5 au plus tard) remplacer la suppression par `IFileOperation`/`FOFX_RECYCLEONDELETE` ou contrôler quota et `NukeOnDelete` ; le test manuel S6 (QA §6, étape 4) reste à faire par le propriétaire et à consigner.
 - C6 : confirmer que `Pictures` n'est pas synchronisé par OneDrive.

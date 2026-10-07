@@ -10,59 +10,74 @@ from jarvis.core.tools import Level, tool
 from jarvis.tools.pc.apps import CONFIG_DIR
 from jarvis.tools.pc.system import KNOWN_FOLDERS, RESERVED_NAMES, _allowed_root
 
-FO_DELETE, FOF_SILENT, FOF_NOCONFIRMATION, FOF_ALLOWUNDO, FOF_NOERRORUI, FOF_WANTNUKEWARNING = (
-    3, 0x4, 0x10, 0x40, 0x400, 0x4000)
+FOF_SILENT, FOF_NOCONFIRMATION, FOF_NOERRORUI, FOFX_RECYCLEONDELETE = 0x4, 0x10, 0x400, 0x80000
 DRIVE_FIXED = 3
-RECYCLE_MAX_BYTES = 1 << 30  # au-delà, la corbeille risque de refuser : pas de suppression définitive silencieuse
-RECYCLE_MAX_ENTRIES = 50_000
+_ole32 = ctypes.WinDLL("ole32")
 _shell32 = ctypes.WinDLL("shell32")
 _kernel32 = ctypes.WinDLL("kernel32")
 _kernel32.GetDriveTypeW.argtypes = [wintypes.LPCWSTR]
-BAD_NAME_CHARS = set('<>:"|?*')  # « : » = flux ADS ; « * » et « ? » seraient des jokers pour SHFileOperation
+_ole32.CoInitializeEx.restype = ctypes.c_long  # S_FALSE (1) est un succès à équilibrer ; on teste à la main
+BAD_NAME_CHARS = set('<>:"|?*')  # « : » = flux ADS ; « * » et « ? » : jokers
+CLSID_FILE_OPERATION = "{3AD05575-8857-4850-9277-11B85BDB8E09}"
+IID_FILE_OPERATION = "{947AAB5F-0A5C-4C13-B4D6-4BF7836FC9F8}"
+IID_SHELL_ITEM = "{43826D1E-E718-42EE-BC55-A1E261C37BFE}"
+RPC_E_CHANGED_MODE = -2147417850  # 0x80010106 : COM déjà initialisé autrement sur ce thread, rien à défaire
+_RELEASE, _SET_FLAGS, _DELETE_ITEM, _PERFORM, _ABORTED = 2, 5, 18, 21, 22  # index vtable (IUnknown puis IFileOperation)
 
 
-class _FileOp(ctypes.Structure):
-    _fields_ = [("hwnd", wintypes.HWND), ("wFunc", wintypes.UINT), ("pFrom", wintypes.LPCWSTR),
-                ("pTo", wintypes.LPCWSTR), ("fFlags", wintypes.WORD), ("aborted", wintypes.BOOL),
-                ("mappings", ctypes.c_void_p), ("title", wintypes.LPCWSTR)]
+class _Guid(ctypes.Structure):
+    _fields_ = [("a", wintypes.DWORD), ("b", wintypes.WORD), ("c", wintypes.WORD), ("d", ctypes.c_ubyte * 8)]
+
+
+def _guid(text: str) -> _Guid:
+    guid = _Guid()
+    _ole32.CLSIDFromString(text, ctypes.byref(guid))
+    return guid
+
+
+def _com(obj, index: int, *args):
+    """Appelle la méthode `index` de la vtable COM `obj` ; args = [(type, valeur), ...] ; HRESULT d'échec -> OSError."""
+    vtable = ctypes.cast(obj, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+    proto = ctypes.WINFUNCTYPE(ctypes.c_ulong if index == _RELEASE else ctypes.HRESULT, ctypes.c_void_p, *(t for t, _ in args))
+    return proto(vtable[index])(obj, *(v for _, v in args))
 
 
 def _drive_type(path: Path) -> int:
     return _kernel32.GetDriveTypeW(path.anchor)
 
 
-def _too_big(path: Path) -> bool:
-    """Taille cumulée au-dessus de la limite (ou trop d'entrées) ; les jonctions ne sont pas suivies."""
-    if path.is_file():
-        return path.stat().st_size > RECYCLE_MAX_BYTES
-    total = entries = 0
-    for folder, dirs, names in os.walk(path):
-        dirs[:] = [d for d in dirs if not os.path.isjunction(os.path.join(folder, d))]
-        for name in names:
-            entries += 1
-            try:
-                total += os.lstat(os.path.join(folder, name)).st_size
-            except OSError:
-                pass
-            if total > RECYCLE_MAX_BYTES or entries > RECYCLE_MAX_ENTRIES:
-                return True
-    return False
-
-
 def _recycle(path: Path) -> None:
-    # SHFileOperation ne sait pas refuser seul : sans FOF_WANTNUKEWARNING un fichier non recyclable est supprimé
-    # définitivement, avec lui il peut afficher une boîte qui bloque le Core. On écarte donc d'avance les cas
-    # qui échouent (lecteur amovible ou réseau, taille au-dessus de la limite) et on n'envoie que des flags sans UI.
+    """Corbeille via IFileOperation + FOFX_RECYCLEONDELETE : si l'élément ne peut pas être recyclé (corbeille
+    désactivée pour le lecteur, quota dépassé), l'opération ÉCHOUE au lieu de supprimer définitivement
+    (SHFileOperation/FOF_ALLOWUNDO supprimait alors sans erreur). Aucune boîte de dialogue."""
     if _drive_type(path) != DRIVE_FIXED:
         raise ValueError("la corbeille n'est disponible que sur un disque fixe")
-    if _too_big(path):
-        raise ValueError("trop volumineux pour la corbeille : à supprimer à la main")
-    source = ctypes.create_unicode_buffer(str(path) + "\0")  # liste de chemins terminée par un double zéro
-    op = _FileOp(None, FO_DELETE, ctypes.cast(source, wintypes.LPCWSTR), None,
-                 FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT, 0, None, None)
-    code = _shell32.SHFileOperationW(ctypes.byref(op))
-    if code or op.aborted:
-        raise OSError(f"corbeille : échec (code {code:#x})")
+    hr = _ole32.CoInitializeEx(None, 2)  # COINIT_APARTMENTTHREADED
+    if hr < 0 and hr != RPC_E_CHANGED_MODE:
+        raise OSError(f"corbeille : COM indisponible ({hr & 0xFFFFFFFF:#x})")
+    release = []  # objets COM à relâcher, dans l'ordre inverse de création
+    try:
+        op, item = ctypes.c_void_p(), ctypes.c_void_p()
+        if _ole32.CoCreateInstance(ctypes.byref(_guid(CLSID_FILE_OPERATION)), None, 0x17,
+                                   ctypes.byref(_guid(IID_FILE_OPERATION)), ctypes.byref(op)) < 0:
+            raise OSError("corbeille : IFileOperation indisponible")
+        release.append(op)
+        if _shell32.SHCreateItemFromParsingName(str(path), None, ctypes.byref(_guid(IID_SHELL_ITEM)),
+                                                ctypes.byref(item)) < 0:
+            raise OSError("corbeille : élément introuvable")
+        release.append(item)
+        _com(op, _SET_FLAGS, (wintypes.DWORD, FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOFX_RECYCLEONDELETE))
+        _com(op, _DELETE_ITEM, (ctypes.c_void_p, item), (ctypes.c_void_p, None))
+        _com(op, _PERFORM)
+        aborted = wintypes.BOOL()
+        _com(op, _ABORTED, (ctypes.POINTER(wintypes.BOOL), ctypes.byref(aborted)))
+        if aborted.value:
+            raise OSError("corbeille : refusée (désactivée ou pleine), rien n'a été supprimé")
+    finally:
+        for obj in reversed(release):
+            _com(obj, _RELEASE)
+        if hr >= 0:
+            _ole32.CoUninitialize()
 
 
 def _protected() -> set[Path]:

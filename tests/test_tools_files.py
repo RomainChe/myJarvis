@@ -137,48 +137,59 @@ class ConfirmationTest(FilesBase):
 
 
 class RecycleTest(FilesBase):
-    """S6 : _recycle ne bloque jamais sur une boîte de dialogue et ne supprime jamais définitivement."""
+    """C5 : _recycle utilise IFileOperation + FOFX_RECYCLEONDELETE, sans dialogue, jamais de suppression définitive."""
 
-    def recycle(self, path, drive=files.DRIVE_FIXED, shell_code=0):
-        flags = []
+    def recycle(self, path, drive=files.DRIVE_FIXED, fail_at=None, aborted=0):
+        calls, flags = [], []
 
-        def shell(ref):
-            flags.append(ref._obj.fFlags)
-            return shell_code
+        def com(obj, index, *args):
+            calls.append(index)
+            if index == files._SET_FLAGS:
+                flags.append(args[0][1])
+            if index == fail_at:
+                raise OSError("HRESULT d'échec")
+            if index == files._ABORTED:
+                args[0][1]._obj.value = aborted
 
-        with mock.patch.object(files, "_drive_type", return_value=drive),                 mock.patch.object(files, "_shell32") as sh:
-            sh.SHFileOperationW.side_effect = shell
-            files._recycle(path)
+        with mock.patch.object(files, "_drive_type", return_value=drive), mock.patch.object(files, "_com", com),                 mock.patch.object(files, "_ole32") as ole, mock.patch.object(files, "_shell32") as sh:
+            ole.CoInitializeEx.return_value = 0
+            ole.CoCreateInstance.return_value = sh.SHCreateItemFromParsingName.return_value = 0
+            try:
+                files._recycle(path)
+            finally:
+                self.uninit = ole.CoUninitialize.call_count
+                self.calls = calls
         return flags
 
-    def test_nominal_flags_sans_dialogue_ni_suppression_definitive(self):
+    def test_nominal_flags_sans_dialogue_et_recyclage_force(self):
         (flags,) = self.recycle(self.root / "a.txt")
-        for needed in (files.FOF_ALLOWUNDO, files.FOF_SILENT, files.FOF_NOCONFIRMATION, files.FOF_NOERRORUI):
+        for needed in (files.FOF_SILENT, files.FOF_NOCONFIRMATION, files.FOF_NOERRORUI, files.FOFX_RECYCLEONDELETE):
             self.assertTrue(flags & needed, hex(needed))
-        self.assertFalse(flags & files.FOF_WANTNUKEWARNING)  # partiellement incompatible avec NOCONFIRMATION : dialogue
+        self.assertEqual(self.uninit, 1)
+        self.assertEqual(self.calls.count(files._RELEASE), 2)  # opération et élément relâchés
 
     def test_lecteur_non_fixe_refuse(self):
         for drive in (2, 4, 5, 0):  # amovible, réseau, CD, inconnu
             with self.assertRaises(ValueError, msg=drive):
                 self.recycle(self.root / "a.txt", drive=drive)
 
-    def test_fichier_ou_dossier_trop_gros_refuse(self):
-        (self.root / "dossier" / "x.bin").write_bytes(b"x" * 100)
-        with mock.patch.object(files, "RECYCLE_MAX_BYTES", 50):
-            for name in ("dossier", "dossier/x.bin"):
-                with self.assertRaises(ValueError, msg=name):
-                    self.recycle(self.root / name)
-        self.recycle(self.root / "a.txt")  # petit : accepté
-
-    def test_echec_du_shell(self):
-        with self.assertRaises(OSError):
-            self.recycle(self.root / "a.txt", shell_code=0x7C)
+    def test_corbeille_desactivee_ou_pleine_echoue_sans_suppression_definitive(self):
+        target = self.root / "a.txt"
+        for kwargs in ({"fail_at": files._PERFORM}, {"aborted": 1}):
+            with mock.patch("os.remove") as rm, mock.patch("os.unlink") as ul, mock.patch("shutil.rmtree") as rt,                     mock.patch.object(Path, "unlink") as pu:
+                with self.assertRaises(OSError, msg=kwargs):
+                    self.recycle(target, **kwargs)
+            for m in (rm, ul, rt, pu):
+                m.assert_not_called()
+            self.assertEqual(self.uninit, 1)  # COM libéré même en échec
+            self.assertEqual(self.calls.count(files._RELEASE), 2)
+        self.assertTrue(target.exists())
 
     def test_delete_file_ne_supprime_pas_si_refus(self):
-        with mock.patch.object(files, "_drive_type", return_value=2),                 mock.patch.object(files, "_shell32") as sh:
+        with mock.patch.object(files, "_drive_type", return_value=2), mock.patch.object(files, "_ole32") as ole:
             with self.assertRaises(ValueError):
                 self.run_tool("delete_file", {"path": str(self.root / "a.txt")}, confirm=yes)
-        sh.SHFileOperationW.assert_not_called()
+        ole.CoCreateInstance.assert_not_called()
 
 
 class MoveFileTest(FilesBase):
