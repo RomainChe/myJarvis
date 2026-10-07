@@ -138,3 +138,28 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : `action` : `play_pause`, `next`, `previous` ou `stop`.
 - **Exemple** : « pause », « morceau suivant » ou `python -m jarvis run media_control action=next`.
 - **Notes** : touches `VK_MEDIA_*` (`keybd_event`) ; pas de retour sur l'état du lecteur.
+
+## screen_off
+
+- **Description** : éteint les écrans ; le PC reste allumé, un mouvement de souris les rallume.
+- **Niveau** : N1.
+- **Paramètres** : aucun.
+- **Exemple** : « éteins l'écran » ou `python -m jarvis run screen_off`.
+- **Notes** : `WM_SYSCOMMAND / SC_MONITORPOWER` posté (`PostMessageW`, non bloquant). Testé avec un mock, jamais en réel.
+
+## lock_session
+
+- **Description** : verrouille la session Windows.
+- **Niveau** : N1 (se déverrouille avec le code de l'utilisateur).
+- **Paramètres** : aucun.
+- **Exemple** : « verrouille le PC » ou `python -m jarvis run lock_session`.
+- **Notes** : `LockWorkStation`. Testé avec un mock, jamais en réel.
+
+## power
+
+- **Description** : veille, redémarrage ou arrêt du PC.
+- **Niveau** : N2 (confirmation). Le redémarrage et l'arrêt coupent Jarvis et Home Assistant.
+- **Paramètres** : `action` : `sleep`, `restart` ou `shutdown` (valeurs exactes).
+- **Retour** : `power` (l'action). Veille : l'appel ne rend la main qu'au réveil.
+- **Exemple** : `python -m jarvis run power action=sleep`.
+- **Notes** : veille par `SetSuspendState` ; arrêt et redémarrage par `System32\shutdown.exe /s|/r /t 10` (liste d'arguments, sans `/f` : les applications peuvent réclamer l'enregistrement ; `shutdown /a` annule pendant les 10 s). Aucune intention du routeur : « éteins le PC » passe par le LLM puis la confirmation. Testé avec des mocks, jamais en réel.

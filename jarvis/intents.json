@@ -51,5 +51,13 @@
     "tool": "media_control",
     "patterns": ["((reviens|retourne|passe)( au| le| à la| a la)? )?((morceau|titre|piste|chanson|musique) )?pr[eé]c[eé]dente?|previous"],
     "defaults": {"action": "previous"}
+  },
+  {
+    "tool": "lock_session",
+    "patterns": ["verrouille(r)?( (ma|la) session| (le|mon) pc| l['’]ordinateur| l['’ ]?[eé]cran)?"]
+  },
+  {
+    "tool": "screen_off",
+    "patterns": ["([eé]teins|[eé]teindre|coupe|couper) l['’ ]?[eé]cran( du pc)?", "(mets|met) l['’ ]?[eé]cran en veille"]
   }
 ]

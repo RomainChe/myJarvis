@@ -31,6 +31,16 @@ class PcIntentsTest(unittest.TestCase):
         self.check(("media_control", {"action": "next"}), "suivant", "morceau suivant", "passe au morceau suivant")
         self.check(("media_control", {"action": "previous"}), "précédent", "piste précédente", "reviens au précédent")
 
+    def test_session_et_ecran(self):
+        self.check(("lock_session", {}), "verrouille", "Jarvis, verrouille le PC", "verrouille ma session",
+                   "verrouiller l'ordinateur")
+        self.check(("screen_off", {}), "éteins l'écran", "Éteins l'écran du PC", "coupe l'ecran", "mets l'écran en veille")
+
+    def test_arret_du_pc_jamais_route(self):
+        """power est N2 et n'a aucune intention : « éteins le PC » part au LLM (confirmation ensuite)."""
+        for text in ("éteins le PC", "redémarre le PC", "mets le PC en veille", "arrête le pc", "éteins tout"):
+            self.assertIsNone(self.router.route(text), text)
+
     def test_phrases_proches_non_routees(self):
         for text in ("coupe le chauffage", "coupe le son de la télé", "mets la musique de Noël", "pause café"):
             self.assertIsNone(self.router.route(text), text)
