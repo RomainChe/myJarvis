@@ -9,7 +9,12 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 - Branche `worktree-agent-a0058f7db3245d1e9` (routeur + 3 outils N0) : en attente de revue QA puis Sécurité, non fusionnée.
 - Prochaine action : revue QA + Sécurité de la branche routeur (`worktree-agent-a0058f7db3245d1e9`), à rebaser sur le nouveau Core.
 - Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7.
+<<<<<<< Updated upstream
 - Décisions propriétaire en attente : téléchargement des 3 modèles (~20,5 Go), destination des sauvegardes, lecture de `.env`, reste de DOMOTIQUE_PLAN §7.
+=======
+- Décidé le 2026-10-07 : Jarvis peut lire `.env`. Modèle qwen3:14b refusé : le propriétaire veut jouer en même temps (mode jeu à concevoir).
+- Décisions propriétaire en attente : destination des sauvegardes, comportement du LLM pendant un jeu, reste de DOMOTIQUE_PLAN §7.
+>>>>>>> Stashed changes
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 
 ## Phase 0 — Cadrage ✅
