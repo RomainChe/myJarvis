@@ -1,4 +1,5 @@
 """Ollama : le LLM propose des appels d'outils, la garde de permissions décide (stdlib uniquement)."""
+import http.client
 import json
 import urllib.error
 import urllib.request
@@ -51,7 +52,7 @@ def post(path: str, body: dict) -> dict:
     try:
         with _opener.open(req, timeout=120) as r:
             out = json.load(r)
-    except (urllib.error.URLError, OSError) as e:
+    except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
         raise LLMUnavailable(f"Ollama ne répond pas ({type(e).__name__}).") from e
     except ValueError as e:  # JSON invalide
         raise LLMUnavailable("Réponse d'Ollama invalide.") from e

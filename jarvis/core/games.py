@@ -39,9 +39,9 @@ def javaw_commands() -> list[str]:
 
 def extra_games() -> set[str]:
     try:
-        return {line.strip().lower() for line in EXTRA_FILE.read_text(encoding="utf-8").splitlines()
+        return {line.strip().lower() for line in EXTRA_FILE.read_text(encoding="utf-8-sig").splitlines()
                 if line.strip() and not line.startswith("#")}
-    except OSError:
+    except (OSError, ValueError):  # fichier absent ou pas en UTF-8
         return set()
 
 

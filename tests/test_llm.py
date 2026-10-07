@@ -1,6 +1,11 @@
 """LLM : appels d'outils via la garde, résultats = données, blocage N2/N3 après contenu externe, mode jeu."""
+import http.client
 import io
+import socket
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 import urllib.error
 import urllib.request
 from unittest import mock
@@ -181,6 +186,37 @@ class LLMTest(unittest.TestCase):
         self.assertTrue({"llm_ext", "system_status", "search_files"} <= by_name.keys())
         self.assertEqual(by_name["search_files"]["parameters"]["required"], ["name", "folder"])
 
+    def test_panne_ollama_timeout_et_coupure_en_cours_de_lecture(self):
+        for exc in (socket.timeout("lent"), ConnectionResetError(), http.client.IncompleteRead(b"x"),
+                    http.client.BadStatusLine("?"), urllib.error.HTTPError("u", 500, "err", {}, None)):
+            with self.subTest(exc=type(exc).__name__):
+                with mock.patch.object(llm._opener, "open", side_effect=exc):
+                    with self.assertRaises(llm.LLMUnavailable):
+                        llm.post("/api/chat", {})
+
+    def test_reponse_json_non_objet(self):
+        with mock.patch.object(llm._opener, "open", return_value=io.BytesIO(b"[1]")):
+            with self.assertRaises(llm.LLMUnavailable):
+                llm.post("/api/chat", {})
+
+    def test_injection_dans_resultat_ne_ferme_pas_l_encadrement(self):
+        o = FakeOllama(reply(call("llm_ext")), reply(content="ok"))
+        self.ask(o)
+        r = [m["content"] for m in o.sent[1][1]["messages"] if m["role"] == "tool"][0]
+        self.assertEqual(r.count("</data>"), 1)
+        self.assertTrue(r.endswith("</data>"))
+
+    def test_mode_jeu_ollama_arrete_repond_quand_meme(self):
+        def down(*_):
+            raise llm.LLMUnavailable("x")
+        self.assertEqual(llm.ask("x", audit=self.audit, confirm=yes, strong_auth=yes, send=down,
+                                 gaming=lambda: True), llm.SLEEP_MSG)
+
+    def test_n3_avec_confirmation_refusee_jamais_execute(self):
+        o = FakeOllama(reply(call("llm_lock")), reply(content="ok"))
+        llm.ask("x", audit=self.audit, confirm=yes, strong_auth=lambda *_: False, send=o, gaming=lambda: False)
+        self.assertEqual(ran, [])
+
 
 class GamesTest(unittest.TestCase):
     def test_jeux_reconnus(self):
@@ -193,6 +229,21 @@ class GamesTest(unittest.TestCase):
     def test_lanceurs_et_javaw_quelconque_ignores(self):
         self.assertFalse(games.is_gaming({"leagueclient.exe", "riotclientservices.exe", "javaw.exe"},
                                          javaw=["javaw -jar idea.jar"]))
+
+    def test_detect_echec_ouvert(self):
+        for exc in (OSError(), subprocess.TimeoutExpired("t", 1), subprocess.CalledProcessError(1, "t")):
+            with mock.patch.object(games, "process_names", side_effect=exc):
+                self.assertFalse(games.detect())
+
+    def test_fichier_jeux_illisible_ne_plante_pas(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "games.txt"
+            f.write_bytes(b"# jeux\ncaf\xe9.exe\n")  # pas de l'UTF-8
+            with mock.patch.object(games, "EXTRA_FILE", f):
+                self.assertEqual(games.extra_games(), set())
+            f.write_bytes(b"\xef\xbb\xbfToto.exe\n")  # BOM UTF-8 (Bloc-notes)
+            with mock.patch.object(games, "EXTRA_FILE", f):
+                self.assertEqual(games.extra_games(), {"toto.exe"})
 
 
 if __name__ == "__main__":
