@@ -99,6 +99,18 @@ class RouterTest(unittest.TestCase):
         self.assertEqual(self.router.route(r"Jarvis, cherche le fichier jarvis dans C:\Windows ?"),
                          ("search_files", {"name": "jarvis", "folder": r"C:\Windows"}))
 
+    @unittest.expectedFailure
+    def test_qa_r6_verbes_d_action_manquants(self):
+        """QA-R6 : « quitte les processus » -> list_processes, « vide l'espace disque » -> system_status."""
+        for text in ("quitte les processus", "vide l'espace disque"):
+            self.assertIsNone(self.router.route(text), text)
+
+    @unittest.expectedFailure
+    def test_qa_r7_ponctuation_dans_les_slots(self):
+        """QA-R7 : virgule gardée dans name, points finaux retirés du chemin (« ../.. » -> « ../ »)."""
+        self.assertEqual(self.router.route("cherche le fichier facture, dans Documents")[1]["name"], "facture")
+        self.assertEqual(self.router.route("cherche le fichier x dans ../..")[1]["folder"], "../..")
+
 
 class CliPhraseTest(unittest.TestCase):
     def setUp(self):
@@ -126,6 +138,7 @@ class CliPhraseTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("'results': []", out)
         self.assertEqual(Audit(str(cli.DB_PATH)).last(1)[0][2], "search_files")
+
 
 
 if __name__ == "__main__":
