@@ -22,7 +22,7 @@ enceintes, caméras, etc.). JARVIS doit être :
 - Système d'exploitation du PC : Windows 11 Pro (i5-14600KF, 32 Go RAM, RTX 5070 Ti 16 Go)
 - Smartphone : Android
 - Box / routeur : Bbox Wi-Fi 7 XT (Bouygues)
-- Appareils connus : TV Continental Edison Google TV ; 2 clims réversibles Mitsubishi
+- Appareils connus : TV Continental Edison Google TV + barre de son Samsung HW-S50B ; 2 clims réversibles Mitsubishi
   MSZ-HR25VFK2 (salon, chambre) = chauffage ; volets roulants Turol Industries (motorisation à préciser)
 - Matériel disponible pour un serveur domestique : aucun, tout tourne sur le PC
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
@@ -93,6 +93,10 @@ Aucune phase ne démarre sans le feu vert de l'Expert Sécurité ET du propriét
 - Avant d'écrire du code, présenter le plan ; après, présenter un résumé court.
 - En cas de doute sur une intention du propriétaire : poser UNE question précise.
 - Préférer des solutions locales et open source ; le cloud uniquement si justifié.
+
+## Vérifications (à lancer avant de déclarer une tâche terminée)
+- Tests : `python -m unittest discover -s tests`
+- Aucun linter configuré pour l'instant.
 
 ## 8. Définition de « terminé »
 Une fonctionnalité est terminée quand : elle marche, elle est testée, elle est journalisée,

@@ -11,9 +11,9 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 ## Phase 1 — Core + outils PC
 Ordre imposé par l'Expert Sécurité : socle d'abord, outils ensuite.
 
-1. Squelette : `pyproject.toml`, FastAPI sur `127.0.0.1`, CLI texte.
-2. Interface `Tool` + registre + garde de permissions N0–N3 + confirmations.
-3. Journal d'audit SQLite (ajout seul) et sa commande de consultation.
+1. [x] Squelette : `pyproject.toml`, CLI texte (`python -m jarvis`). FastAPI arrive avec son premier client (voix ou PWA).
+2. [x] Interface `Tool` + registre + garde de permissions N0–N3 + confirmations.
+3. [x] Journal d'audit SQLite (ajout seul, protégé par triggers) et `python -m jarvis audit`.
 4. Routeur d'intentions (YAML + `difflib`) et mesure de latence.
 5. Ollama : benchmark de 2 ou 3 modèles sur 30 commandes, choix, tool calling.
 6. Les 15 premiers outils PC (tests : cas nominal, entrée invalide, permission refusée) :

@@ -79,6 +79,7 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 | TV Continental Edison (Google TV) | Android TV Remote + Google Cast | oui | aucun |
 | 2 clims Mitsubishi MSZ-HR25VFK2 | MELCloud (officielle) | non, cloud Mitsubishi | aucun si le Wi-Fi est déjà configuré |
 | idem, option locale | ESPHome sur le connecteur CN105 | oui | un ESP32 par clim (~15 €), ouverture de l'unité intérieure |
+| Barre de son Samsung HW-S50B | via la TV (HDMI ARC/CEC) ; SmartThings en option, compatibilité non garantie | oui (via la TV) | aucun |
 | Volets Turol Industries | dépend de la motorisation (Somfy RTS, Somfy io, filaire…) | à préciser | à préciser |
 | Bbox Wi-Fi 7 XT | aucune nécessaire | — | aucun (Tailscale n'ouvre aucun port) |
 
