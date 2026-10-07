@@ -101,6 +101,17 @@ Le MSZ-HR n'a **pas de Wi-Fi intégré** : il faut un adaptateur sur le connecte
 | Position, état, consommation | N0 |
 | Ouvrir, fermer, stop, position en % (un volet, une pièce, tous) | N1 |
 
+### 2.4 bis Lumière du salon : plafonnier LED TYJY 105 W (télécommande RF 2,4 GHz)
+- **Intégration** : aucune directe. Pas d'appli, pas de Wi-Fi : la télécommande parle un protocole RF 2,4 GHz propriétaire (ni Mi-Light, ni 433 MHz, donc pas de Broadlink).
+- **Solution retenue** : un **Shelly 1 Mini Gen4 (~15-20 €)** derrière l'interrupteur mural du plafonnier, intégration *Shelly* locale. Jarvis allume/éteint ; luminosité et blanc chaud/froid restent à la télécommande. Le plafonnier a une **mémoire** : il se rallume sur le dernier réglage.
+- **Prérequis** : neutre dans la boîte (sinon Shelly 1L, sans neutre) ; test préalable : couper puis remettre à l'interrupteur mural → la lampe doit se rallumer seule.
+- **Écartée** : copier le protocole RF (ESP32 + nRF24, protocole inconnu, bricolage fragile) ou remplacer le driver LED (risque, perte de garantie).
+
+| Action | Niveau |
+|---|---|
+| État allumé/éteint, consommation | N0 |
+| Allumer / éteindre | N1 |
+
 ### 2.5 Box Bbox Wi-Fi 7 XT
 - **Intégration** : *Bbox* existe dans HA (présence par appareils connectés, débits), mais configuration YAML ancienne et soucis TLS signalés. **Non retenue pour la Phase 2** : aucun besoin. La présence par le téléphone sera étudiée plus tard (données de localisation = validation Sécurité).
 - **Matériel** : aucun. Aucun port ouvert (Tailscale).
@@ -120,13 +131,13 @@ Le MSZ-HR n'a **pas de Wi-Fi intégré** : il faut un adaptateur sur le connecte
 
 ## 4. Scènes
 
-Implémentées en **scripts HA** (`script.jarvis_*`), car elles enchaînent des actions ; JARVIS les déclenche via `activate_scene(nom)` et vérifie l'état réel après coup (jamais « c'est fait » sans confirmation d'état). Aucune lumière connectée pour l'instant : les scènes l'ignorent jusqu'à un éventuel achat (Q7).
+Implémentées en **scripts HA** (`script.jarvis_*`), car elles enchaînent des actions ; JARVIS les déclenche via `activate_scene(nom)` et vérifie l'état réel après coup (jamais « c'est fait » sans confirmation d'état). Lumière du salon : marche/arrêt seulement (§2.4 bis).
 
 | Scène | Actions | Niveau |
 |---|---|---|
-| « Mode cinéma » | Volets du salon fermés ; TV salon allumée (barre suivie par CEC) sur l'appli ou la source demandée ; volume préréglé | N1 |
+| « Mode cinéma » | Volets du salon fermés ; lumière salon éteinte ; TV salon allumée (barre suivie par CEC) sur l'appli ou la source demandée ; volume préréglé | N1 |
 | « Je pars » | TV éteinte ; clims en consigne éco (Q6) ; **volets laissés tels quels** (chat à la maison) ; rapport des volets ouverts et appareils encore allumés ; option PC : verrouillage de session | N1 (N2 si l'option « clims éteintes » est choisie) |
-| « Bonne nuit » | TV éteinte ; volets fermés ; clim chambre en consigne nuit, clim salon en éco (Q6) ; option PC : écran éteint + verrouillage | N1 |
+| « Bonne nuit » | TV éteinte ; lumière salon éteinte ; volets fermés ; clim chambre en consigne nuit, clim salon en éco (Q6) ; option PC : écran éteint + verrouillage | N1 |
 
 Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le PC en veille n'est dans aucune scène (cela couperait HA).
 
@@ -138,6 +149,7 @@ Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le P
 | Électricien (pose 230 V) | si non habilité | ~60-100 €, à chiffrer |
 | Adaptateur MAC-597IF-E | option A, si aucun adaptateur Wi-Fi sur les clims | ~90-130 € par clim |
 | ESP32 + câble CN105 | option B, clims en local | ~15-30 € par clim |
+| Shelly 1 Mini Gen4 | lumière du salon (marche/arrêt) | ~15-20 € |
 | Broadlink RM4 mini | seulement si le CEC ne suffit pas pour la barre de son | ~25 € |
 
 Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims ont déjà leur adaptateur Wi-Fi.
@@ -166,6 +178,7 @@ Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims 
 | 4 | **Option A** (adaptateur officiel, cloud Mitsubishi) | Signalée à la Sécurité : cloud, Internet obligatoire |
 | 5 | « Je pars » : volets **tels quels** (chat) | Scène mise à jour §4 |
 | 6 | La consigne dépend de la consigne éco **et** de la baie vitrée ouverte ; appliquée **seulement sur demande ou programmation**, jamais déduite seule | Capteur d'ouverture sur la baie : Shelly BLU Door/Window (~20 €), relayé en Bluetooth par le Shelly 2PM Gen4, 100 % local. Baie ouverte → clim de la pièce coupée, refermée → consigne reprise. Règle programmée par le propriétaire : validation Sécurité requise (coupure = N2) |
+| 7 | Lumière salon : plafonnier TYJY à télécommande RF 2,4 GHz | Shelly 1 Mini Gen4 (~15-20 €), §2.4 bis |
 | 8 | TV joignable en veille : **oui** | Allumage à distance possible |
 | 9 | PC en **Ethernet** | Pont Hyper-V fiable, mDNS OK |
 | 12 | 2,4 GHz actif, canal 11, 20 MHz (auto) | Bon pour Shelly et l'adaptateur Mitsubishi. Si l'appairage échoue : SSID 2,4 GHz séparé ou WPA2 seul, MLO Wi-Fi 7 désactivé pour cet SSID |
