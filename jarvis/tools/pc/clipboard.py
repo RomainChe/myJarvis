@@ -63,7 +63,8 @@ def _get_text() -> str:
             _k32.GlobalUnlock(handle)
 
 
-@tool("clipboard_write", "Copie un texte dans le presse-papiers (remplace son contenu).", Level.N1, hidden=("text",), text=str)
+@tool("clipboard_write", "Copie un texte dans le presse-papiers (remplace son contenu).", Level.N1, hidden=("text",), taint_blocked=True,
+      text=str)
 def clipboard_write(text: str) -> dict:
     _set_text(text)
     return {"chars": len(text)}

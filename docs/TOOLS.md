@@ -171,7 +171,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : `text` (texte, 1 000 caractères au plus).
 - **Retour** : `chars`.
 - **Exemple** : `python -m jarvis run clipboard_write text=bonjour`.
-- **Notes** : `CF_UNICODETEXT` via `ctypes`. Option `hidden=("text",)` : le journal écrit `<n car.>` à la place du texte (mot de passe dicté), y compris en cas d'erreur ou d'entrée invalide.
+- **Notes** : `CF_UNICODETEXT` via `ctypes`. Option `hidden=("text",)` : le journal écrit `<n car.>` à la place du texte (mot de passe dicté), y compris en cas d'erreur ou d'entrée invalide. Drapeau `taint_blocked` : le LLM ne peut pas l'appeler après la lecture de contenu externe dans la même demande (une page piégée ne peut pas déposer une commande dans le presse-papiers).
 
 ## clipboard_read
 

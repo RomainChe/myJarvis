@@ -33,6 +33,12 @@ def _power():
     return "éteint"
 
 
+@tool("llm_copy", "écrit chez l'utilisateur", Level.N1, taint_blocked=True)
+def _copy():
+    ran.append("copy")
+    return "copié"
+
+
 @tool("llm_lock", "serrure", Level.N3)
 def _lock():
     ran.append("lock")
@@ -96,6 +102,20 @@ class LLMTest(unittest.TestCase):
         self.ask(o)
         self.assertEqual(ran, [])
         self.assertIn("refusé", [row[5] for row in self.audit.last() if row[2] == "llm_power"])
+
+    def test_outil_taint_blocked_refuse_apres_contenu_externe_mais_pas_avant(self):
+        """S2 : un N1 qui écrit chez l'utilisateur (presse-papiers) est bloqué après contenu externe."""
+        o = FakeOllama(reply(call("llm_ext")), reply(call("llm_copy")), reply(content="fait"))
+        self.ask(o)
+        self.assertEqual(ran, [])
+        self.assertIn("refusé", [row[5] for row in self.audit.last() if row[2] == "llm_copy"])
+        o = FakeOllama(reply(call("llm_num")), reply(call("llm_copy")), reply(content="fait"))
+        self.ask(o)
+        self.assertEqual(ran, ["copy"])
+
+    def test_clipboard_write_est_taint_blocked(self):
+        import jarvis.tools.pc  # noqa: F401
+        self.assertTrue(REGISTRY["clipboard_write"].taint_blocked)
 
     def test_n2_autorise_apres_outil_non_externe(self):
         o = FakeOllama(reply(call("llm_num")), reply(call("llm_power")), reply(content="fait"))

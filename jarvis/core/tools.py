@@ -38,6 +38,7 @@ class Tool:
     private: bool = False  # résultat jamais journalisé en clair (presse-papiers, capture, fichier)
     external: bool = False  # le résultat contient du contenu tiers (noms de fichiers, pages, emails)
     hidden: tuple[str, ...] = ()  # paramètres dont la valeur n'est jamais journalisée (texte dicté, mot de passe)
+    taint_blocked: bool = False  # refusé au LLM après du contenu externe, comme N2/N3 (N1 qui écrit chez l'utilisateur)
 
     def check_args(self, args: dict) -> None:
         if type(args) is not dict:  # une sous-classe pourrait mentir sur keys() ou __getitem__
@@ -62,7 +63,7 @@ REGISTRY = MappingProxyType(_registry)  # lecture seule : un module ne peut pas 
 
 
 def tool(name: str, description: str, level: Level, /, *, private: bool = False, external: bool = False,
-         hidden: tuple[str, ...] = (), **params: type):
+         hidden: tuple[str, ...] = (), taint_blocked: bool = False, **params: type):
     """Décorateur : enregistre une fonction comme outil Jarvis.
 
     Arguments positionnels seulement : un outil peut avoir un paramètre `name` ou `level`.
@@ -79,6 +80,6 @@ def tool(name: str, description: str, level: Level, /, *, private: bool = False,
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
         if name in _registry:
             raise ValueError(f"outil déjà enregistré : {name}")
-        _registry[name] = Tool(name, description, Level(level), params, fn, private, external, hidden)
+        _registry[name] = Tool(name, description, Level(level), params, fn, private, external, hidden, taint_blocked)
         return fn
     return register
