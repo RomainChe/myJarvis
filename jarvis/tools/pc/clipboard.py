@@ -39,12 +39,16 @@ def _clipboard():
 def _set_text(text: str) -> None:
     data = ctypes.create_unicode_buffer(text)
     size = ctypes.sizeof(data)
-    handle = _k32.GlobalAlloc(GMEM_MOVEABLE, size)
-    if not handle:
-        raise OSError("mémoire insuffisante")
-    ctypes.memmove(_k32.GlobalLock(handle), data, size)
-    _k32.GlobalUnlock(handle)
-    with _clipboard():
+    with _clipboard():  # ouvert d'abord : s'il est occupé, aucune mémoire n'est allouée
+        handle = _k32.GlobalAlloc(GMEM_MOVEABLE, size)
+        if not handle:
+            raise OSError("mémoire insuffisante")
+        pointer = _k32.GlobalLock(handle)
+        if not pointer:
+            _k32.GlobalFree(handle)
+            raise OSError("mémoire verrouillable impossible")
+        ctypes.memmove(pointer, data, size)
+        _k32.GlobalUnlock(handle)
         _u32.EmptyClipboard()
         if not _u32.SetClipboardData(CF_UNICODETEXT, handle):
             _k32.GlobalFree(handle)  # sinon le système en est propriétaire
@@ -57,6 +61,8 @@ def _get_text() -> str:
         if not handle:
             return ""  # vide, ou contenu non textuel
         pointer = _k32.GlobalLock(handle)
+        if not pointer:
+            raise OSError("presse-papiers illisible")
         try:
             return ctypes.wstring_at(pointer)
         finally:

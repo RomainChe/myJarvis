@@ -42,6 +42,44 @@ class ClipboardWriteTest(PcBase):
         self.assertIn(f"<{len(SECRET)} car.>", rows)
 
 
+class ClipboardBackendTest(unittest.TestCase):
+    """S9 : GlobalLock NULL ne plante pas le Core ; pas de mémoire fuitée si le presse-papiers est occupé."""
+
+    def backend(self, open_ok=True, lock=None):
+        k32, u32 = mock.MagicMock(), mock.MagicMock()
+        k32.GlobalAlloc.return_value = 7
+        k32.GlobalLock.return_value = lock
+        u32.OpenClipboard.return_value = open_ok
+        u32.GetClipboardData.return_value = 7
+        patches = (mock.patch.object(clipboard, "_k32", k32), mock.patch.object(clipboard, "_u32", u32),
+                   mock.patch.object(clipboard.time, "sleep"))
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        return k32, u32
+
+    def test_ecriture_globallock_nul(self):
+        k32, u32 = self.backend(lock=None)
+        with self.assertRaises(OSError):
+            clipboard._set_text("x")
+        k32.GlobalFree.assert_called_once_with(7)
+        u32.SetClipboardData.assert_not_called()
+        u32.CloseClipboard.assert_called_once()
+
+    def test_ecriture_presse_papiers_occupe_sans_fuite(self):
+        k32, _ = self.backend(open_ok=False, lock=1234)
+        with self.assertRaises(OSError):
+            clipboard._set_text("x")
+        self.assertEqual(k32.GlobalAlloc.call_count, k32.GlobalFree.call_count)  # rien d'alloué, ou tout libéré
+
+    def test_lecture_globallock_nul(self):
+        k32, u32 = self.backend(lock=None)
+        with self.assertRaises(OSError):
+            clipboard._get_text()
+        k32.GlobalUnlock.assert_not_called()
+        u32.CloseClipboard.assert_called_once()
+
+
 class ClipboardReadTest(PcBase):
     def test_niveau_et_drapeaux(self):
         tool = REGISTRY["clipboard_read"]
