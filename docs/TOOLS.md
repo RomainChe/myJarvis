@@ -162,7 +162,16 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : `action` : `sleep`, `restart` ou `shutdown` (valeurs exactes).
 - **Retour** : `power` (l'action). Veille : l'appel ne rend la main qu'au réveil.
 - **Exemple** : `python -m jarvis run power action=sleep`.
-- **Notes** : veille par `SetSuspendState` ; arrêt et redémarrage par `System32\shutdown.exe /s|/r /t 10` (liste d'arguments, sans `/f` : les applications peuvent réclamer l'enregistrement ; `shutdown /a` annule pendant les 10 s). Aucune intention du routeur : « éteins le PC » passe par le LLM puis la confirmation. Testé avec des mocks, jamais en réel.
+- **Notes** : veille par `SetSuspendState` ; arrêt et redémarrage par `System32\shutdown.exe /s|/r /t 10` (liste d'arguments, sans `/f` : les applications peuvent réclamer l'enregistrement ; `shutdown /a` annule pendant les 10 s : outil `power_cancel`, utilisable depuis le téléphone). Aucune intention du routeur : « éteins le PC » passe par le LLM puis la confirmation. Testé avec des mocks, jamais en réel.
+
+## power_cancel
+
+- **Description** : annule un redémarrage ou un arrêt en attente (les 10 s de délai de `power`).
+- **Niveau** : N1 (annuler ne détruit rien).
+- **Paramètres** : aucun.
+- **Retour** : `power` : `cancelled`, ou `nothing_pending` si aucun arrêt n'était en cours (code 1116 de `shutdown /a`, pas une erreur).
+- **Exemple** : `python -m jarvis run power_cancel`.
+- **Notes** : `System32\shutdown.exe /a` par chemin absolu. Sans intention du routeur. Testé avec des mocks.
 
 ## clipboard_write
 

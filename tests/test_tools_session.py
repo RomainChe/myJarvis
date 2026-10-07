@@ -104,5 +104,33 @@ class PowerTest(SessionBase):
         self.assertTrue(self.audit.last(1)[0][6].startswith("erreur"))
 
 
+class PowerCancelTest(SessionBase):
+    def test_niveau(self):
+        self.assertEqual(REGISTRY["power_cancel"].level, Level.N1)
+
+    def test_nominal_annule_l_arret(self):
+        self.shutdown.return_value = subprocess.CompletedProcess([], 0)
+        self.assertEqual(self.run_tool("power_cancel"), {"power": "cancelled"})
+        self.assertEqual(self.shutdown.call_args.args[0], [str(session.SHUTDOWN), "/a"])
+
+    def test_rien_a_annuler_n_est_pas_une_erreur(self):
+        self.shutdown.return_value = subprocess.CompletedProcess([], 1116)
+        self.assertEqual(self.run_tool("power_cancel"), {"power": "nothing_pending"})
+
+    def test_autre_echec_leve_une_erreur(self):
+        self.shutdown.return_value = subprocess.CompletedProcess([], 5)
+        with self.assertRaises(OSError):
+            self.run_tool("power_cancel")
+
+    def test_entree_invalide(self):
+        for bad in ({"action": "x"}, {"force": True}):
+            with self.assertRaises(ValueError):
+                self.run_tool("power_cancel", bad)
+        self.shutdown.assert_not_called()
+
+    def test_permission_refusee(self):
+        self.assert_refused_if_level_raised("power_cancel", {})
+
+
 if __name__ == "__main__":
     unittest.main()

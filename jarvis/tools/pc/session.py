@@ -1,4 +1,4 @@
-"""Session Windows : screen_off, lock_session, power (ctypes + shutdown.exe par chemin absolu)."""
+"""Session Windows : screen_off, lock_session, power, power_cancel (ctypes + shutdown.exe par chemin absolu)."""
 import ctypes
 import subprocess
 
@@ -7,6 +7,7 @@ from jarvis.tools.pc.system import SYSTEM32
 
 SHUTDOWN = SYSTEM32 / "shutdown.exe"
 GRACE_S = 10  # délai avant arrêt/redémarrage : `shutdown /a` l'annule
+ERROR_NO_SHUTDOWN = 1116  # « shutdown /a » sans arrêt en cours
 POWER_ACTIONS = ("sleep", "restart", "shutdown")
 HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, MONITOR_OFF = 0xFFFF, 0x0112, 0xF170, 2
 
@@ -50,3 +51,13 @@ def power(action: str) -> dict:
         subprocess.run([str(SHUTDOWN), "/s" if action == "shutdown" else "/r", "/t", str(GRACE_S)],
                        check=True, capture_output=True, timeout=10)
     return {"power": action}
+
+
+@tool("power_cancel", f"Annule un redémarrage ou un arrêt en attente (délai de {GRACE_S} s de `power`).", Level.N1)
+def power_cancel() -> dict:
+    done = subprocess.run([str(SHUTDOWN), "/a"], capture_output=True, timeout=10)
+    if done.returncode == ERROR_NO_SHUTDOWN:  # rien en attente : le résultat voulu est atteint
+        return {"power": "nothing_pending"}
+    if done.returncode:
+        raise OSError(f"annulation impossible (code {done.returncode})")
+    return {"power": "cancelled"}
