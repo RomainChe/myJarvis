@@ -250,6 +250,14 @@ class GamesTest(unittest.TestCase):
         self.assertFalse(games.is_gaming({"leagueclient.exe", "riotclientservices.exe", "javaw.exe"},
                                          javaw=["javaw -jar idea.jar"]))
 
+    def test_process_names_sans_lancer_de_programme(self):
+        """Bonus : plus de tasklist.exe (~360 ms par demande) : les noms viennent de l'API Toolhelp."""
+        import os
+        with mock.patch.object(games.subprocess, "run", side_effect=AssertionError("tasklist lancé")):
+            names = games.process_names()
+        self.assertIn(os.path.basename(__import__("sys").executable).lower(), names)
+        self.assertTrue(all(n == n.lower() for n in names))
+
     def test_detect_echec_ouvert(self):
         for exc in (OSError(), subprocess.TimeoutExpired("t", 1), subprocess.CalledProcessError(1, "t")):
             with mock.patch.object(games, "process_names", side_effect=exc):

@@ -132,9 +132,7 @@ def _working_set_mb(k32, pid: int) -> float:
         k32.CloseHandle(handle)
 
 
-@tool("list_processes", f"Les {MAX_PROCESSES} processus qui utilisent le plus de mémoire.", Level.N0, external=True)
-def list_processes() -> dict:
-    # API Windows directe (Toolhelp) : ~10 fois plus rapide que de lancer tasklist.exe.
+def _kernel32():
     k32 = ctypes.WinDLL("kernel32", use_last_error=True)
     k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
     k32.OpenProcess.restype = wintypes.HANDLE
@@ -142,6 +140,12 @@ def list_processes() -> dict:
     k32.K32GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD]
     k32.CloseHandle.argtypes = [wintypes.HANDLE]
     k32.Process32FirstW.argtypes = k32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ProcEntry)]
+    return k32
+
+
+def all_processes(k32=None) -> list[tuple[str, int]]:
+    """(nom d'image, pid) de tous les processus, par l'API Windows directe (Toolhelp, ~10 ms)."""
+    k32 = k32 or _kernel32()
     snap = k32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
     if snap in (None, wintypes.HANDLE(-1).value):
         raise OSError("liste des processus illisible")
@@ -150,11 +154,18 @@ def list_processes() -> dict:
         entry = _ProcEntry(dwSize=ctypes.sizeof(_ProcEntry))
         more = k32.Process32FirstW(snap, ctypes.byref(entry))
         while more:
-            pid = entry.th32ProcessID
-            procs.append({"name": entry.szExeFile, "pid": pid, "mem_mb": _working_set_mb(k32, pid) if pid else 0.0})
+            procs.append((entry.szExeFile, entry.th32ProcessID))
             more = k32.Process32NextW(snap, ctypes.byref(entry))
     finally:
         k32.CloseHandle(snap)
+    return procs
+
+
+@tool("list_processes", f"Les {MAX_PROCESSES} processus qui utilisent le plus de mémoire.", Level.N0, external=True)
+def list_processes() -> dict:
+    k32 = _kernel32()
+    procs = [{"name": name, "pid": pid, "mem_mb": _working_set_mb(k32, pid) if pid else 0.0}
+             for name, pid in all_processes(k32)]
     procs.sort(key=lambda p: p["mem_mb"], reverse=True)
     return {"total": len(procs), "processes": procs[:MAX_PROCESSES]}
 

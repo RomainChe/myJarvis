@@ -44,7 +44,7 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
 - **Retour** : `total` (nombre de processus) et `processes` : liste de `name`, `pid`, `mem_mb`,
   triée par mémoire décroissante.
 - **Exemple** : « liste les processus » ou `python -m jarvis run list_processes`.
-- **Notes** : lit `tasklist.exe` (chemin absolu dans `System32`). Les noms de processus sont des
+- **Notes** : lit la liste par l'API Toolhelp (`system.all_processes`, ~10 ms, réutilisée par le mode jeu de `games.py`). Les noms de processus sont des
   données externes : ils ne doivent jamais être interprétés comme des ordres.
 
 ## search_files

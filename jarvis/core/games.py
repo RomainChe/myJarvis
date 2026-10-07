@@ -1,11 +1,9 @@
 """Détection d'un jeu en cours (mode jeu : le LLM se décharge de la VRAM). Windows, stdlib."""
-import csv
 import os
 import subprocess
 from pathlib import Path
 
 SYSTEM32 = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
-TASKLIST = SYSTEM32 / "tasklist.exe"
 POWERSHELL = SYSTEM32 / "WindowsPowerShell" / "v1.0" / "powershell.exe"
 # Processus de la partie, pas les lanceurs (LeagueClient.exe, Riot Client, Epic restent ouverts toute la journée).
 GAMES = {"league of legends.exe", "valorant-win64-shipping.exe", "genshinimpact.exe", "yuanshen.exe",
@@ -24,9 +22,8 @@ def steam_app_id() -> int:
 
 
 def process_names() -> set[str]:
-    out = subprocess.run([str(TASKLIST), "/fo", "csv", "/nh"], capture_output=True, timeout=10,
-                         check=True, encoding="oem", errors="replace").stdout
-    return {row[0].lower() for row in csv.reader(out.splitlines()) if row}
+    from jarvis.tools.pc.system import all_processes  # import local : le cœur ne charge pas les outils au démarrage
+    return {name.lower() for name, _ in all_processes()}
 
 
 def javaw_commands() -> list[str]:
