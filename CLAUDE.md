@@ -18,15 +18,15 @@ enceintes, caméras, etc.). JARVIS doit être :
 - ÉCONOME : coût en tokens maîtrisé, sans dégrader la qualité de raisonnement.
 - AGRÉABLE : applications bureau et mobile claires, élégantes et cohérentes.
 
-## 2. Contexte du propriétaire (À REMPLIR)
-- Système d'exploitation du PC : [Windows 11 / macOS / Linux]
-- Smartphone : [iOS / Android]
-- Box / routeur : [modèle]
-- Appareils connus : [ex. TV Samsung/LG/Sony, ampoules Philips Hue, prises Tapo,
-  enceinte Sonos, thermostat Netatmo, aspirateur, caméras...]
-- Matériel disponible pour un serveur domestique : [Raspberry Pi 5 / mini-PC / NAS / aucun]
+## 2. Contexte du propriétaire
+- Système d'exploitation du PC : Windows 11 Pro (i5-14600KF, 32 Go RAM, RTX 5070 Ti 16 Go)
+- Smartphone : Android
+- Box / routeur : [à préciser]
+- Appareils connus : TV / enceintes, volets / chauffage [marques à préciser]
+- Matériel disponible pour un serveur domestique : aucun, tout tourne sur le PC
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
-- Budget mensuel API IA : [ex. 20 €]
+- Budget mensuel API IA : 0 € → LLM 100 % local (Ollama), aucune API payante.
+- Architecture et roadmap : voir docs/ARCHITECTURE.md et docs/ROADMAP.md.
 
 ## 3. Architecture cible (à valider en Phase 0, modifiable avec justification)
 1. JARVIS CORE (cerveau) : service Python (FastAPI) ou Node (TypeScript), qui reçoit les
