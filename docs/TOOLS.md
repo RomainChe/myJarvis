@@ -198,7 +198,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : `src` (existant) et `dst` : un dossier existant (on déplace dedans) ou un nouveau chemin (parent existant, nom libre).
 - **Retour** : `moved` (chemin final).
 - **Exemple** : `python -m jarvis run move_file src=documents/a.txt dst=documents/b.txt`.
-- **Notes** : mêmes règles de chemin que `search_files` (`_allowed_root` : sous le dossier utilisateur, UNC, `\?\`, ADS, noms réservés refusés avant tout accès disque ; liens et jonctions résolus puis revérifiés). Refusés en plus : écraser une destination existante, déplacer un dossier dans lui-même, noms contenant `<>:"|?*` ou finissant par un point ou une espace, le dossier utilisateur et ses dossiers standard (Documents, Bureau…) eux-mêmes, tout ce qui est sous `~/.jarvis` (journal d'audit, listes blanches, scripts) en source comme en destination.
+- **Notes** : mêmes règles de chemin que `search_files` (`_allowed_root` : sous le dossier utilisateur, UNC, `\?\`, ADS, noms réservés refusés avant tout accès disque ; liens et jonctions résolus puis revérifiés). Refusés en plus : écraser une destination existante, déplacer un dossier dans lui-même, noms contenant `<>:"|?*` ou finissant par un point ou une espace, le dossier utilisateur et ses dossiers standard (Documents, Bureau…) eux-mêmes, tout ce qui est sous `~/.jarvis` (journal d'audit, listes blanches, scripts) en source comme en destination. Refusés aussi, en source comme en destination, tout chemin passant par `AppData`, `.ssh`, `.gnupg`, `.git` ou le dossier Démarrage (persistance, destruction). La confirmation affiche le chemin **résolu** (`Tool.describe`), pas la saisie brute.
 
 ## delete_file
 

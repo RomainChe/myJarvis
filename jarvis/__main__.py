@@ -13,7 +13,7 @@ from jarvis.core.audit import Audit
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
-from jarvis.core.tools import Tool, masked
+from jarvis.core.tools import Tool
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")
@@ -36,7 +36,7 @@ def confirm(tool: Tool, args: dict) -> bool:
     if not sys.stdin.isatty():  # `echo o | jarvis run ...` : pas d'humain devant l'écran
         print("Confirmation refusée : la CLI exige un terminal interactif.")
         return False
-    return input(f"Confirmer {tool.name} {masked(args)} ? [o/N] ").strip().lower() == "o"
+    return input(f"Confirmer {tool.name} {tool.preview(args)} ? [o/N] ").strip().lower() == "o"
 
 
 def no_strong_auth(tool: Tool, args: dict) -> bool:

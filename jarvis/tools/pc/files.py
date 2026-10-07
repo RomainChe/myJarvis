@@ -70,10 +70,21 @@ def _protected() -> set[Path]:
     return {home, *(home / name for name in set(KNOWN_FOLDERS.values()))}
 
 
+# Persistance ou destruction : jamais touchés, en source comme en destination (S7).
+SENSITIVE_NAMES = {"appdata", ".ssh", ".gnupg", ".git"}
+
+
+def _check_sensitive(path: Path) -> None:
+    parts = {p.casefold() for p in path.relative_to(Path.home().resolve()).parts}
+    if parts & SENSITIVE_NAMES or {"start menu", "startup"} <= parts:
+        raise ValueError("dossier sensible protégé (AppData, .ssh, .gnupg, .git, Démarrage)")
+
+
 def _existing(path: str) -> Path:
     """Fichier ou dossier existant, sous le dossier utilisateur, ni racine de dossier utilisateur ni ~/.jarvis."""
     resolved = _allowed_root(path.strip())
     _check_not_config(resolved)
+    _check_sensitive(resolved)
     if resolved in _protected():
         raise ValueError(f"dossier utilisateur protégé : {path}")
     return resolved
@@ -102,6 +113,7 @@ def _destination(dst: str, src: Path) -> Path:
         folder = _allowed_root(str(parts.parent))
         target = folder / name
     _check_not_config(folder)
+    _check_sensitive(target)
     if os.path.lexists(target):
         raise ValueError(f"la destination existe déjà : {target.name}")
     if target.is_relative_to(src):
@@ -109,8 +121,13 @@ def _destination(dst: str, src: Path) -> Path:
     return target
 
 
+def _describe_move(src: str, dst: str) -> str:
+    source = _existing(src)
+    return f"{source} -> {_destination(dst, source)}"
+
+
 @tool("move_file", "Déplace ou renomme un fichier ou dossier du dossier utilisateur vers `dst` "
-                   "(dossier existant, ou nouveau chemin) ; n'écrase jamais.", Level.N2, src=str, dst=str)
+                   "(dossier existant, ou nouveau chemin) ; n'écrase jamais.", Level.N2, describe=_describe_move, src=str, dst=str)
 def move_file(src: str, dst: str) -> dict:
     source = _existing(src)
     target = _destination(dst, source)
@@ -118,8 +135,12 @@ def move_file(src: str, dst: str) -> dict:
     return {"moved": str(target)}
 
 
+def _describe_delete(path: str) -> str:
+    return f"corbeille : {_existing(path)}"
+
+
 @tool("delete_file", "Envoie un fichier ou dossier du dossier utilisateur à la corbeille (récupérable).",
-      Level.N2, path=str)
+      Level.N2, describe=_describe_delete, path=str)
 def delete_file(path: str) -> dict:
     target = _existing(path)
     _recycle(target)

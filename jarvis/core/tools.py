@@ -39,6 +39,15 @@ class Tool:
     external: bool = False  # le résultat contient du contenu tiers (noms de fichiers, pages, emails)
     hidden: tuple[str, ...] = ()  # paramètres dont la valeur n'est jamais journalisée (texte dicté, mot de passe)
     taint_blocked: bool = False  # refusé au LLM après du contenu externe, comme N2/N3 (N1 qui écrit chez l'utilisateur)
+    describe: Callable[..., str] | None = None  # texte de confirmation (ex. chemin résolu) ; reçoit les paramètres
+
+    def preview(self, args: dict) -> str:
+        """Ce que le propriétaire confirme : `describe` s'il existe, sinon les arguments masqués."""
+        try:
+            text = self.describe(**args) if self.describe else str(masked(args, self.hidden))
+        except Exception:  # chemin invalide : l'exécution échouera de toute façon
+            text = f"{masked(args, self.hidden)} (non résolu)"
+        return "".join(c if c.isprintable() else "?" for c in text)
 
     def check_args(self, args: dict) -> None:
         if type(args) is not dict:  # une sous-classe pourrait mentir sur keys() ou __getitem__
@@ -63,7 +72,8 @@ REGISTRY = MappingProxyType(_registry)  # lecture seule : un module ne peut pas 
 
 
 def tool(name: str, description: str, level: Level, /, *, private: bool = False, external: bool = False,
-         hidden: tuple[str, ...] = (), taint_blocked: bool = False, **params: type):
+         hidden: tuple[str, ...] = (), taint_blocked: bool = False,
+         describe: Callable[..., str] | None = None, **params: type):
     """Décorateur : enregistre une fonction comme outil Jarvis.
 
     Arguments positionnels seulement : un outil peut avoir un paramètre `name` ou `level`.
@@ -80,6 +90,6 @@ def tool(name: str, description: str, level: Level, /, *, private: bool = False,
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
         if name in _registry:
             raise ValueError(f"outil déjà enregistré : {name}")
-        _registry[name] = Tool(name, description, Level(level), params, fn, private, external, hidden, taint_blocked)
+        _registry[name] = Tool(name, description, Level(level), params, fn, private, external, hidden, taint_blocked, describe)
         return fn
     return register

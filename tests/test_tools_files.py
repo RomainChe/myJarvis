@@ -20,9 +20,10 @@ class FilesBase(PcBase):
         (self.config / "jarvis.db").write_text("journal")
         (self.root / "a.txt").write_text("a")
         (self.root / "dossier").mkdir()
-        patcher = mock.patch.object(files, "CONFIG_DIR", self.config)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for patcher in (mock.patch.object(files, "CONFIG_DIR", self.config),
+                        mock.patch.object(Path, "home", return_value=self.root)):  # le temp est sous AppData
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
 
 class DeleteFileTest(FilesBase):
@@ -72,6 +73,67 @@ class DeleteFileTest(FilesBase):
                 with self.assertRaises(ValueError):
                     self.run_tool("delete_file", {"path": str(self.root / "lien")}, confirm=yes)
             recycle.assert_not_called()
+
+
+SENSITIVE = ("AppData/Roaming/x", ".ssh", ".gnupg", "projet/.git", "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup",
+             "Start Menu/Programs/Startup")
+
+
+class SensitiveFoldersTest(FilesBase):
+    """S7 : AppData, .ssh, .gnupg, .git et Startup refusés en source et en destination."""
+
+    def setUp(self):
+        super().setUp()
+        for rel in SENSITIVE:
+            (self.root / rel).mkdir(parents=True)
+            (self.root / rel / "f.txt").write_text("f")
+
+    def test_source_refusee(self):
+        with mock.patch.object(files, "_recycle") as recycle:
+            for rel in SENSITIVE:
+                for target in (self.root / rel, self.root / rel / "f.txt"):
+                    with self.assertRaises(ValueError, msg=str(target)):
+                        self.run_tool("delete_file", {"path": str(target)}, confirm=yes)
+                    with self.assertRaises(ValueError, msg=str(target)):
+                        self.run_tool("move_file", {"src": str(target), "dst": str(self.root / "sortie")}, confirm=yes)
+        recycle.assert_not_called()
+
+    def test_destination_refusee(self):
+        for rel in SENSITIVE:
+            for dst in (self.root / rel, self.root / rel / "nouveau.txt"):
+                with self.assertRaises(ValueError, msg=str(dst)):
+                    self.run_tool("move_file", {"src": str(self.root / "a.txt"), "dst": str(dst)}, confirm=yes)
+        self.assertEqual((self.root / "a.txt").read_text(), "a")
+
+    def test_nom_sensible_comme_nouveau_nom(self):
+        with self.assertRaises(ValueError):
+            self.run_tool("move_file", {"src": str(self.root / "a.txt"), "dst": str(self.root / ".git")}, confirm=yes)
+
+    def test_dossier_ordinaire_accepte(self):
+        self.run_tool("move_file", {"src": str(self.root / "a.txt"), "dst": str(self.root / "dossier")}, confirm=yes)
+        self.assertTrue((self.root / "dossier" / "a.txt").exists())
+
+
+class ConfirmationTest(FilesBase):
+    def test_apercu_montre_le_chemin_resolu(self):
+        (self.root / "dossier" / "sous").mkdir()
+        raw = str(self.root / "dossier" / "sous" / ".." / ".." / "a.txt")
+        shown = REGISTRY["delete_file"].preview({"path": raw})
+        self.assertIn(str(self.root / "a.txt"), shown)
+        self.assertNotIn("..", shown)
+        shown = REGISTRY["move_file"].preview({"src": raw, "dst": str(self.root / "dossier")})
+        self.assertIn(str(self.root / "a.txt"), shown)
+        self.assertIn(str(self.root / "dossier" / "a.txt"), shown)
+
+    def test_apercu_chemin_invalide_ne_plante_pas(self):
+        self.assertIn("non résolu", REGISTRY["delete_file"].preview({"path": str(self.root / "absent")}))
+
+    def test_la_cli_affiche_l_apercu(self):
+        import jarvis.__main__ as cli
+        raw = str(self.root / "dossier" / ".." / "a.txt")
+        with mock.patch.object(cli.sys.stdin, "isatty", return_value=True),                 mock.patch("builtins.input", return_value="n") as ask:
+            self.assertFalse(cli.confirm(REGISTRY["delete_file"], {"path": raw}))
+        self.assertIn(str(self.root / "a.txt"), ask.call_args.args[0])
 
 
 class RecycleTest(FilesBase):
