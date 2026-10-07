@@ -4,8 +4,11 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 
 ## État actuel (à lire en reprise de session)
 - Phase en cours : **Phase 1**, étapes 1 à 3 faites ; Ollama 0.40.0 installé (écoute 127.0.0.1:11434, aucun modèle téléchargé).
-- **Reprise le 2026-10-07** : 9 experts lancés en parallèle (une branche worktree chacun). Le Manager fusionne après feu vert QA puis Sécurité. Bench : pas de téléchargement de modèle pour l'instant.
-- Prochaine action, au choix du propriétaire : étape 4 (routeur d'intentions) ou étape 5 (benchmark des modèles, 5 à 10 Go par modèle).
+- **2026-10-07** : 9 experts lancés en parallèle. Docs + tests des 8 experts fusionnés dans `main` (68 tests, 19 échecs attendus = failles connues).
+- **Veto Sécurité** sur tout outil N2/N3 et sur le branchement routeur/LLM tant que F1–F8 (docs/SECURITY_REVIEW_PHASE_1.md) et BUG-01..06 (docs/QA_REPORT_PHASE_1.md) ne sont pas corrigés.
+- Branche `worktree-agent-a0058f7db3245d1e9` (routeur + 3 outils N0) : en attente de revue QA puis Sécurité, non fusionnée.
+- Prochaine action : Dev corrige F1–F8 / BUG-01..06, puis revue QA + Sécurité de sa branche.
+- Décisions propriétaire en attente : téléchargement des 3 modèles (~20,5 Go), registre (vous/tu), clims (cloud ou ESPHome), questions domotique (docs/DOMOTIQUE_PLAN.md §6), destination des sauvegardes, lecture de `.env`.
 - Question en attente : nombre de volets (un module Shelly 2PM par volet, Phase 2).
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 
