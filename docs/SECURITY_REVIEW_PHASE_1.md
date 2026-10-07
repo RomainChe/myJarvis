@@ -188,3 +188,39 @@ Verdict : **feu vert sous conditions** (aucun veto). Conditions C1 à C4 à sold
 - C3 : S7 corrigé (dossiers refusés).
 - C4 : test dans `test_router.py` : aucune intention du catalogue ne vise un outil de niveau >= N2.
 - S3, S5, S8 à S12 : Phase 5 au plus tard, sauf S5 avant livraison si OneDrive synchronise Images.
+
+## Clôture de la Phase 1 (2026-10-07)
+
+Code relu : `tools.py`, `permissions.py`, `llm.py`, `files.py`, `clipboard.py`, `screenshot.py`, `session.py`, `audio.py`, `system.py` (Toolhelp), `games.py`.
+**Verdict : FEU VERT pour la Phase 2, sous 2 conditions (aucun veto).**
+
+### 1. Correctifs vérifiés dans le code
+- S1 : `hidden` validé à l'enregistrement, `masked(args, tool.hidden)` utilisé aux 5 points de journalisation de `permissions.py` et `llm.py` ; `preview` masque aussi. Corrigé.
+- S2 : `taint_blocked` testé dans `llm.py` (même branche que N2/N3), refus journalisé, drapeau remis à zéro à chaque demande (`ask` sans état). Corrigé.
+- S4 : `SelectObject(old)` avant `GetDIBits` et `DeleteObject`, restauration aussi en cas d'erreur, `DeleteDC` et `ReleaseDC` dans le `finally`. Corrigé.
+- S6 : lecteur fixe, taille et nombre d'entrées bornés, flags sans interface. Corrigé en partie : voir le choix 2.
+- S7 : `_check_sensitive` en source (`_existing`) et en destination (`_destination`), tous niveaux de l'arborescence, comparaison insensible à la casse ; `describe` affiche les chemins résolus. Corrigé.
+- S9, S10 : `GlobalLock` testé, `GlobalFree` sur chaque échec, presse-papiers ouvert avant l'allocation ; `CoUninitialize` équilibré. Corrigé.
+- S11 : `power_cancel` N1, `shutdown /a` par chemin absolu, liste d'arguments, code 1116 géré. Corrigé.
+- C4 : test présent (commit 2f44646). Corrigé.
+
+### 2. Les 3 choix tranchés
+- **`taint_blocked` plutôt que N2 pour `clipboard_write` : ACCEPTÉ.** Le N2 ajouterait une confirmation à chaque « copie ça » sans gain : la garde bloque déjà le seul scénario d'attaque (injection via contenu externe) et le routeur local reste en N1. Règle : tout futur N1 qui écrit chez l'utilisateur reçoit `taint_blocked`.
+- **Limite 1 Gio / 50 000 entrées de `_recycle` : INSUFFISANT comme contrôle (moyenne).** La taille de la corbeille est un quota par lecteur (souvent < 1 Gio sur un petit disque) et la corbeille peut être désactivée pour le lecteur (« supprimer définitivement ») : dans ces cas `FOF_ALLOWUNDO` sans `FOF_WANTNUKEWARNING` ni confirmation supprime définitivement sans erreur, et le contrôle `lexists` ne le voit pas. Atténuations existantes : N2, chemin résolu affiché, lecteurs non fixes refusés. Correctif attendu : remplacer `SHFileOperationW` par `IFileOperation` avec `FOFX_RECYCLEONDELETE` (0x00080000, Windows 8+), qui échoue au lieu de supprimer définitivement ; à défaut, lire `NukeOnDelete` et `MaxCapacity` du lecteur (`HKCU\...\Explorer\BitBucket\Volume\{GUID}`) et refuser si la taille dépasse le quota. Condition C5 ci-dessous.
+- **`.git` partout (S7) : ACCEPTÉ.** Un dépôt entier reste déplaçable ou recyclable (récupérable), mais pas son contenu interne (hooks = exécution, historique). Lacune basse : `.aws`, `.kube`, `.docker`, `.config` ne sont pas protégés ; les ajouter à `SENSITIVE_NAMES` en Phase 5.
+
+### 3. Reports Phase 5
+S3 (liens physiques déjà refusés ; reste la substitution entre confirmation et exécution, exige un processus local déjà au niveau utilisateur), S5 (captures dans `Pictures/Jarvis`, non synchronisé selon le propriétaire ; N2 et privé), S8 (`kill_process` : N2, confirmation, système protégé) : **acceptables** pour clore la Phase 1. Condition C6 : vérifier avant la Phase 2 que `Pictures` n'est toujours pas redirigé par OneDrive. S12 reste à traiter en Phase 4.
+
+### 4. Régressions cherchées
+- `power_cancel` N1 : ne peut qu'annuler, aucun effet destructeur ; déclenchable après contenu externe, mais le pire cas est d'empêcher un arrêt voulu. Acceptable.
+- `describe` / `preview` : lecture seule, exceptions capturées, caractères non imprimables remplacés (pas d'injection dans le terminal). Utilisé aujourd'hui par la CLI seule : les futures apps (Phase 3) devront l'afficher aussi.
+- Toolhelp ctypes : `argtypes` posés, handle de snapshot fermé dans `finally`, `OpenProcess` fermé dans `finally`. Pas de handle fuité. `games.process_names` réutilise `all_processes`.
+- Erreurs d'outils : messages au LLM réduits au type pour les erreurs non `ValueError` ; journal sans détail pour les outils privés. Rien d'ouvert.
+
+### 5. Hygiène du dépôt public
+`git grep` : aucune adresse IP, aucun jeton ni mot de passe réel, aucun chemin personnel ni adresse e-mail dans les fichiers suivis. Seules occurrences : l'identifiant GitHub public du dépôt et `homeassistant.local` (nom générique). Aucun `.env`, base, journal ou clé suivis.
+
+### Conditions
+- C5 : (avant que `delete_file` serve sur des données réelles, Phase 5 au plus tard) remplacer la suppression par `IFileOperation`/`FOFX_RECYCLEONDELETE` ou contrôler quota et `NukeOnDelete` ; le test manuel S6 (QA §6, étape 4) reste à faire par le propriétaire et à consigner.
+- C6 : confirmer que `Pictures` n'est pas synchronisé par OneDrive.
