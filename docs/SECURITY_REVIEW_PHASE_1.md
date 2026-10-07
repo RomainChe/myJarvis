@@ -149,3 +149,42 @@ Verdict : **feu vert sous conditions**, conditions 1 à 4 soldées. Tests : `tes
 | 9 | Détection de jeu contournable ; le mode jeu n'est pas une garde (routeur et `run` restent actifs) | Basse | Accepté, sans impact sur la sécurité. |
 
 **Limite connue** : un outil N1 reste autorisé après la lecture de contenu externe (seuls N2 et N3 sont bloqués). Aucun N1 dangereux n'existe aujourd'hui. À rouvrir avant `open_app` et `run_script` : les bloquer aussi après contenu externe, ou valider leurs arguments par liste blanche.
+
+## Revue de l'étape 6 : 13 outils PC (2026-10-07)
+
+Périmètre : `apps`, `audio`, `session`, `clipboard`, `screenshot`, `files`, `intents.json`, `router.py`. Code lu en entier.
+Verdict : **feu vert sous conditions** (aucun veto). Conditions C1 à C4 à solder avant la recette QA finale.
+
+**Vérifié et correct** : niveaux conformes à CLAUDE.md §4 (power, kill_process, move_file, delete_file, run_script, clipboard_read, screenshot = N2 ; le reste N1) ; `Popen` et `run` en liste, sans shell, chemins absolus ; `run_script` : nom validé par regex complète, `resolve().parent == root`, aucun argument ; `kill_process` : un seul handle pour vérifier le nom de l'image puis terminer (PID réattribué couvert), Windows protégé, PID <= 4 et soi-même refusés ; `delete_file` : corbeille, jokers impossibles (`resolve(strict)`) ; `move_file` n'écrase jamais (`os.rename`), `~/.jarvis` et racines utilisateur protégés ; UNC, ADS, noms réservés refusés avant tout accès disque ; le catalogue d'intentions ne contient aucun outil N2/N3 et la garde décide de toute façon ; `run_script` et `clipboard_read` sont `external` : N2/N3 bloqués pour le reste du tour.
+
+### Points signalés par le développeur
+| # | Point | Décision |
+|---|---|---|
+| D1 | `apps.json`, `scripts/`, `games.txt` modifiables par tout processus utilisateur | **Accepté (basse)** : un processus qui écrit déjà en tant qu'utilisateur peut tout lancer sans Jarvis ; aucun outil Jarvis ne peut écrire dans `~/.jarvis`. Condition C1 : ACL (`icacls`) documentée dans INSTALL.md, vérifiée en Phase 5. |
+| D2 | `-ExecutionPolicy Bypass` | **Accepté** : la politique d'exécution n'est pas une frontière de sécurité ; les contrôles réels sont la liste blanche, le N2 et le dossier protégé. La vraie faiblesse est S3. |
+| D3 | Texte de `clipboard_write` journalisé en clair | **Constat S1, à corriger.** |
+| D4 | `open_app` N1 après contenu externe | **Accepté** : argument validé par liste blanche, aucun paramètre, application choisie par le propriétaire. Règle : aucun interpréteur (`cmd`, `powershell`, `python`) dans `apps.json` (C1). `run_script` est N2, donc déjà bloqué. La limite connue de l'étape 5 est close. |
+| D5 | Course de jonction (R3) | **Accepté, inchangé** jusqu'en Phase 5 : exige l'écriture dans le dossier utilisateur. Corbeille et `rename` agissent sur la jonction elle-même, pas sur sa cible. |
+
+### Constats
+| # | Fichier | Gravité | Scénario | Correctif demandé |
+|---|---|---|---|---|
+| S1 | `clipboard.py` (clipboard_write), `tools.py`, `audit.py` | Moyenne | L'utilisateur dicte un mot de passe ; le LLM l'écrit dans `text` : journalisé en clair (jusqu'à 1 000 car.). | Option `hidden=("text",)` dans `@tool` : le journal écrit `<n car.>` pour ces paramètres. Test : le texte n'apparaît pas dans l'audit. |
+| S2 | `clipboard.py` (clipboard_write, N1) | Moyenne | Après lecture d'une page piégée, le LLM place une commande malveillante dans le presse-papiers que l'utilisateur colle ensuite. N1 n'est pas bloqué après contenu externe. | Bloquer l'outil quand `tainted` (drapeau d'outil dédié) ou le passer N2. Test « refusé après contenu externe ». |
+| S3 | `apps.py` (run_script) | Basse | Le propriétaire confirme `x.ps1` ; le fichier change avant l'exécution (processus local, lien physique non détecté par `resolve`). | SHA-256 du contenu affiché (8 car.) dans la confirmation et revérifié avant l'exécution ; refuser `st_nlink > 1`. Phase 5 au plus tard. |
+| S4 | `screenshot.py` (_capture, bloc finally) | Moyenne | `DeleteObject` est appelé alors que le bitmap est encore sélectionné dans le DC : échec silencieux, le bitmap (dizaines de Mo) fuit à chaque capture. Aussi, `GetDIBits` exige un bitmap non sélectionné. | Restaurer l'ancien objet (`SelectObject(memory, old)`) avant `GetDIBits`, puis `DeleteObject`, puis `DeleteDC`. Test : 200 captures sans croissance des objets GDI. |
+| S5 | `screenshot.py` (SHOT_DIR) | Moyenne | Les captures s'accumulent dans `Pictures/Jarvis`, souvent synchronisé par OneDrive (cloud) et lisible de tous les processus ; elles peuvent montrer des mots de passe. | Dossier `~/.jarvis/captures` hors synchronisation, purge après N jours, mention RGPD dans TOOLS.md. |
+| S6 | `files.py` (_recycle) | Moyenne | Fichier non recyclable (trop gros, disque amovible) : `FOF_WANTNUKEWARNING` combiné à `FOF_NOCONFIRMATION` peut afficher une boîte qui bloque le Core ou supprimer définitivement selon la version de Windows. Non testé. | Refuser si le lecteur n'est pas fixe (`GetDriveTypeW`) ou si la taille dépasse la limite de la corbeille ; test manuel sur un gros fichier consigné au rapport QA. |
+| S7 | `files.py` (_protected) | Moyenne | `move_file` et `delete_file` acceptent `AppData`, `.ssh`, `.git` et la destination `Start Menu\Programs\Startup` : persistance ou destruction après une confirmation peu lisible. | Refuser en source et en destination : `AppData`, `.ssh`, `.gnupg`, `.git`, `Startup`. Afficher le chemin résolu dans la confirmation. |
+| S8 | `apps.py` (kill_process) | Basse | Seul `WINDOWS_DIR` est protégé : un `python.exe` quelconque ou le parent de Jarvis peut être visé ; la confirmation n'affiche que PID et nom. | Refuser aussi les ancêtres de Jarvis, Ollama, Tailscale, Home Assistant ; afficher le chemin de l'image dans la confirmation. |
+| S9 | `clipboard.py` (_set_text, _get_text) | Basse | `GlobalLock` non vérifié (NULL : plantage du Core) ; handle fuité si `OpenClipboard` échoue. | Tester le retour de `GlobalLock`, libérer le handle dans tous les échecs. |
+| S10 | `audio.py` (_endpoint) | Basse | `CoInitializeEx` jamais équilibré par `CoUninitialize`. | Appeler `CoUninitialize` si l'init a réussi. |
+| S11 | `session.py` (power) | Basse | Le délai de 10 s avant arrêt ne s'annule que depuis un terminal ; un faux positif est irréversible depuis le téléphone. | Outil `power_cancel` (N1, `shutdown /a`) ; la confirmation rappelle que Jarvis et Home Assistant seront coupés. |
+| S12 | `intents.json`, voix (Phase 4) | Basse (future) | Les phrases N1 (verrouiller, éteindre l'écran, volume) seront déclenchables par toute voix, ex. la TV. | Phase 4 : mot de réveil ou identification du locuteur. Ne jamais ajouter d'intention N2/N3 ; test qui l'interdit. |
+
+### Conditions avant livraison
+- C1 : INSTALL.md décrit l'ACL de `~/.jarvis` et la règle « aucun interpréteur dans `apps.json` » ; TOOLS.md à jour.
+- C2 : S1 et S2 corrigés avec tests ; S4 et S6 corrigés (S6 : test manuel consigné).
+- C3 : S7 corrigé (dossiers refusés).
+- C4 : test dans `test_router.py` : aucune intention du catalogue ne vise un outil de niveau >= N2.
+- S3, S5, S8 à S12 : Phase 5 au plus tard, sauf S5 avant livraison si OneDrive synchronise Images.
