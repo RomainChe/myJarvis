@@ -158,3 +158,23 @@ Unregister-ScheduledTask -TaskName "JARVIS - core" -Confirm:$false
 `.github/workflows/tests.yml` lance `python -m unittest discover -s tests` sous Windows et
 Python 3.12 à chaque push et pull request (gratuit pour un dépôt public). Lint et audits
 (pip-audit, gitleaks) s'ajouteront quand il y aura des dépendances et un linter configuré.
+
+## 9. Dossier de configuration `~/.jarvis` (outils PC)
+
+`%USERPROFILE%\.jarvis` contient le journal d'audit, `apps.json` (applications autorisées),
+`scripts\` (scripts lançables) et `games.txt`. Tout processus lancé par ton compte peut les
+modifier : on réduit l'accès à ton compte, à SYSTEM et aux administrateurs.
+
+```powershell
+$dir = Join-Path $env:USERPROFILE ".jarvis"
+New-Item -ItemType Directory -Force $dir | Out-Null
+icacls $dir /inheritance:r /grant:r "${env:USERNAME}:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F"
+icacls $dir   # vérification : seulement ces trois entrées
+```
+
+Règle impérative pour `apps.json` : **aucun interpréteur ni lanceur** (`cmd.exe`, `powershell.exe`,
+`pwsh.exe`, `python.exe`, `wscript.exe`, `mshta.exe`, `rundll32.exe`...). `open_app` est N1
+(sans confirmation) : une entrée qui interprète du texte ou un script en ferait un
+exécuteur de commandes. Seules des applications finales (navigateur, lecteur, éditeur) ont leur place ici.
+Les scripts passent par `run_script` (N2, confirmation, dossier `scripts\` seulement).
+`move_file` et `delete_file` ne touchent jamais à ce dossier.
