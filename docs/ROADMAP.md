@@ -7,7 +7,7 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 - **En pause** : le propriétaire ajoute des prompts de contexte (experts, etc.). Ne pas reprendre les tâches avant son signal.
 - Prochaine action, au choix du propriétaire : étape 4 (routeur d'intentions) ou étape 5 (benchmark des modèles, 5 à 10 Go par modèle).
 - Question en attente : nombre de volets (un module Shelly 2PM par volet, Phase 2).
-- Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07).
+- Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 
 ## Phase 0 — Cadrage ✅
 - [x] Inventaire du matériel (PC, smartphone, budget)
