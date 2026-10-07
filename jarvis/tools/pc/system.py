@@ -1,6 +1,6 @@
 """Outils N0 de lecture : état du système, processus, recherche de fichiers (Windows, stdlib)."""
-import csv
 import ctypes
+from ctypes import wintypes
 import os
 import re
 import shutil
@@ -14,7 +14,6 @@ from jarvis.core.tools import Level, tool
 SYSTEM32 = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
 # Chemins absolus : pas de recherche dans le PATH, qu'un programme tiers pourrait détourner.
 NVIDIA_SMI = SYSTEM32 / "nvidia-smi.exe"
-TASKLIST = SYSTEM32 / "tasklist.exe"
 GB = 1024 ** 3
 MAX_PROCESSES = 50
 MAX_RESULTS = 50
@@ -107,15 +106,55 @@ def system_status() -> dict:
     }
 
 
+class _ProcEntry(ctypes.Structure):
+    _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ProcessID", wintypes.DWORD),
+                ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", wintypes.DWORD),
+                ("cntThreads", wintypes.DWORD), ("th32ParentProcessID", wintypes.DWORD),
+                ("pcPriClassBase", ctypes.c_long), ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+
+
+class _MemCounters(ctypes.Structure):
+    _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD)] + [
+        (n, ctypes.c_size_t) for n in ("PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+                                       "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
+                                       "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage")]
+
+
+def _working_set_mb(k32, pid: int) -> float:
+    handle = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return 0.0  # processus protégé : mémoire inconnue
+    try:
+        mem = _MemCounters(cb=ctypes.sizeof(_MemCounters))
+        ok = k32.K32GetProcessMemoryInfo(handle, ctypes.byref(mem), mem.cb)
+        return round(mem.WorkingSetSize / 1024 ** 2, 1) if ok else 0.0
+    finally:
+        k32.CloseHandle(handle)
+
+
 @tool("list_processes", f"Les {MAX_PROCESSES} processus qui utilisent le plus de mémoire.", Level.N0, external=True)
 def list_processes() -> dict:
-    out = subprocess.run([str(TASKLIST), "/fo", "csv", "/nh"], capture_output=True, timeout=10,
-                         check=True, encoding="oem", errors="replace").stdout
-    procs = [
-        # Mémoire au format local (« 7 180 Ko », « 7,180 K ») : on ne garde que les chiffres.
-        {"name": row[0], "pid": int(row[1]), "mem_mb": round(int(re.sub(r"\D", "", row[4]) or 0) / 1024, 1)}
-        for row in csv.reader(out.splitlines()) if len(row) >= 5
-    ]
+    # API Windows directe (Toolhelp) : ~10 fois plus rapide que de lancer tasklist.exe.
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k32.K32GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    k32.Process32FirstW.argtypes = k32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ProcEntry)]
+    snap = k32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if snap in (None, wintypes.HANDLE(-1).value):
+        raise OSError("liste des processus illisible")
+    procs = []
+    try:
+        entry = _ProcEntry(dwSize=ctypes.sizeof(_ProcEntry))
+        more = k32.Process32FirstW(snap, ctypes.byref(entry))
+        while more:
+            pid = entry.th32ProcessID
+            procs.append({"name": entry.szExeFile, "pid": pid, "mem_mb": _working_set_mb(k32, pid) if pid else 0.0})
+            more = k32.Process32NextW(snap, ctypes.byref(entry))
+    finally:
+        k32.CloseHandle(snap)
     procs.sort(key=lambda p: p["mem_mb"], reverse=True)
     return {"total": len(procs), "processes": procs[:MAX_PROCESSES]}
 

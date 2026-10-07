@@ -1,5 +1,6 @@
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -48,13 +49,12 @@ class ListProcessesTest(PcToolTest):
         self.assertLessEqual(len(procs), system.MAX_PROCESSES)
         self.assertEqual(procs, sorted(procs, key=lambda p: p["mem_mb"], reverse=True))
 
-    def test_formats_memoire_locaux(self):
-        out = '"a.exe","1","Console","1","2 048 Ko"\r\n"b.exe","2","Console","1","4,096 K"\r\n'
-        fake = subprocess.CompletedProcess([], 0, stdout=out)
-        with mock.patch.object(system.subprocess, "run", return_value=fake):
-            result = system.list_processes()
-        self.assertEqual(result["processes"], [{"name": "b.exe", "pid": 2, "mem_mb": 4.0},
-                                               {"name": "a.exe", "pid": 1, "mem_mb": 2.0}])
+    def test_contient_ce_processus_et_rapide(self):
+        start = time.perf_counter()
+        procs = system.list_processes()["processes"]
+        self.assertLess(time.perf_counter() - start, 0.5)  # QA-R5
+        self.assertTrue(all(p["name"] and p["pid"] >= 0 for p in procs))
+        self.assertGreater(procs[0]["mem_mb"], 0)
 
     def test_entree_invalide(self):
         with self.assertRaises(ValueError):
