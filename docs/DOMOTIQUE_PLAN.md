@@ -103,7 +103,7 @@ Le MSZ-HR n'a **pas de Wi-Fi intégré** : il faut un adaptateur sur le connecte
 
 ### 2.4 bis Lumière du salon : plafonnier LED TYJY 105 W (télécommande RF 2,4 GHz)
 - **Intégration** : aucune directe. Pas d'appli, pas de Wi-Fi : la télécommande parle un protocole RF 2,4 GHz propriétaire (ni Mi-Light, ni 433 MHz, donc pas de Broadlink).
-- **Solution retenue** : un **Shelly 1 Mini Gen4 (~15-20 €)** derrière l'interrupteur mural du plafonnier, intégration *Shelly* locale. Jarvis allume/éteint ; luminosité et blanc chaud/froid restent à la télécommande. Le plafonnier a une **mémoire** : il se rallume sur le dernier réglage.
+- **Solution retenue** : un **Shelly 1 Mini Gen3 ou Gen4 (~15-20 €, 8 A, neutre requis)** derrière l'interrupteur mural du plafonnier, intégration *Shelly* locale. Jarvis allume/éteint ; luminosité et blanc chaud/froid restent à la télécommande. Le plafonnier a une **mémoire** : il se rallume sur le dernier réglage.
 - **Prérequis** : neutre dans la boîte (sinon Shelly 1L, sans neutre) ; test préalable : couper puis remettre à l'interrupteur mural → la lampe doit se rallumer seule.
 - **Écartée** : copier le protocole RF (ESP32 + nRF24, protocole inconnu, bricolage fragile) ou remplacer le driver LED (risque, perte de garantie).
 

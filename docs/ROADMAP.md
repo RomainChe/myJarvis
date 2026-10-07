@@ -47,6 +47,8 @@ Ordre imposé par l'Expert Sécurité : socle d'abord, outils ensuite.
 | 15 | `power` (veille, redémarrage, arrêt : coupe Jarvis et HA) | N2 |
 | 16 | `run_script` (dossier en liste blanche) | N2 |
 
+Rallumage du PC : Wake-on-LAN (Ethernet). Réglages : BIOS « Power On by PCI-E » activé et ErP désactivé ; Windows : carte réseau « Wake on Magic Packet », démarrage rapide désactivé. Depuis le téléphone : appli Wake-on-LAN sur le réseau local ; à distance, à étudier (Bbox ou serveur dédié, Phase 5).
+
 Sortie de phase : commande simple < 1 s, tous les tests verts, `docs/TOOLS.md` à jour, revue sécurité.
 
 ## Phase 2 — Domotique
