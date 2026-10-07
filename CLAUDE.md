@@ -23,7 +23,8 @@ enceintes, caméras, etc.). JARVIS doit être :
 - Smartphone : Android
 - Box / routeur : Bbox Wi-Fi 7 XT (Bouygues)
 - Appareils connus : TV Continental Edison Google TV + barre de son Samsung HW-S50B ; 2 clims réversibles Mitsubishi
-  MSZ-HR25VFK2 (salon, chambre) = chauffage ; volets roulants Turol Industries (motorisation à préciser)
+  MSZ-HR25VFK2 (salon, chambre) = chauffage ; volets roulants Turol Industries
+  filaires (interrupteur mural double) → modules Shelly 2PM
 - Matériel disponible pour un serveur domestique : aucun, tout tourne sur le PC
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
 - Budget mensuel API IA : 0 € → LLM 100 % local (Ollama), aucune API payante.
