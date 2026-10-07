@@ -28,6 +28,19 @@ class ClipboardWriteTest(PcBase):
     def test_permission_refusee(self):
         self.assert_refused_if_level_raised("clipboard_write", {"text": "x"})
 
+    def test_texte_jamais_journalise(self):
+        """S1 : le texte dicté (mot de passe) n'apparaît pas dans l'audit, ni en cas d'erreur ni d'entrée invalide."""
+        with mock.patch.object(clipboard, "_set_text"):
+            self.run_tool("clipboard_write", {"text": SECRET})
+        with mock.patch.object(clipboard, "_set_text", side_effect=OSError("boom")):
+            with self.assertRaises(OSError):
+                self.run_tool("clipboard_write", {"text": SECRET})
+        with self.assertRaises(ValueError):
+            self.run_tool("clipboard_write", {"text": SECRET * 100})
+        rows = " ".join(str(row) for row in self.audit.last(10))
+        self.assertNotIn(SECRET, rows)
+        self.assertIn(f"<{len(SECRET)} car.>", rows)
+
 
 class ClipboardReadTest(PcBase):
     def test_niveau_et_drapeaux(self):

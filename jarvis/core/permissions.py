@@ -50,9 +50,9 @@ def execute(
     try:
         tool.check_args(args)
     except ValueError as e:
-        audit.log(source, name, masked(args), tool.level, "invalide", e)
+        audit.log(source, name, masked(args, tool.hidden), tool.level, "invalide", e)
         raise
-    logged = masked(args)
+    logged = masked(args, tool.hidden)
 
     decision = "auto"
     if tool.level >= Level.N2:

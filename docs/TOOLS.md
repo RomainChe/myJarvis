@@ -171,7 +171,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : `text` (texte, 1 000 caractères au plus).
 - **Retour** : `chars`.
 - **Exemple** : `python -m jarvis run clipboard_write text=bonjour`.
-- **Notes** : `CF_UNICODETEXT` via `ctypes`. Le paramètre `text` est journalisé comme tout paramètre : ne jamais y passer un secret.
+- **Notes** : `CF_UNICODETEXT` via `ctypes`. Option `hidden=("text",)` : le journal écrit `<n car.>` à la place du texte (mot de passe dicté), y compris en cas d'erreur ou d'entrée invalide.
 
 ## clipboard_read
 

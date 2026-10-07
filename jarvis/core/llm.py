@@ -106,7 +106,7 @@ def ask(
             if i >= MAX_CALLS:
                 result = "refusé : trop d'appels dans un même message."
             elif tainted and tool and tool.level >= Level.N2:
-                audit.log("llm", name, masked(args), tool.level, "refusé", "contenu externe lu dans ce tour")
+                audit.log("llm", name, masked(args, tool.hidden), tool.level, "refusé", "contenu externe lu dans ce tour")
                 result = "refusé : une action sensible ne peut pas suivre la lecture de contenu externe ; redemande-la."
             else:
                 try:

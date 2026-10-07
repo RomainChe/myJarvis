@@ -20,10 +20,12 @@ class Level(IntEnum):
     N3 = 3  # critique : confirmation + authentification forte
 
 
-def masked(args) -> Any:
+def masked(args, hidden: tuple[str, ...] = ()) -> Any:
+    """Arguments tels que journalisés : secrets en `***`, paramètres `hidden` réduits à leur longueur."""
     if type(args) is not dict:
         return args
-    return {k: "***" if k in SECRET_PARAMS else v for k, v in args.items()}
+    return {k: ("***" if k in SECRET_PARAMS else f"<{len(v)} car.>" if k in hidden and isinstance(v, str)
+                else "***" if k in hidden else v) for k, v in args.items()}
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,7 @@ class Tool:
     run: Callable[..., Any]
     private: bool = False  # résultat jamais journalisé en clair (presse-papiers, capture, fichier)
     external: bool = False  # le résultat contient du contenu tiers (noms de fichiers, pages, emails)
+    hidden: tuple[str, ...] = ()  # paramètres dont la valeur n'est jamais journalisée (texte dicté, mot de passe)
 
     def check_args(self, args: dict) -> None:
         if type(args) is not dict:  # une sous-classe pourrait mentir sur keys() ou __getitem__
@@ -58,7 +61,8 @@ _registry: dict[str, Tool] = {}
 REGISTRY = MappingProxyType(_registry)  # lecture seule : un module ne peut pas remplacer un outil
 
 
-def tool(name: str, description: str, level: Level, /, *, private: bool = False, external: bool = False, **params: type):
+def tool(name: str, description: str, level: Level, /, *, private: bool = False, external: bool = False,
+         hidden: tuple[str, ...] = (), **params: type):
     """Décorateur : enregistre une fonction comme outil Jarvis.
 
     Arguments positionnels seulement : un outil peut avoir un paramètre `name` ou `level`.
@@ -69,9 +73,12 @@ def tool(name: str, description: str, level: Level, /, *, private: bool = False,
         if SECRET_LIKE.search(key) and key not in SECRET_PARAMS:
             raise ValueError(f"{name}.{key} ressemble à un secret : le nommer parmi {sorted(SECRET_PARAMS)}")
 
+    if unknown := set(hidden) - params.keys():
+        raise ValueError(f"{name} : paramètres hidden inconnus {sorted(unknown)}")
+
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
         if name in _registry:
             raise ValueError(f"outil déjà enregistré : {name}")
-        _registry[name] = Tool(name, description, Level(level), params, fn, private, external)
+        _registry[name] = Tool(name, description, Level(level), params, fn, private, external, hidden)
         return fn
     return register
