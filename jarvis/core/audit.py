@@ -12,6 +12,8 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 
+from .tools import STR_MAX
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS audit (
     id INTEGER PRIMARY KEY,
@@ -32,9 +34,10 @@ BEGIN SELECT RAISE(ABORT, 'journal d''audit en ajout seul'); END;
 """
 
 RESULT_MAX = 500
-VALUE_MAX = 200  # par valeur : un paramètre long ne peut pas pousser les autres hors du journal
+VALUE_MAX = STR_MAX  # par valeur, égal à la limite de check_args : un appel valide est journalisé en entier
 NAME_MAX = 100
-ARGS_MAX = 2000
+# ponytail: plafond global contre un appel invalide aux clés innombrables ; ~16 paramètres texte pleins.
+ARGS_MAX = 20 * STR_MAX
 FIELDS = "ts, source, tool, args, level, decision, result, ref"
 
 

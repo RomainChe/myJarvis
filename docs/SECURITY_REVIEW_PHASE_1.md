@@ -114,3 +114,6 @@ Verdict initial : feu vert sous conditions. Tests : classe `ContreRevueTest` de 
 | C5 | Ctrl+C à la confirmation non journalisé | `except BaseException` ; la CLI affiche « Action annulée » au lieu d'une trace. |
 | C6 | Message d'erreur d'un outil privé journalisé | Outil `private` : seul le type de l'exception est journalisé. |
 | C7 | Lignes « en cours » et résultat non liées | `log()` renvoie l'id ; colonne `ref` sur la ligne de résultat. |
+| C2bis | Journal coupé à 200 caractères alors que `check_args` en accepte 1 000 | Troncature par valeur alignée sur `STR_MAX` (1 000) : un appel valide est journalisé en entier. |
+
+Verdict final : **feu vert sous conditions, veto N2/N3 levé pour le Core**. Condition restante : acceptation écrite par le propriétaire de l'écart C1 (pas de HMAC), dans ARCHITECTURE §6.

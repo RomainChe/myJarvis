@@ -193,6 +193,11 @@ class ContreRevueTest(unittest.TestCase):
         self.assertIn("C:/Windows", row[3])
         self.assertLessEqual(len(row[2]), 100)
 
+    def test_c2bis_chaine_valide_journalisee_en_entier(self):
+        path = "x" * 987 + "/cible_reelle"
+        self.run_tool("sec_delete", {"path": path}, confirm=lambda *_: True)
+        self.assertIn("/cible_reelle", self.audit.last(1)[0][3])
+
     def test_c3_nom_de_secret_non_standard_refuse(self):
         for name in ("Password", "user_password", "pin_code", "apiKey"):
             with self.assertRaises(ValueError, msg=name):
