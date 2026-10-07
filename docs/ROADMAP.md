@@ -4,7 +4,7 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 
 ## État actuel (à lire en reprise de session)
 - Phase en cours : **Phase 1**, étapes 1 à 3 faites ; Ollama 0.40.0 installé (écoute 127.0.0.1:11434, aucun modèle téléchargé).
-- **En pause** : le propriétaire ajoute des prompts de contexte (experts, etc.). Ne pas reprendre les tâches avant son signal.
+- **Reprise le 2026-10-07** : 9 experts lancés en parallèle (une branche worktree chacun). Le Manager fusionne après feu vert QA puis Sécurité. Bench : pas de téléchargement de modèle pour l'instant.
 - Prochaine action, au choix du propriétaire : étape 4 (routeur d'intentions) ou étape 5 (benchmark des modèles, 5 à 10 Go par modèle).
 - Question en attente : nombre de volets (un module Shelly 2PM par volet, Phase 2).
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
