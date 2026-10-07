@@ -23,6 +23,27 @@ SEARCH_DEADLINE_S = 5.0
 # ponytail: noms par défaut ; un dossier redirigé (OneDrive) exigera SHGetKnownFolderPath.
 KNOWN_FOLDERS = {"documents": "Documents", "telechargements": "Downloads", "images": "Pictures",
                  "photos": "Pictures", "bureau": "Desktop", "musique": "Music", "videos": "Videos"}
+RESERVED_NAMES = {"con", "prn", "aux", "nul", *(f"{p}{i}" for p in ("com", "lpt") for i in range(1, 10))}
+
+
+def _allowed_root(folder: str) -> Path:
+    """Dossier de recherche résolu, sous le dossier utilisateur ; refusé AVANT tout accès disque s'il est suspect."""
+    folder = KNOWN_FOLDERS.get(fold(folder), folder)
+    # UNC (\\hôte : fuite du hash NTLM), \\?\, \\.\ ; « : » ailleurs qu'après la lettre de lecteur (flux ADS).
+    if folder.startswith(("\\\\", "//")) or ":" in folder[2:] or re.fullmatch(r"[A-Za-z]:", folder):
+        raise ValueError(f"chemin refusé : {folder}")
+    if any(part.split(".")[0].strip().lower() in RESERVED_NAMES for part in re.split(r"[\\/]", folder)):
+        raise ValueError(f"nom réservé Windows : {folder}")
+    # ponytail: seule racine autorisée = dossier utilisateur ; d'autres racines viendront d'un réglage N3.
+    home = Path.home().resolve()
+    root = Path(folder).expanduser()
+    try:
+        root = (root if root.is_absolute() else home / root).resolve(strict=True)  # suit liens et jonctions
+    except OSError:
+        raise ValueError(f"dossier introuvable : {folder}") from None
+    if not root.is_relative_to(home):
+        raise ValueError(f"hors du dossier utilisateur : {folder}")
+    return root
 
 
 class _MemoryStatus(ctypes.Structure):
@@ -98,19 +119,19 @@ def search_files(name: str, folder: str) -> dict:
     needle = fold(name.strip())
     if not needle:
         raise ValueError("name ne doit pas être vide")
-    folder = folder.strip()
-    root = Path(KNOWN_FOLDERS.get(fold(folder), folder)).expanduser()
-    if not root.is_absolute():
-        root = Path.home() / root  # « documents » -> dossier Documents de l'utilisateur
+    root = _allowed_root(folder.strip())
     if not root.is_dir():
         raise ValueError(f"dossier introuvable : {folder}")
     found, deadline = [], time.monotonic() + SEARCH_DEADLINE_S
-    for dirpath, dirnames, filenames in os.walk(root):  # ne suit pas les liens symboliques
+    for dirpath, dirnames, filenames in os.walk(root):
         for entry in dirnames + filenames:
             if needle in fold(entry):
                 found.append(str(Path(dirpath, entry)))
                 if len(found) >= MAX_RESULTS:
                     return {"results": found, "complete": False}
+        # os.walk suit les jonctions : on ne descend ni dans un lien ni dans une jonction (sortie de la racine).
+        dirnames[:] = [d for d in dirnames
+                       if not (os.path.islink(p := os.path.join(dirpath, d)) or os.path.isjunction(p))]
         if time.monotonic() > deadline:
             return {"results": found, "complete": False}
     return {"results": found, "complete": True}

@@ -55,10 +55,15 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
   - `name` (texte, non vide) : comparaison sans casse ni accents (« ecran » trouve « Écran.png »).
   - `folder` (texte) : dossier existant ; `~` est le dossier utilisateur, un chemin relatif part
     du dossier utilisateur ; les noms français sont traduits (« téléchargements » → Downloads,
-    « images » → Pictures, « bureau » → Desktop…).
+    « images » → Pictures, « bureau » → Desktop…). Le dossier doit être sous le dossier utilisateur
+    (une autre racine viendra d'un réglage N3). Depuis une phrase, seuls les noms français de la
+    liste blanche sont acceptés ; un chemin libre passe par `run`.
 - **Retour** : `results` (chemins, 50 au plus) et `complete` (`false` si la recherche a été
   coupée par la limite de 50 résultats ou par le délai de 5 s).
 - **Exemple** : « cherche le fichier facture dans mes documents » ou
   `python -m jarvis run search_files name=facture folder=documents`.
-- **Notes** : ne suit pas les liens symboliques ; un dossier introuvable ou un nom vide lève une
-  erreur, journalisée.
+- **Notes** : refusés avant tout accès disque : chemins réseau (`\\hôte\...`), `\\?\`, `\\.\`,
+  flux ADS (`fichier:flux`), « C: » seul et noms réservés Windows (`CON`, `NUL`, `COM1`…). Le dossier
+  est résolu (liens et jonctions suivis) puis doit rester sous le dossier utilisateur. Pendant le
+  parcours, les liens symboliques et les jonctions ne sont pas suivis. Un dossier introuvable ou un
+  nom vide lève une erreur, journalisée.

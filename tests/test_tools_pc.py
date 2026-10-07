@@ -124,6 +124,25 @@ class SearchFilesTest(PcToolTest):
     def test_permission_refusee(self):
         self.assert_refused_if_level_raised("search_files", {"name": "x", "folder": self.tmp.name})
 
+    def test_dossier_hors_racine_refuse_sans_acces_disque(self):
+        # Sécurité constat 1 : UNC (fuite du hash NTLM), \\?\, ADS, nom réservé, sortie de la racine.
+        for folder in (r"\\hote-attaquant\x", "//hote/x", r"\\?\C:\Windows", r"\\.\PhysicalDrive0",
+                       r"C:\Windows", r"..\..\..", "NUL", r"documents\com1.txt",f"{self.tmp.name}:flux", "C:"):
+            with mock.patch.object(Path, "is_dir", side_effect=AssertionError("accès disque")):
+                with self.assertRaises(ValueError, msg=folder):
+                    system.search_files("x", folder)
+
+    def test_jonction_non_suivie(self):
+        # Sécurité constat 2 : os.walk descend dans une jonction et sort de la racine.
+        import _winapi
+        base = Path(self.tmp.name)
+        (base / "dehors").mkdir()
+        (base / "dehors" / "secret.txt").write_text("x")
+        _winapi.CreateJunction(str(base / "dehors"), str(base / "sous" / "lien"))
+        found = system.search_files("secret", str(base / "sous"))["results"]
+        self.assertEqual(found, [])
+        self.assertEqual(Path(system.search_files("lien", str(base / "sous"))["results"][0]).name, "lien")
+
 
 if __name__ == "__main__":
     unittest.main()

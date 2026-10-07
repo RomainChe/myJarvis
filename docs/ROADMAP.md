@@ -66,6 +66,7 @@ Sortie de phase : commande simple < 1 s, tous les tests verts, `docs/TOOLS.md` �
 
 ## Phase 4 — Voix
 openWakeWord (« hey jarvis »), faster-whisper sur le GPU, Piper en français ; confirmation vocale pour le N2. Le N3 reste sur mobile.
+Micro : celui du casque d'abord (décidé le 2026-10-07) ; périphérique d'entrée choisi dans les réglages ; micro d'ambiance à décider en Phase 4 ; réponse vocale sur la sortie associée au micro qui a entendu.
 
 ## Phase 5 — Durcissement
 Audit de sécurité complet, tests d'intrusion (injection de prompt, rejeu de token, accès hors Tailscale), sauvegardes automatiques (SQLite + HA), supervision, documentation finale. À reconsidérer : un serveur dédié (un Pi) pour la disponibilité 24 h/24.

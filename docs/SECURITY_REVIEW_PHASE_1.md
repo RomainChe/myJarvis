@@ -70,7 +70,7 @@ ni dans l'historique.
    minimal. En dessous, la demande part au LLM et ne déclenche pas l'outil le plus proche.
 5. Les intentions N2/N3 ne sont jamais exécutées « parce que le score est haut » : la
    confirmation reste obligatoire.
-6. `intents.yaml` est chargé avec `yaml.safe_load` et validé : un motif ne peut viser qu'un
+6. `intents.json` est chargé avec `json.loads` et validé : un motif ne peut viser qu'un
    outil du registre, et ne porte pas de niveau (le niveau vient de l'outil).
 
 ## Règles pour les outils PC
