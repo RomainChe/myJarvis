@@ -11,6 +11,7 @@ from pathlib import Path
 from jarvis.core.audit import Audit
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.tools import Tool, masked
+import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")
 
