@@ -1,12 +1,12 @@
 """Tests de la revue de sécurité Phase 1 (docs/SECURITY_REVIEW_PHASE_1.md).
 
-Chaque test reproduit une faille encore ouverte : il est marqué expectedFailure tant que le
-correctif n'est pas livré. Le Dev retire le décorateur quand il corrige la faille.
+Chaque test reproduit une faille de la revue ; toutes sont corrigées.
 """
 import importlib
 import io
 import os
 import shutil
+import sqlite3
 import subprocess
 import unittest
 from contextlib import redirect_stdout
@@ -61,14 +61,12 @@ class SecurityTest(unittest.TestCase):
 
     # --- Confirmation et garde ---
 
-    @unittest.expectedFailure
     def test_f1_confirmation_non_booleenne_refusee(self):
         # F1 : la garde teste la véracité ; un canal qui renvoie la réponse brute « non » confirme.
         with self.assertRaises(Refused):
             self.run_tool("sec_delete", {"path": "a.txt"}, confirm=lambda *_: "non")
         self.assertEqual(calls, [])
 
-    @unittest.expectedFailure
     def test_f2_args_executes_identiques_aux_args_confirmes(self):
         # F2 : la garde valide et confirme un dict, puis exécute ce dict tel qu'il est devenu.
         def confirm_then_mutate(_tool, args):
@@ -78,7 +76,6 @@ class SecurityTest(unittest.TestCase):
         self.run_tool("sec_delete", {"path": "a.txt"}, confirm=confirm_then_mutate)
         self.assertEqual(calls, ["a.txt"])
 
-    @unittest.expectedFailure
     def test_f3_registre_non_modifiable_pour_baisser_un_niveau(self):
         # F3 : n'importe quel module peut remplacer un outil N3 par sa copie N0 (aucune trace, aucun N3).
         original = REGISTRY["sec_lock"]
@@ -89,7 +86,6 @@ class SecurityTest(unittest.TestCase):
             if isinstance(REGISTRY, dict):
                 REGISTRY["sec_lock"] = original
 
-    @unittest.expectedFailure
     def test_f4_confirmation_qui_plante_est_journalisee(self):
         # F4 : si confirm() lève (EOFError sur stdin fermé, canal coupé), aucune ligne d'audit.
         def broken_confirm(*_):
@@ -100,7 +96,6 @@ class SecurityTest(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(len(self.audit.last()), 1)
 
-    @unittest.expectedFailure
     def test_f5_audit_indisponible_bloque_l_execution(self):
         # F5 : l'outil s'exécute avant l'écriture du journal ; si l'audit échoue, l'action a eu lieu sans trace.
         class BrokenAudit(Audit):
@@ -113,19 +108,17 @@ class SecurityTest(unittest.TestCase):
 
     # --- Journal d'audit ---
 
-    @unittest.expectedFailure
     def test_f6_insert_or_replace_ne_reecrit_pas_le_journal(self):
         # F6 : REPLACE supprime la ligne en conflit sans déclencher le trigger DELETE
         # (recursive_triggers désactivé par défaut) : réécriture de l'historique.
         self.audit.log("cli", "sec_lock", {}, 3, "refusé", None)
-        with self.audit.db:
+        with self.assertRaises(sqlite3.DatabaseError), self.audit.db:
             self.audit.db.execute(
                 "INSERT OR REPLACE INTO audit (id, ts, source, tool, args, level, decision, result) "
                 "VALUES (1, 'x', 'cli', 'sec_read', '{}', 0, 'auto', 'ok')"
             )
         self.assertEqual(self.audit.last(1)[0][2], "sec_lock")
 
-    @unittest.expectedFailure
     def test_f7_falsification_du_journal_detectee(self):
         # F7 : DROP TRIGGER puis DELETE efface une ligne ; rien ne permet de le détecter (pas de chaîne de hachage).
         for i in range(3):
@@ -134,13 +127,20 @@ class SecurityTest(unittest.TestCase):
             self.audit.db.executescript("DROP TRIGGER audit_no_delete; DELETE FROM audit WHERE id = 2;")
         self.assertFalse(self.audit.verify())
 
-    @unittest.expectedFailure
     def test_f8_secret_absent_du_journal(self):
         # F8 : les paramètres sont journalisés en clair ; un mot de passe finit dans la base.
         self.run_tool("sec_login", {"user": "moi", "password": "s3cr3t-valeur"})
         self.assertNotIn("s3cr3t-valeur", self.audit.last(1)[0][3])
 
-    @unittest.expectedFailure
+    def test_f8_resultat_prive_resume(self):
+        tool("sec_clip", "presse-papiers", Level.N1, private=True)(lambda: "mot-de-passe-colle")
+        self.run_tool("sec_clip")
+        self.assertEqual(self.audit.last(1)[0][6], "<str, 18 car.>")
+
+    def test_f3_niveau_invalide_refuse(self):
+        with self.assertRaises(ValueError):
+            tool("sec_bad", "niveau inexistant", 7)(lambda: None)
+
     def test_f9_parametres_journalises_bornes(self):
         # F9 : seuls les résultats sont tronqués ; des arguments géants (appel LLM en boucle) gonflent la base.
         with self.assertRaises(ValueError):
@@ -149,14 +149,12 @@ class SecurityTest(unittest.TestCase):
 
     # --- CLI ---
 
-    @unittest.expectedFailure
     def test_f10_cli_refuse_confirmation_hors_terminal(self):
         # F10 : `echo o | python -m jarvis run ...` confirme une action N2 sans humain devant l'écran.
         fake_stdin = io.StringIO("o\n")
         with mock.patch("sys.stdin", fake_stdin), redirect_stdout(io.StringIO()):
             self.assertFalse(cli.confirm(REGISTRY["sec_delete"], {"path": "a.txt"}))
 
-    @unittest.expectedFailure
     def test_f11_journal_jamais_en_memoire(self):
         # F11 : JARVIS_DB=:memory: désactive silencieusement le journal persistant.
         try:
@@ -174,7 +172,6 @@ class GitignoreTest(unittest.TestCase):
         cmd = ["git", "-c", f"core.excludesFile={os.devnull}", "check-ignore", "-q", "--no-index", path]
         return subprocess.run(cmd, cwd=ROOT).returncode == 0
 
-    @unittest.expectedFailure
     def test_f12_fichiers_sensibles_ignores_par_le_depot(self):
         # F12 : journaux SQLite annexes et réglages locaux de Claude ne sont pas ignorés par le dépôt public.
         for path in ("jarvis.db-wal", "jarvis.db-journal", "jarvis.sqlite3",

@@ -95,7 +95,7 @@ class GateTest(unittest.TestCase):
     def test_erreur_d_outil_journalisee(self):
         with self.assertRaises(RuntimeError):
             self.run_tool("test_crash")
-        self.assertEqual(self.audit.last(1)[0][6], "erreur : boum")
+        self.assertEqual(self.audit.last(1)[0][6], "erreur : RuntimeError: boum")
 
     def test_double_enregistrement_interdit(self):
         with self.assertRaises(ValueError):

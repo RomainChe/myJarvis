@@ -1,7 +1,6 @@
 """Robustesse du cœur : cas limites, journal SQLite en panne, concurrence, latence de la garde.
 
-Les tests marqués expectedFailure reproduisent un bug ouvert (voir docs/QA_REPORT_PHASE_1.md).
-Quand le bug est corrigé, le test passe et unittest le signale : retirer alors le décorateur.
+Les bugs BUG-01..06 (docs/QA_REPORT_PHASE_1.md) sont corrigés ; chaque test reste comme garde-fou.
 """
 import os
 import sqlite3
@@ -87,21 +86,18 @@ class EntreesLimitesTest(unittest.TestCase):
         calls.clear()
         self.audit = Audit(":memory:")
 
-    @unittest.expectedFailure
     def test_args_non_dict_rejetes_proprement(self):
         # BUG-03 : une liste d'arguments (sortie LLM mal formée) lève AttributeError, sans journal.
         with self.assertRaises(ValueError):
             run(self.audit, "qa_volume", ["30"])
         self.assertEqual(self.audit.last(1)[0][5], "invalide")
 
-    @unittest.expectedFailure
     def test_nom_d_outil_none_rejete_et_journalise(self):
         # BUG-04 : None viole la contrainte NOT NULL du journal, IntegrityError au lieu de ValueError.
         with self.assertRaises(ValueError):
             run(self.audit, None)
         self.assertEqual(self.audit.last(1)[0][5], "inconnu")
 
-    @unittest.expectedFailure
     def test_confirmation_exige_un_vrai_oui(self):
         # BUG-02 : la garde teste la vérité de la réponse ; "non" ou un objet quelconque vaut oui.
         with self.assertRaises(Refused):
@@ -110,7 +106,6 @@ class EntreesLimitesTest(unittest.TestCase):
             run(self.audit, "qa_lock", confirm=lambda *_: True, strong_auth=lambda *_: object())
         self.assertEqual(calls, [])
 
-    @unittest.expectedFailure
     def test_confirmation_qui_plante_est_journalisee(self):
         # BUG-05 : si la confirmation lève (app déconnectée), rien n'est exécuté mais rien n'est journalisé.
         def boom(*_):
@@ -162,7 +157,6 @@ class EntreesLimitesTest(unittest.TestCase):
 
 
 class JournalEnPanneTest(TempDbCase):
-    @unittest.expectedFailure
     def test_disque_plein_aucune_action_sans_journal(self):
         # BUG-01 : l'outil s'exécute AVANT l'écriture du journal ; disque plein = action faite, non tracée.
         audit = self.open_audit()
@@ -171,7 +165,6 @@ class JournalEnPanneTest(TempDbCase):
             run(audit, "qa_volume", {"value": 1})
         self.assertEqual(calls, [])
 
-    @unittest.expectedFailure
     def test_base_verrouillee_aucune_action_sans_journal(self):
         # BUG-01 (même cause) : base verrouillée par un autre processus.
         audit = self.open_audit()
@@ -258,7 +251,6 @@ class ConcurrenceTest(TempDbCase):
         self.assertEqual(errors, [])
         self.assertEqual(self.count(self.open_audit()), n_threads * n_logs)
 
-    @unittest.expectedFailure
     def test_journal_partage_entre_threads(self):
         # BUG-06 : sqlite3.connect(check_same_thread=True) ; un Audit créé au démarrage
         # devient inutilisable depuis un thread de travail (FastAPI exécute le sync en pool).

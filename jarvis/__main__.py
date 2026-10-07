@@ -29,6 +29,9 @@ def parse_args(pairs: list[str]) -> dict:
 
 
 def confirm(tool: Tool, args: dict) -> bool:
+    if not sys.stdin.isatty():  # `echo o | jarvis run ...` : pas d'humain devant l'écran
+        print("Confirmation refusée : la CLI exige un terminal interactif.")
+        return False
     return input(f"Confirmer {tool.name} {args} ? [o/N] ").strip().lower() == "o"
 
 
@@ -41,6 +44,9 @@ def main(argv: list[str]) -> int:
     if not argv or argv[0] not in ("run", "audit"):
         print(__doc__)
         return 2
+    if str(DB_PATH) == ":memory:" or str(DB_PATH).startswith("file:"):
+        print("JARVIS_DB doit être un chemin de fichier : le journal d'audit doit persister.")
+        return 2
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     audit = Audit(str(DB_PATH))
     if argv[0] == "audit":
@@ -50,6 +56,7 @@ def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__)
         return 2
+    print(f"journal : {DB_PATH}", file=sys.stderr)
     try:
         print(execute(argv[1], parse_args(argv[2:]), source="cli", audit=audit,
                       confirm=confirm, strong_auth=no_strong_auth))

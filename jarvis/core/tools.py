@@ -1,6 +1,7 @@
 """Interface commune des outils et registre global."""
 from dataclasses import dataclass
 from enum import IntEnum
+from types import MappingProxyType
 from typing import Any, Callable
 
 
@@ -18,8 +19,11 @@ class Tool:
     level: Level
     params: dict[str, type]
     run: Callable[..., Any]
+    private: bool = False  # résultat jamais journalisé en clair (presse-papiers, capture, fichier)
 
     def check_args(self, args: dict) -> None:
+        if not isinstance(args, dict):
+            raise ValueError("les arguments doivent être un dictionnaire")
         unknown = args.keys() - self.params.keys()
         missing = self.params.keys() - args.keys()
         if unknown or missing:
@@ -31,14 +35,15 @@ class Tool:
                 raise ValueError(f"{key} doit être de type {expected.__name__}")
 
 
-REGISTRY: dict[str, Tool] = {}
+_registry: dict[str, Tool] = {}
+REGISTRY = MappingProxyType(_registry)  # lecture seule : un module ne peut pas remplacer un outil
 
 
-def tool(name: str, description: str, level: Level, **params: type):
+def tool(name: str, description: str, level: Level, *, private: bool = False, **params: type):
     """Décorateur : enregistre une fonction comme outil Jarvis."""
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
-        if name in REGISTRY:
+        if name in _registry:
             raise ValueError(f"outil déjà enregistré : {name}")
-        REGISTRY[name] = Tool(name, description, level, params, fn)
+        _registry[name] = Tool(name, description, Level(level), params, fn, private)
         return fn
     return register
