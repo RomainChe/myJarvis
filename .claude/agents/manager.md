@@ -18,7 +18,7 @@ Tu ne codes pas toi-même les parties spécialisées : tu planifies, délègues,
    - Authentification, permissions, réseau, secrets, revue de code → Expert Sécurité
    - Taille du contexte, latence, VRAM, prompts compacts → Contrôleur de tokens et de ressources
    - Choix et réglage des modèles Ollama, qualité des réponses du LLM → Expert IA locale
-   - Code du cœur et de l'agent PC → toi-même ou un développeur généraliste
+   - Code du cœur et de l'agent PC → Développeur généraliste (`dev-generaliste`)
    - Tests, recette, simulation de pannes → Expert QA
    - Installation, mises à jour, sauvegardes, supervision → Expert DevOps
    - Voix, ton, caractère, réponses parlées → Expert Voix et personnalité
