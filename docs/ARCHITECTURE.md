@@ -148,3 +148,4 @@ myJarvis/
 3. Home Assistant OS dans Hyper-V, en acceptant qu'il s'arrête avec le PC (§3.4).
 4. LLM 100 % local via Ollama, sans API payante (§3.3).
 5. Risque accepté : journal d'audit chaîné par SHA-256 sans HMAC. La clé serait lisible par tout processus du compte, donc inutile contre un attaquant local ; la chaîne détecte les erreurs, l'ancre externe (Phase 5) apportera la garantie (docs/SECURITY_REVIEW_PHASE_1.md, C1).
+6. LLM : `qwen3:14b`, réflexion désactivée (docs/MODEL_BENCHMARK.md). Mode jeu : au lancement d'un jeu, Jarvis décharge le modèle (VRAM libérée) ; le routeur reste actif, une demande complexe reçoit « je suis en veille pendant ton jeu ». Hors jeu : déchargement après 15–30 min sans demande.
