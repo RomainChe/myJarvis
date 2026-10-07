@@ -3,13 +3,13 @@
 Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et** du propriétaire.
 
 ## État actuel (à lire en reprise de session)
-- Phase en cours : **Phase 1**, étapes 1 à 3 faites ; Ollama 0.40.0 installé (écoute 127.0.0.1:11434) ; qwen3:8b, ministral-3:8b et qwen3:14b téléchargés le 2026-10-07.
-- **2026-10-07** : 9 experts lancés en parallèle. Docs + tests des 8 experts fusionnés dans `main` (68 tests, 19 échecs attendus = failles connues).
-- F1–F12 (docs/SECURITY_REVIEW_PHASE_1.md) et BUG-01..06 (docs/QA_REPORT_PHASE_1.md) corrigés le 2026-10-07, puis la contre-revue (C1–C7, C2bis) : 82 tests verts. Veto N2/N3 levé pour le Core ; écart C1 (pas de HMAC) accepté par le propriétaire (ARCHITECTURE §6.5).
-- Branche `routeur` (routeur + 3 outils N0, fusionnée sur le nouveau Core) : QA-R1..R4 corrigés, CLI en phrase ; en revue QA + Sécurité. À mesurer : `list_processes` sous charge (p95 457 ms au repos).
-- Prochaine action : fusion de `routeur` après feux verts, puis benchmark des 3 modèles (étape 5).
-- Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7.
-- Décisions propriétaire en attente : destination des sauvegardes, lecture de `.env`, reste de DOMOTIQUE_PLAN §7.
+- Phase en cours : **Phase 1**, étapes 1 à 3 faites ; Ollama 0.40.0 (127.0.0.1:11434) ; qwen3:8b, ministral-3:8b et qwen3:14b téléchargés le 2026-10-07.
+- F1–F12 (docs/SECURITY_REVIEW_PHASE_1.md) et BUG-01..06 (docs/QA_REPORT_PHASE_1.md) corrigés le 2026-10-07, puis la contre-revue (C1–C7, C2bis). Veto N2/N3 levé pour le Core ; écart C1 (pas de HMAC) accepté par le propriétaire (ARCHITECTURE §6.5).
+- Branche `routeur` (routeur + 3 outils N0 sur le nouveau Core, CLI en phrase) : QA validé avec réserve (QA-R5 : `list_processes` > 500 ms sous charge, bloque la sortie de Phase 1 ; QA-R6, R7 mineurs). Sécurité : feu vert sous conditions, fusion bloquée tant que les constats 1–3 ne sont pas corrigés (racine autorisée pour `search_files`, jonctions non suivies, `folder` du routeur en liste blanche) ; constats 4–6 et 9 dans la même branche si possible, constat 7 (résultats d'outils = données) bloquant pour l'étape 5.
+- Benchmark fait (docs/MODEL_BENCHMARK.md) : qwen3:14b choisi.
+- Prochaine action : corriger les constats Sécurité de `routeur`, fusionner, puis brancher le LLM (étape 5).
+- Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7 ; Jarvis peut lire `.env` ; LLM = qwen3:14b sans réflexion, veille automatique pendant un jeu, déchargement après 15–30 min d'inactivité (ARCHITECTURE §6.6).
+- Décisions propriétaire en attente : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7.
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 
 ## Phase 0 — Cadrage ✅
@@ -25,7 +25,7 @@ Ordre imposé par l'Expert Sécurité : socle d'abord, outils ensuite.
 2. [x] Interface `Tool` + registre + garde de permissions N0–N3 + confirmations.
 3. [x] Journal d'audit SQLite (ajout seul, protégé par triggers) et `python -m jarvis audit`.
 4. [ ] Routeur d'intentions (YAML + `difflib`) et mesure de latence.
-5. [ ] Ollama (installé) : benchmark de 2 ou 3 modèles sur 30 commandes, choix, tool calling.
+5. [ ] Ollama : benchmark fait, qwen3:14b choisi (docs/MODEL_BENCHMARK.md). Reste : tool calling branché, mode jeu, prompt au tutoiement, protection anti-injection.
 6. [ ] Les 15 premiers outils PC (tests : cas nominal, entrée invalide, permission refusée) :
 
 | # | Outil | Niveau |
@@ -65,7 +65,6 @@ Sortie de phase : commande simple < 1 s, tous les tests verts, `docs/TOOLS.md` �
 4. Notifications Web Push.
 
 ## Phase 4 — Voix
-Micro du téléphone via la PWA (appui pour parler), audio transcrit sur le PC : aucune API payante. Mot de réveil mains libres : seulement sur un appareil allumé en permanence (tablette murale ou satellite).
 openWakeWord (« hey jarvis »), faster-whisper sur le GPU, Piper en français ; confirmation vocale pour le N2. Le N3 reste sur mobile.
 
 ## Phase 5 — Durcissement

@@ -68,9 +68,10 @@ Le script affiche une ligne au format de ce tableau pour chaque modèle.
 ## Recommandation
 
 `qwen3:14b`, réflexion désactivée : meilleur choix d'outil (97 %) et latence la plus stable
-(max 0,58 s). En attente de validation du propriétaire.
+(max 0,58 s). **Validé par le propriétaire le 2026-10-07**, avec veille automatique pendant les jeux
+et déchargement après inactivité (ARCHITECTURE §6.6).
 Conditions avant de brancher le LLM (étape 5) :
 1. Résultats d'outils et contenus externes encadrés comme données ; un tel contenu ne peut pas
    déclencher seul une action N2/N3 dans le même tour (revue Sécurité du routeur, constat 7).
 2. Le prompt système impose le tutoiement (le modèle vouvoie par défaut).
-3. 9,6 Go de VRAM : pas de jeu en même temps que le LLM ; `keep_alive` court pour libérer la VRAM.
+3. Mode jeu : détection du lancement d'un jeu, déchargement immédiat du modèle (`keep_alive: 0`).
