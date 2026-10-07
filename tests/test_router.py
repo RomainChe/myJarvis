@@ -189,6 +189,14 @@ class CliPhraseTest(unittest.TestCase):
         self.assertIn("'results': []", out)
         self.assertEqual(Audit(str(cli.DB_PATH)).last(1)[0][2], "search_files")
 
+    def test_erreur_d_execution_d_un_outil_sans_trace_python(self):
+        """QA étape 6 : OSError / TimeoutExpired d'un outil (script lent, corbeille en échec) ne doivent pas faire une trace."""
+        import subprocess
+        for exc in (OSError("corbeille : échec"), subprocess.TimeoutExpired("cmd", 60)):
+            with mock.patch.object(cli, "execute", side_effect=exc):
+                code, out = self.main("run", "system_status")
+            self.assertEqual(code, 1, exc)
+            self.assertIn("Erreur", out)
 
 
 if __name__ == "__main__":

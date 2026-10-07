@@ -15,7 +15,8 @@ class PcIntentsTest(unittest.TestCase):
 
     def test_volume(self):
         self.check(("set_volume", {"level": 30}), "mets le volume à 30", "Jarvis, mets le volume à 30%",
-                   "règle le son sur 30 pour cent", "volume à 30")
+                   "règle le son sur 30 pour cent", "volume à 30", "monte le volume à 30")
+        self.check(("set_volume", {"level": 10}), "baisse le son à 10", "diminue le volume à 10")
 
     def test_volume_invalide_part_au_llm(self):
         for text in ("mets le volume à fort", "mets le volume à -5", "mets le volume à 3.5", "mets le volume à trente",

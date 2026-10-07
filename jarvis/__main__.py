@@ -89,6 +89,9 @@ def main(argv: list[str]) -> int:
     except (EOFError, KeyboardInterrupt):
         print("\nAction annulée.")
         return 1
+    except Exception as e:  # echec d'execution (OSError, delai depasse) : deja journalise, pas de trace Python
+        print(f"Erreur d'exécution : {type(e).__name__}")
+        return 1
     return 0
 
 

@@ -155,3 +155,30 @@ Pas automatisable (la corbeille réelle ne se simule pas). Ne jamais le lancer s
 3. Même commande sur `gros.bin` : refus « trop volumineux pour la corbeille » ; le fichier est toujours là, aucune boîte de dialogue.
 4. Remplacer ensuite `gros.bin` par un fichier de 900 Mio (sous la limite) : si Windows le refuse (corbeille plus petite), noter le résultat ici : il ne doit y avoir ni boîte bloquante ni suppression définitive. Sinon abaisser `RECYCLE_MAX_BYTES`.
 5. Supprimer le dossier de test à la main.
+
+## 7. Recette étape 6 (outils PC, routeur N1, correctifs Sécurité)
+
+Date : 2026-10-07. Périmètre : `jarvis/tools/pc/` (19 outils enregistrés, tous présents dans docs/TOOLS.md), `jarvis/intents.json`, correctifs S1–S11.
+
+### Verdict : FEU VERT QA (transmission à la Sécurité). Aucun bug ouvert bloquant ; 2 bugs trouvés et corrigés, 1 observation.
+
+| Zone | Résultat |
+|---|---|
+| Outils : nominal / entrée invalide / permission refusée | OK (couverts par `tests/test_tools_*.py`, niveau relevé à N2 bloqué par la garde) |
+| Pannes de config : `apps.json` absent -> « aucune application autorisée : <chemin> n'existe pas » ; JSON cassé / non UTF-8 -> « apps.json illisible (JSONDecodeError / UnicodeDecodeError) » ; fichier > 64 Kio ; liste ou `null` -> « application non autorisée » ; `scripts/` absent -> « script introuvable » | OK, aucune trace Python |
+| Presse-papiers occupé, fichier verrouillé, corbeille en échec | OK (tests existants) ; après BUG-09 le message est propre aussi en CLI |
+| Routeur : « mets le volume à 30 », « mets en pause », « verrouille », « suivant » routés ; « verrouille la porte / la serrure / le volet / la voiture », « mets la musique en pause », « pause café », « coupe le son de la télé », « éteins la télé », « baisse le volume », « éteins le PC » : renvoyés au LLM, aucun faux positif | OK |
+| Latence bout en bout `python -m jarvis "etat du pc"` : 0,40 s ; `"mets le volume à 150"` (refusé par l'outil) : 0,17 s | OK (< 1 s) |
+| Journal : `clipboard_write` journalisé `<21 car.>`, le texte n'apparaît jamais (`audit 50` + grep = 0) ; `run_script`, `clipboard_read`, `screenshot` en `private` | OK |
+
+### Bugs trouvés et corrigés (test écrit avant, échouait)
+- BUG-09 (moyenne) : une erreur d'exécution d'outil autre que `ValueError` (`OSError` : corbeille ou déplacement d'un fichier verrouillé ; `subprocess.TimeoutExpired` : script de plus de 60 s) sortait de `python -m jarvis run ...` / phrase routée avec une trace Python (qui peut contenir des chemins). Corrigé dans `jarvis/__main__.py` : « Erreur d'exécution : <Type> », code 1 (déjà journalisé par la garde). Test : `CliPhraseTest.test_erreur_d_execution_d_un_outil_sans_trace_python`.
+- BUG-10 (faible) : « monte le volume à 30 » (et baisse / augmente / diminue) n'était pas routé et partait au LLM. Corrigé dans `intents.json` ; test dans `test_router_pc.py::test_volume`.
+
+### Observations non bloquantes
+- `run_script` sur délai dépassé : `subprocess.run` ne tue que `cmd`/`powershell`, pas les processus petits-enfants (ex. `ping` lancé par le script) ; à traiter en Phase 5 avec S3/S8 (objet Job Windows).
+- Un `apps.json` de plus de 64 Kio donne « illisible (ValueError) » sans préciser la taille.
+- Non joué en réel (consigne) : `power`, `kill_process`, `lock_session`, `screen_off`. Test manuel S6 (corbeille, gros fichier) toujours à faire par le propriétaire (section 6). `apps.json` et `scripts/` n'existent pas encore sur ce PC.
+- Incident de recette : l'essai réel de `clipboard_write` a écrasé le presse-papiers de l'utilisateur (sauvegarde ratée par une erreur de variable shell dans la commande de test) ; il a été vidé, le contenu d'origine est perdu.
+
+Suite : 271 tests verts (270 + 1 nouveau, plus 2 assertions ajoutées).

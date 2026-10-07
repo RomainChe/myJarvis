@@ -25,7 +25,7 @@
   },
   {
     "tool": "set_volume",
-    "patterns": ["((mets|met|r[eéè]gle) )?(le )?(volume|son) (à|a|sur|au) {level} ?(%|pour ?cent)?"]
+    "patterns": ["((mets|met|r[eéè]gle|monte|baisse|augmente|diminue) )?(le )?(volume|son) (à|a|sur|au) {level} ?(%|pour ?cent)?"]
   },
   {
     "tool": "mute",
