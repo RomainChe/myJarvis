@@ -139,6 +139,19 @@ class RunScriptTest(AppsBase):
                 self.run_tool("run_script", {"name": "hello.bat", "args": "x"}, confirm=yes)
         run.assert_not_called()
 
+    def test_lien_physique_refuse(self):
+        """S3 : un lien physique vers un fichier hors du dossier échappe à resolve()."""
+        outside = self.dir / "dehors.bat"
+        outside.write_text("@echo x")
+        try:
+            os.link(outside, self.dir / "scripts" / "lien.bat")
+        except OSError:
+            self.skipTest("liens physiques indisponibles")
+        with mock.patch.object(apps.subprocess, "run") as run:
+            with self.assertRaises(ValueError):
+                self.run_tool("run_script", {"name": "lien.bat"}, confirm=yes)
+        run.assert_not_called()
+
     def test_permission_refusee(self):
         self.script()
         with mock.patch.object(apps.subprocess, "run") as run:

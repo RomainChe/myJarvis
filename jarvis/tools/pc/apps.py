@@ -137,6 +137,8 @@ def run_script(name: str) -> dict:
     # resolve() suit les liens : un lien vers l'extérieur du dossier est refusé.
     if not script.is_file() or script.resolve().parent != root:
         raise ValueError(f"script introuvable : {name}")
+    if script.stat().st_nlink > 1:  # lien physique : le même fichier existe ailleurs, hors du dossier
+        raise ValueError(f"script refusé (lien physique) : {name}")
     # Le script est désigné par son nom relatif au dossier ; l'interpréteur ne reçoit aucun autre argument.
     if script.suffix.lower() == ".ps1":
         cmd = [str(POWERSHELL), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", f".\\{name}"]
