@@ -190,3 +190,21 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Retour** : `path` et `bytes`. L'image n'est jamais renvoyée au LLM.
 - **Exemple** : `python -m jarvis run screenshot`.
 - **Notes** : GDI (`BitBlt`) via `ctypes`, PNG encodé avec `zlib` ; bureau virtuel entier, sans mise à l'échelle DPI. Fichier `capture-AAAAMMJJ-HHMMSS.png`, jamais écrasé. Le dossier est supprimable avec `delete_file`.
+
+## move_file
+
+- **Description** : déplace ou renomme un fichier ou dossier du dossier utilisateur.
+- **Niveau** : N2 (confirmation).
+- **Paramètres** : `src` (existant) et `dst` : un dossier existant (on déplace dedans) ou un nouveau chemin (parent existant, nom libre).
+- **Retour** : `moved` (chemin final).
+- **Exemple** : `python -m jarvis run move_file src=documents/a.txt dst=documents/b.txt`.
+- **Notes** : mêmes règles de chemin que `search_files` (`_allowed_root` : sous le dossier utilisateur, UNC, `\?\`, ADS, noms réservés refusés avant tout accès disque ; liens et jonctions résolus puis revérifiés). Refusés en plus : écraser une destination existante, déplacer un dossier dans lui-même, noms contenant `<>:"|?*` ou finissant par un point ou une espace, le dossier utilisateur et ses dossiers standard (Documents, Bureau…) eux-mêmes, tout ce qui est sous `~/.jarvis` (journal d'audit, listes blanches, scripts) en source comme en destination.
+
+## delete_file
+
+- **Description** : envoie un fichier ou dossier du dossier utilisateur à la corbeille (récupérable).
+- **Niveau** : N2 (confirmation).
+- **Paramètres** : `path` (existant, mêmes règles que `move_file`).
+- **Retour** : `recycled` (chemin résolu). Erreur si l'élément existe encore après l'opération.
+- **Exemple** : `python -m jarvis run delete_file path=documents/brouillon.txt`.
+- **Notes** : `SHFileOperationW` avec `FOF_ALLOWUNDO | FOF_WANTNUKEWARNING` : jamais de suppression définitive silencieuse (un élément qui ne peut pas aller à la corbeille déclenche l'avertissement Windows au lieu d'être détruit). Testé avec un mock de la corbeille dans la suite ; essai réel fait à la main sur un fichier temporaire.
