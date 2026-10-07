@@ -1,3 +1,4 @@
+import dataclasses
 import io
 import json
 import tempfile
@@ -10,8 +11,9 @@ from unittest import mock
 import jarvis.__main__ as cli
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils)
 from jarvis.core.audit import Audit
+from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import CATALOGUE, Router, normalize
-from jarvis.core.tools import REGISTRY
+from jarvis.core.tools import REGISTRY, Level, _registry
 
 
 class RouterTest(unittest.TestCase):
@@ -45,8 +47,40 @@ class RouterTest(unittest.TestCase):
     def test_catalogue_personnalise(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "intents.json")
-            path.write_text('[{"tool": "x", "patterns": ["volume {n}"]}]', encoding="utf-8")
-            self.assertEqual(Router(path).route("Volume 30"), ("x", {"n": "30"}))
+            path.write_text('[{"tool": "search_files", "patterns": ["retrouve {name}"], "defaults": {"folder": "~"}}]',
+                            encoding="utf-8")
+            self.assertEqual(Router(path).route("Retrouve facture"), ("search_files", {"name": "facture", "folder": "~"}))
+
+    def test_catalogue_invalide_refuse(self):
+        """Sécurité constat 5 : outil inconnu, paramètre inconnu, niveau dans le catalogue."""
+        bad = ('[{"tool": "x", "phrases": ["a"]}]',
+               '[{"tool": "search_files", "patterns": ["va {cible}"]}]',
+               '[{"tool": "search_files", "choices": {"chemin": ["a"]}}]',
+               '[{"tool": "system_status", "phrases": ["a"], "level": 0}]')
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "intents.json")
+            for text in bad:
+                path.write_text(text, encoding="utf-8")
+                with self.assertRaises(ValueError, msg=text):
+                    Router(path)
+
+    def test_texte_ou_slot_trop_long_part_au_llm(self):
+        """Sécurité constat 4 : pas de regex sur un texte long, slot borné."""
+        self.assertIsNone(self.router.route("cherche le fichier " + "a" * 600))
+        self.assertIsNone(self.router.route("cherche le fichier " + "a" * 150))
+
+    def test_intention_n2_routee_exige_confirmation(self):
+        """Sécurité constat 6 : un score de routage ne vaut jamais confirmation."""
+        tool, args = self.router.route("cherche le fichier rapport")
+        run = mock.Mock()
+        raised = dataclasses.replace(REGISTRY[tool], level=Level.N2, run=run)
+        audit = Audit(":memory:")
+        with mock.patch.dict(_registry, {tool: raised}):
+            with self.assertRaises(Refused):
+                execute(tool, args, source="cli", audit=audit, confirm=lambda *_: False,
+                        strong_auth=lambda *_: False)
+        run.assert_not_called()
+        self.assertEqual(audit.last(1)[0][5], "refusé")
 
     def test_latence_moins_de_50_ms(self):
         texts = ["état du système", "cherche le fichier rapport", "phrase totalement inconnue du routeur"]
@@ -95,21 +129,24 @@ class RouterTest(unittest.TestCase):
                 _, args = self.router.route("cherche facture dans mes téléchargements")
                 self.assertEqual(len(system.search_files(**args)["results"]), 1)
 
-    def test_slot_jarvis_et_chemin_absolu_preserves(self):
-        self.assertEqual(self.router.route(r"Jarvis, cherche le fichier jarvis dans C:\Windows ?"),
-                         ("search_files", {"name": "jarvis", "folder": r"C:\Windows"}))
+    def test_slot_jarvis_preserve(self):
+        self.assertEqual(self.router.route("Jarvis, cherche le fichier jarvis dans Documents ?"),
+                         ("search_files", {"name": "jarvis", "folder": "Documents"}))
 
-    @unittest.expectedFailure
+    def test_dossier_hors_liste_blanche_part_au_llm(self):
+        """Sécurité constat 3 : le routeur ne transmet jamais un chemin libre, même au motif suivant."""
+        for text in (r"cherche le fichier x dans C:\Windows", "cherche le fichier x dans ../..",
+                     r"trouve x dans \\hote\partage", "cherche le fichier x dans mes secrets"):
+            self.assertIsNone(self.router.route(text), text)
+
     def test_qa_r6_verbes_d_action_manquants(self):
         """QA-R6 : « quitte les processus » -> list_processes, « vide l'espace disque » -> system_status."""
         for text in ("quitte les processus", "vide l'espace disque"):
             self.assertIsNone(self.router.route(text), text)
 
-    @unittest.expectedFailure
     def test_qa_r7_ponctuation_dans_les_slots(self):
-        """QA-R7 : virgule gardée dans name, points finaux retirés du chemin (« ../.. » -> « ../ »)."""
+        """QA-R7 : virgule gardée dans name."""
         self.assertEqual(self.router.route("cherche le fichier facture, dans Documents")[1]["name"], "facture")
-        self.assertEqual(self.router.route("cherche le fichier x dans ../..")[1]["folder"], "../..")
 
 
 class CliPhraseTest(unittest.TestCase):
@@ -133,8 +170,9 @@ class CliPhraseTest(unittest.TestCase):
         self.assertEqual(Audit(str(cli.DB_PATH)).last(), [])
 
     def test_phrase_reconnue_executee_et_journalisee(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            code, out = self.main(f"cherche le fichier introuvable-xyz dans {tmp}")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(Path, "home", return_value=Path(tmp)):
+            Path(tmp, "Documents").mkdir()
+            code, out = self.main("cherche le fichier introuvable-xyz dans mes documents")
         self.assertEqual(code, 0)
         self.assertIn("'results': []", out)
         self.assertEqual(Audit(str(cli.DB_PATH)).last(1)[0][2], "search_files")

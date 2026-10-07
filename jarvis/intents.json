@@ -20,6 +20,7 @@
       "(cherche|trouve|recherche) (le |les |un |des )?(fichiers? )?{name} dans (le dossier |mes |les |mon )?{folder}",
       "(cherche|trouve|recherche) (le |les |un |des )?fichiers? {name}"
     ],
-    "defaults": {"folder": "~"}
+    "defaults": {"folder": "~"},
+    "choices": {"folder": ["documents", "telechargements", "images", "photos", "bureau", "musique", "videos"]}
   }
 ]
