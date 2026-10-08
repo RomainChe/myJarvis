@@ -66,3 +66,14 @@ def snapshot(root: Path | None = None) -> dict:
     published.sort(key=lambda r: r["at"], reverse=True)
     scheduled.sort(key=lambda r: r["at"])
     return {"configured": root.is_dir(), "published": published[:MAX_ROWS], "scheduled": scheduled[:MAX_ROWS]}
+
+
+def with_youtube(snap: dict, stats) -> dict:
+    """Ajoute les compteurs YouTube (`stats` : YouTubeStats) et les vues de chaque vidéo YouTube publiée."""
+    ids = {r["url"].rsplit("/", 1)[-1]: r for r in snap["published"] if r["platform"] == "youtube" and r["url"]}
+    yt = stats.snapshot(list(ids))
+    for vid, row in ids.items():
+        row["views"] = yt.get("video_views", {}).get(vid) if yt else None
+    if yt:
+        yt = {k: v for k, v in yt.items() if k != "video_views"}
+    return {**snap, "youtube": yt}

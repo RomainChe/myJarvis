@@ -58,7 +58,7 @@ class SocialRouteTest(ServerBase):
         _, token = self.enroll()
         status, body, _ = self.call("GET", "/api/social", token=token)
         self.assertEqual(status, 200)
-        self.assertEqual(set(body), {"configured", "published", "scheduled"})
+        self.assertEqual(set(body), {"configured", "published", "scheduled", "youtube"})
 
 
 if __name__ == "__main__":

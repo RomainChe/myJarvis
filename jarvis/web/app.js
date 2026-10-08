@@ -411,7 +411,7 @@ const PLATFORMS = { youtube: 'YouTube', tiktok: 'TikTok', all: 'YouTube + TikTok
 const fmtDate = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 function socialRow(r, withLink) {
   const li = el('li', 'row');
-  li.append(el('div', 'tool', r.title), el('div', 'meta', `${PLATFORMS[r.platform] ?? r.platform} · ${fmtDate(r.at)}${r.privacy ? ` · ${r.privacy}` : ''}`));
+  li.append(el('div', 'tool', r.title), el('div', 'meta', `${PLATFORMS[r.platform] ?? r.platform} · ${fmtDate(r.at)}${r.privacy ? ` · ${r.privacy}` : ''}${Number.isInteger(r.views) ? ` · ${r.views} vues` : ''}`));
   if (withLink && typeof r.url === 'string' && URL.canParse(r.url) && new URL(r.url).protocol === 'https:') {
     const a = el('a', '', 'Ouvrir');
     a.href = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
@@ -427,11 +427,20 @@ async function loadSocial() {
     err.hidden = r.data.configured;
     err.textContent = 'Dossier de lol-clipper introuvable.';
     const fill = (id, rows, empty, link) => $(id).replaceChildren(...(rows.length ? rows.map((x) => socialRow(x, link)) : [el('li', 'row muted', empty)]));
+    const yt = r.data.youtube;
+    $('social-yt').hidden = !yt;
+    if (yt) {
+      const d = (x) => (x ? `${x.subs >= 0 ? '+' : ''}${x.subs} abonnés` : '…');
+      $('yt-subs').textContent = yt.error ? '—' : `${yt.subs} abonnés`;
+      $('yt-detail').textContent = yt.error === 'reconnexion' ? 'Reconnexion de lol-clipper à faire (droit youtube.readonly).'
+        : yt.error ? 'Statistiques indisponibles.' : `${yt.views} vues · ${yt.videos} vidéos · 7 j : ${d(yt.delta.d7)} · 30 j : ${d(yt.delta.d30)}`;
+    }
     fill('social-todo', r.data.scheduled, 'Rien de programmé.', false);
     fill('social-done', r.data.published, 'Aucune publication.', true);
-  } catch {
+  } catch (e) {
     err.hidden = false;
-    err.textContent = 'Réseaux indisponibles : PC injoignable.';
+    err.textContent = e.message === 'network' ? 'Réseaux indisponibles : PC injoignable.'
+      : 'Réseaux indisponibles : le serveur JARVIS répond mal (redémarrage nécessaire après une mise à jour ?).';
   }
 }
 
