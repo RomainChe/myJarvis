@@ -71,5 +71,14 @@
   {
     "tool": "tv_status",
     "phrases": ["la tele est allumee", "etat de la tv", "etat de la tele"]
+  },
+  {
+    "tool": "scene_cinema",
+    "patterns": [
+      "(mets|met|lance|active|passe en) (le )?mode cin[eé]ma",
+      "(mets|met|lance|active|passe en) (le )?mode cin[eé]ma (sur|avec) {app}"
+    ],
+    "defaults": {"app": ""},
+    "choices": {"app": ["youtube", "netflix", "twitch", "spotify"]}
   }
 ]

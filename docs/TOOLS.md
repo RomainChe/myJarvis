@@ -230,3 +230,12 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 | `tv_mute` | N1 | `muted` (bool) | `muted` | `run tv_mute muted=true` |
 | `tv_key` | N1, `taint_blocked` | `button` : `home back up down left right ok play_pause` | `button` | `run tv_key button=back` |
 | `tv_open_app` | N1, `taint_blocked` (un achat peut se valider avec `ok`) | `app` : `youtube`, `netflix`, `twitch`, `spotify` (liste blanche de liens propres aux applis, vérifiés sur la TV ; Disney+ et Prime Video : aucun lien ne les a lancées) | `app` | `run tv_open_app app=youtube` |
+
+## scene_cinema (`jarvis/tools/home/scenes.py`)
+
+- **Description** : mode cinéma. Allume la TV du salon (la barre de son suit en HDMI-CEC) si elle ne l'est pas, lance l'appli demandée, puis **vérifie l'état réel** (jusqu'à 15 s par étape). Une TV non confirmée n'ouvre pas d'appli.
+- **Niveau** : N1, `taint_blocked` (lance une appli, comme `tv_open_app`).
+- **Paramètres** : `app` : `youtube`, `netflix`, `twitch`, `spotify`, ou chaîne vide (aucune appli). Une appli inconnue est refusée avant toute action.
+- **Retour** : `tv` (`allumée` / `non confirmée`), `app` (nom / `non confirmée` / `null`), `non_traité` : ce que la scène ne fait pas encore (volets, lumière du salon, volume préréglé : matériel absent ou volume absolu indisponible).
+- **Exemples** : « mets le mode cinéma », « lance le mode cinéma sur Netflix » (motifs exacts du routeur) ; `python -m jarvis run scene_cinema app=netflix`.
+- **Notes** : écart au plan (script HA) : l'utilisateur `jarvis` n'est pas administrateur et ne peut pas créer de script HA ; à migrer quand les volets (Shelly) seront posés.
