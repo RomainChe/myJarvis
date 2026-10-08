@@ -131,9 +131,13 @@ def mic_cmd(argv: list[str], audit: Audit) -> int:
                 print(i, d["name"])
         return 0
     mic = Mic(lambda audio: print(f"phrase de {len(audio) / 16000:.1f} s (jetée, étape 5 : Whisper)"), audit,
-              on_state=lambda s: print(f"[{s}]"), flag=DB_PATH.parent / "mic_off", threshold=threshold_from_env())
+              on_state=lambda s: print(f"[{s}]"), threshold=threshold_from_env())
     if sub in ("on", "off"):
+        if sub == "on" and not sys.stdin.isatty():  # réarmer le micro exige un terminal
+            print("Réarmer le micro exige un terminal interactif.")
+            return 1
         mic.disable() if sub == "off" else mic.enable()
+        audit.log("cli", "mic_switch", {"état": sub}, None, "auto", "ok")
         print("micro coupé" if sub == "off" else "micro autorisé")
         return 0
     if sub != "listen":

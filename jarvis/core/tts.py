@@ -29,7 +29,7 @@ class TTSError(Exception):
 def audio_device(var="JARVIS_AUDIO_OUT"):
     """Variable d'environnement (nom ou index) ; vide = périphérique par défaut. Jamais de nom dans le dépôt (31)."""
     raw = os.environ.get(var, "").strip()
-    return int(raw) if raw.isdigit() else (raw or None)
+    return int(raw) if raw.isascii() and raw.isdigit() else (raw or None)
 
 
 class Speaker:

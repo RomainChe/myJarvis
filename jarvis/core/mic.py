@@ -25,6 +25,9 @@ WAKE_FILES = ("openwakeword/hey_jarvis_v0.1.onnx", "openwakeword/melspectrogram.
 THRESHOLD = 0.5
 MAX_WAKES_PER_MIN = 4
 MAX_UTTERANCE_S = 15  # tampon borné (14)
+MAX_BLOCKS = MAX_UTTERANCE_S * RATE // BLOCK + 2  # plafond dur, indépendant de l'horloge
+TAIL_S = 1.5  # fenêtre de la passe VAD une fois la parole entendue (coût constant)
+FLAG = Path.home() / ".jarvis" / "mic_off"  # fixe : indépendant de JARVIS_DB, dossier protégé par les outils de fichiers
 NO_SPEECH_S = 4  # réveil sans parole : on abandonne
 SILENCE_S = 0.6  # fin de phrase
 CHECK_EVERY = 6  # blocs entre deux passes VAD (~0,5 s)
@@ -52,7 +55,7 @@ def silero_speech_end(audio):
 
 
 class Mic:
-    def __init__(self, on_utterance, audit=None, speaker=None, on_state=None, *, flag, models=ROOT / "models",
+    def __init__(self, on_utterance, audit=None, speaker=None, on_state=None, *, flag=FLAG, models=ROOT / "models",
                  manifest=ROOT / "models" / "MANIFEST.json", threshold=THRESHOLD, sd=None, wake_loader=None,
                  speech_end=silero_speech_end, clock=time.monotonic):
         self.on_utterance, self.audit, self.speaker, self.on_state = on_utterance, audit, speaker, on_state
@@ -61,13 +64,19 @@ class Mic:
         self._wake = None
         self._wakes = collections.deque()  # instants des réveils acceptés (limite de débit)
         self._limited = False
-        self._buf, self._started, self._blocks = None, 0.0, 0  # tampon de phrase (None = en veille)
+        self._buf, self._started, self._blocks, self._heard = None, 0.0, 0, False  # tampon de phrase (None = en veille)
         self.state, self.error = "veille", None
         self._stop = threading.Event()
 
     # --- kill switch persistant (16) ---
     def disabled(self):
-        return self.flag.exists()
+        try:
+            os.stat(self.flag)
+            return True
+        except FileNotFoundError:
+            return False
+        except OSError:  # illisible : on coupe (échec fermé)
+            return True
 
     def disable(self):
         self.flag.parent.mkdir(parents=True, exist_ok=True)
@@ -156,35 +165,56 @@ class Mic:
             scores = self._wake.predict(block)  # le bloc est jeté ensuite (15)
             if max(scores.values(), default=0.0) >= self.threshold and self._accept_wake(now):
                 self._log("wake", None, "ok")
-                self._buf, self._started, self._blocks = [], now, 0
+                self._buf, self._started, self._blocks, self._heard = [], now, 0, False
                 self._set("écoute")
             return
         self._buf.append(block)
         self._blocks += 1
         elapsed = now - self._started
-        if self._blocks % CHECK_EVERY and elapsed < MAX_UTTERANCE_S:
+        full = elapsed >= MAX_UTTERANCE_S or self._blocks >= MAX_BLOCKS
+        if self._blocks % CHECK_EVERY and not full:
             return
         audio = np.concatenate(self._buf)
-        speech, silence = self._speech_end(audio)
+        if self._heard and not full:  # parole déjà entendue : seule la queue est analysée
+            _, silence = self._speech_end(audio[-int(TAIL_S * RATE):])
+            speech = True
+        else:
+            speech, silence = self._speech_end(audio)
+            self._heard = self._heard or speech
         if speech and silence >= SILENCE_S * RATE:
             self._end(audio, "ok")
-        elif elapsed >= MAX_UTTERANCE_S:
-            self._end(audio if speech else None, "tronqué")
+        elif full:
+            self._end(audio if self._heard else None, "tronqué")
         elif not speech and elapsed >= NO_SPEECH_S:
             self._end(None, "silence")
 
     def run(self):
-        """Boucle bloquante jusqu'à `stop()`. Erreur matérielle -> self.error (message fixe), pas d'exception."""
+        """Boucle bloquante jusqu'à `stop()`. Micro coupé = flux fermé (le voyant s'éteint). Erreur -> message fixe."""
+        stream = None
         try:
             sd = self._sd or __import__("sounddevice")
             self._load()
-            with sd.InputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=BLOCK,
-                                device=audio_device("JARVIS_AUDIO_IN")) as stream:
-                while not self._stop.is_set():
-                    data, _ = stream.read(BLOCK)
-                    self.feed(np.asarray(data, dtype=np.int16).reshape(-1))
+            while not self._stop.is_set():
+                if self.disabled():
+                    if stream is not None:
+                        stream.close()
+                        stream = None
+                    self._buf = None
+                    self._set("coupé")
+                    self._stop.wait(1)
+                    continue
+                if stream is None:
+                    stream = sd.InputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=BLOCK,
+                                            device=audio_device("JARVIS_AUDIO_IN"))
+                    stream.start()
+                    self._wake.reset()
+                data, _ = stream.read(BLOCK)
+                self.feed(np.asarray(data, dtype=np.int16).reshape(-1))
         except Exception:
             self.error = ERR_MSG
+        finally:
+            if stream is not None:
+                stream.close()
 
     def stop(self):
         self._stop.set()

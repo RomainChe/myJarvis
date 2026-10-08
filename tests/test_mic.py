@@ -171,6 +171,68 @@ class TestMic(MicBase):
         self.assertEqual(self.mic.state, "veille")
 
 
+class TestCorrectifsRevue(MicBase):
+    def test_flag_fixe_sous_jarvis_home(self):  # constat 2 : protégé par la règle ~/.jarvis des outils de fichiers
+        self.assertEqual(micmod.FLAG, Path.home() / ".jarvis" / "mic_off")
+
+    def test_flag_illisible_coupe(self):  # constat 4
+        from unittest import mock
+        with mock.patch("os.stat", side_effect=PermissionError):
+            self.assertTrue(self.mic.disabled())
+        self.assertFalse(self.mic.disabled())
+
+    def test_plafond_dur_de_blocs(self):  # constat 5 : horloge figée, le tampon reste borné
+        self.wake_up()
+        self.speech = (True, 0)
+        for _ in range(micmod.MAX_BLOCKS + 50):
+            self.mic.feed(BLOCK_AUDIO)  # sans avancer l'horloge
+        self.assertEqual(len(self.heard), 1)
+        self.assertLessEqual(len(self.heard[0]), micmod.MAX_BLOCKS * BLOCK)
+
+    def test_vad_sur_la_queue_une_fois_la_parole_entendue(self):  # constat 6
+        sizes = []
+        def vad(a):
+            sizes.append(len(a))
+            return self.speech
+        self.mic._speech_end = vad
+        self.wake_up()
+        self.speech = (True, 0)
+        self.feed(60)
+        self.assertGreater(len(sizes), 3)
+        self.assertTrue(all(n <= int(micmod.TAIL_S * RATE) for n in sizes[1:]))
+
+    def test_micro_coupe_ferme_le_flux(self):  # constat 3
+        events = []
+        class Stream:
+            def start(self): events.append("start")
+            def read(self, n):
+                events.append("read")
+                m.disable() if events.count("read") == 2 else None
+                return np.zeros((n, 1), np.int16), False
+            def close(self): events.append("close")
+        class SD:
+            def InputStream(self, **kw): return Stream()
+        m = Mic(lambda a: None, flag=self.tmp / "off2", sd=SD(), wake_loader=lambda: self.wake)
+        m._load = lambda: setattr(m, "_wake", self.wake)
+        threading = __import__("threading")
+        t = threading.Thread(target=m.run)
+        t.start()
+        for _ in range(100):
+            if "close" in events:
+                break
+            __import__("time").sleep(0.02)
+        self.assertEqual(m.state, "coupé")
+        m.stop()
+        t.join(3)
+        self.assertEqual(events[:4], ["start", "read", "read", "close"])
+
+    def test_peripherique_chiffres_unicode(self):  # constat 12
+        from unittest import mock
+        from jarvis.core.tts import audio_device
+        with mock.patch.dict("os.environ", {"JARVIS_AUDIO_IN": "²"}):
+            self.assertEqual(audio_device("JARVIS_AUDIO_IN"), "²")
+
+
 class TestChargement(unittest.TestCase):
     def test_modele_non_verifie_refuse(self):
         tmp = Path(tempfile.mkdtemp())
