@@ -48,8 +48,9 @@ class LevelsTest(unittest.TestCase):
     def test_les_planchers_ne_descendent_jamais(self):
         for name in ("delete_file", "move_file", "kill_process", "power", "run_script"):
             with self.assertRaises(ValueError, msg=name):
-                levels.set_level(name, 1, strong_auth=True)
-            self.assertGreaterEqual(levels.effective(REGISTRY[name]), Level.N2)
+                levels.set_level(name, 0, strong_auth=True)
+            levels.set_level(name, 1, strong_auth=True)  # N1 autorisé (décision du propriétaire)
+            self.assertEqual(levels.effective(REGISTRY[name]), Level.N1)
 
     def test_un_n2_hors_plancher_peut_descendre_avec_n3(self):
         with self.assertRaises(PermissionError):
@@ -64,7 +65,7 @@ class LevelsTest(unittest.TestCase):
 
     def test_ecriture_directe_en_base_sous_le_plancher_reste_au_plancher(self):
         self.audit.db.execute("INSERT INTO levels VALUES ('delete_file', 0)")
-        self.assertEqual(levels.effective(REGISTRY["delete_file"]), Level.N2)
+        self.assertEqual(levels.effective(REGISTRY["delete_file"]), Level.N1)
 
     def test_sans_load_le_registre_s_applique_et_chat_charge_les_surcharges(self):
         from jarvis.core.chat import Chat

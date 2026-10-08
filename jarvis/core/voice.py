@@ -38,7 +38,7 @@ class Voice:
             refused = [0]  # niveau le plus haut refusé dans ce tour
 
             def confirm(tool, args):  # pas d'appareil, pas de confirmation vocale (étape 7 du plan)
-                refused[0] = max(refused[0], int(effective(tool)))
+                refused[0] = max(refused[0], int(effective(tool)), int(tool.level))  # même règle que execute
                 return False
 
             strong = lambda tool, args: False  # noqa: E731  (N3 jamais à la voix)

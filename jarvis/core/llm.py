@@ -107,7 +107,8 @@ def ask(
             tool = REGISTRY.get(name)
             if i >= MAX_CALLS:
                 result = "refusé : trop d'appels dans un même message."
-            elif tainted and tool and (effective(tool) >= Level.N2 or tool.taint_blocked):
+            # Niveau du registre aussi : un N2 abaissé en N1 par le propriétaire reste bloqué après contenu externe.
+            elif tainted and tool and (max(effective(tool), tool.level) >= Level.N2 or tool.taint_blocked):
                 audit.log(source, name, masked(args, tool.hidden), effective(tool), "refusé", "contenu externe lu dans ce tour")
                 result = "refusé : une action sensible ne peut pas suivre la lecture de contenu externe ; redemande-la."
             else:

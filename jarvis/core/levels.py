@@ -3,13 +3,14 @@
 Les surcharges sont dans la base (table `levels`), hors du code des outils, et relues à chaque appel : un changement
 fait par `python -m jarvis level set` s'applique tout de suite au serveur en marche.
 - Relever (N1 -> N2) est libre. Abaisser sous le niveau effectif est une action N3 (authentification forte).
-- Les planchers ne descendent jamais : ni le LLM, ni une surcharge, ni une erreur de réglage ne rend `delete_file` automatique.
+- Les planchers ne descendent jamais : ni le LLM, ni une surcharge, ni une erreur de réglage ne met `delete_file` en N0.
 """
 from .audit import Audit
 from .tools import REGISTRY, Level, Tool
 
-# Outils irréversibles ou à fort impact : jamais sous N2. Les autres N2 (presse-papiers, capture) peuvent descendre en N3.
-FLOORS = {name: Level.N2 for name in ("power", "delete_file", "move_file", "kill_process", "run_script")}
+# Outils irréversibles ou à fort impact : jamais sous N1 (décision du propriétaire, 2026-10-08 ; avant : N2).
+# Abaissés en N1, ils restent refusés au LLM après du contenu externe (llm.py compare aussi le niveau du registre).
+FLOORS = {name: Level.N1 for name in ("power", "delete_file", "move_file", "kill_process", "run_script")}
 SCHEMA = "CREATE TABLE IF NOT EXISTS levels (tool TEXT PRIMARY KEY, level INTEGER NOT NULL CHECK (level BETWEEN 0 AND 3))"
 
 _audit: Audit | None = None

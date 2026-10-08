@@ -348,7 +348,7 @@ class LevelsRoutesTest(WebAuthnServerBase):
 
     def test_liste_avec_planchers(self):
         rows = {r["tool"]: r for r in self.call("GET", "/api/levels")[1]["levels"]}
-        self.assertEqual((rows["delete_file"]["floor"], rows["test_wa_light"]["level"]), (2, 1))
+        self.assertEqual((rows["delete_file"]["floor"], rows["test_wa_light"]["level"]), (1, 1))
         self.assertEqual((rows["delete_file"]["title"], rows["delete_file"]["group"]), ("Supprimer un fichier", "PC"))
 
     def test_relever_est_libre_abaisser_exige_une_assertion(self):
@@ -377,7 +377,7 @@ class LevelsRoutesTest(WebAuthnServerBase):
         for body in ({"tool": "test_wa_light", "level": "1"}, {"tool": "test_wa_light", "level": 4}, {"tool": "../x", "level": 1}):
             self.assertEqual(self.call("POST", "/api/levels", body)[0], 422, body)
         self.assertEqual(self.call("POST", "/api/levels", {"tool": "inconnu", "level": 1})[0], 422)
-        self.assertEqual(self.call("POST", "/api/levels", {"tool": "delete_file", "level": 1})[0], 422)  # plancher
+        self.assertEqual(self.call("POST", "/api/levels", {"tool": "delete_file", "level": 0})[0], 422)  # plancher
 
 
 if __name__ == "__main__":

@@ -113,6 +113,19 @@ class LLMTest(unittest.TestCase):
         self.ask(o)
         self.assertEqual(ran, ["copy"])
 
+    def test_n2_abaisse_en_n1_reste_refuse_apres_contenu_externe(self):
+        """Un outil N2 du registre abaissé en N1 par le propriétaire : automatique, sauf après contenu externe."""
+        from jarvis.core import levels
+        levels.load(self.audit)
+        self.addCleanup(setattr, levels, "_audit", None)
+        levels.set_level("llm_power", 1, strong_auth=True)
+        o = FakeOllama(reply(call("llm_ext")), reply(call("llm_power")), reply(content="fait"))
+        self.ask(o)
+        self.assertEqual(ran, [])
+        o = FakeOllama(reply(call("llm_power")), reply(content="fait"))
+        self.ask(o)
+        self.assertEqual(ran, ["power"])
+
     def test_clipboard_write_est_taint_blocked(self):
         import jarvis.tools.pc  # noqa: F401
         self.assertTrue(REGISTRY["clipboard_write"].taint_blocked)

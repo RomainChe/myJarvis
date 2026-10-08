@@ -46,6 +46,8 @@ def execute(
         audit.log(source, str(name), masked(args), None, "inconnu", None)
         raise ValueError(f"outil inconnu : {name}")
     level = effective(tool)  # niveau du registre, relevé par le propriétaire, jamais sous le plancher
+    if source.split("/")[0] == "voix":  # le micro entend aussi la TV ou un visiteur : un abaissement ne vaut pas à la voix
+        level = max(level, tool.level)
     # Copie avant validation : on valide, fait confirmer et exécute le même objet, que l'appelant ne tient plus.
     if type(args) is dict:
         args = dict(args)

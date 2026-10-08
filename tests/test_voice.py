@@ -84,6 +84,19 @@ class VoiceTest(unittest.TestCase):
         run.assert_not_called()
         self.assertIn(("voix", "power", "refusé"), self.rows())
 
+    def test_power_abaisse_en_n1_reste_refuse_a_la_voix(self):
+        """Condition Sécurité : le son d'une TV ou d'un visiteur ne déclenche jamais un N2 du registre abaissé en N1."""
+        from jarvis.core import levels
+        levels.set_level("power", 1, strong_auth=True)
+        with mock.patch.object(self.chat.router, "route", return_value=("power", {"action": "shutdown"})), \
+                mock.patch("subprocess.run") as run:
+            self.assertEqual(self.voice.handle("n'importe quoi"), voice_mod.N2_MSG)
+        patch, _ = self.fake_ask("power", {"action": "shutdown"})
+        with patch, mock.patch("subprocess.run") as run2:
+            self.assertEqual(self.voice.handle("éteins le PC"), voice_mod.N2_MSG)
+        run.assert_not_called()
+        run2.assert_not_called()
+
     def test_n3_refuse_meme_si_le_llm_dit_oui(self):
         patch, _ = self.fake_ask("power", {"action": "shutdown"}, answer="C'est fait, oui !")
         with patch, mock.patch.object(voice_mod, "effective", return_value=3), \
