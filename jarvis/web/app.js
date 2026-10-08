@@ -434,7 +434,7 @@ async function applyLevel(row, level) {
   const pressed = [...document.querySelectorAll('#levels-list .seg button[aria-pressed="true"]')].find((b) => b.dataset.tool === row.tool);
   if (pressed) pressed.focus();
 }
-const LEVEL_HELP = ['Lecture, automatique', 'Action courante, automatique', 'Demande une confirmation', 'Confirmation et clé d'accès'];
+const LEVEL_HELP = ['Lecture, automatique', 'Action courante, automatique', 'Demande une confirmation', 'Confirmation et clé d’accès'];
 function levelRow(row) {
   const title = String(row.title ?? row.tool);
   const li = el('li', 'row lv');
@@ -513,7 +513,7 @@ async function loadSettings() {
     box.replaceChildren(...[...groups].map(([name, list]) => {
       const g = el('section', 'lv-group');
       const ul = el('ul', 'panel hud plain');
-      ul.append(...list.map(levelRow));
+      ul.append(...list.sort((a, b) => String(a.title).localeCompare(String(b.title), 'fr')).map(levelRow));
       g.append(el('h3', '', name), ul);
       return g;
     }));

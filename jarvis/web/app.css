@@ -271,13 +271,13 @@ h2.section { margin-top: var(--j-space-4); }
 .setting > div { flex: 1 1 220px; display: flex; flex-direction: column; gap: var(--j-space-1); }
 
 /* Niveaux : titre + description à gauche, sélecteur segmenté N0–N3 à droite. */
-.lv { display: flex; align-items: center; justify-content: space-between; gap: var(--j-space-3); flex-wrap: wrap; }
-.lv-text { flex: 1 1 180px; display: flex; flex-direction: column; min-width: 0; }
+.lv { display: flex; align-items: center; justify-content: space-between; gap: var(--j-space-3); }
+.lv-text { flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; }
 .lv-title { font-weight: 500; font-size: var(--j-text-sm); }
 .lv-desc { color: var(--j-color-muted); font-size: var(--j-text-xs); line-height: 1.45; }
 .seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--j-color-border); border-radius: 999px; background: var(--j-color-raised); }
 .seg button {
-  min-width: 38px; height: 30px; padding: 0 var(--j-space-2); border: 0; border-radius: 999px; cursor: pointer;
+  min-width: 34px; height: 30px; padding: 0 var(--j-space-2); border: 0; border-radius: 999px; cursor: pointer;
   font: 600 var(--j-text-xs)/1 var(--j-font-tech); background: transparent; color: var(--j-color-muted);
   transition: background-color var(--j-motion-fast) ease-out, color var(--j-motion-fast) ease-out;
 }
