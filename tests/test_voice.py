@@ -7,6 +7,7 @@ from unittest import mock
 from jarvis.core import voice as voice_mod
 from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
+from jarvis.core import tools
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.voice import Voice
 
@@ -119,6 +120,28 @@ class VoiceTest(unittest.TestCase):
         self.assertIn(("voix/llm", "system_status", "auto"), rows)
         self.assertEqual(sum(r == ("voix/llm", "power", "refusé") for r in rows), 3)
         self.assertFalse([r for r in rows if r[1] == "power" and r[2] != "refusé"])
+
+    def privé(self):
+        """Enregistre un outil N1 privé factice (le registre est en lecture seule : on passe par le décorateur)."""
+        tools.tool("test_prive", "x", tools.Level.N1, private=True)(lambda: {"text": SECRET})
+        self.addCleanup(tools._registry.pop, "test_prive")
+
+    def test_outil_prive_via_llm_rien_du_contenu_lu(self):
+        self.privé()
+
+        def ask(text, *, audit, confirm, strong_auth, source):
+            result = execute("test_prive", {}, source=source, audit=audit, confirm=confirm, strong_auth=strong_auth)
+            return f"Le presse-papiers contient {result['text']}"  # le LLM reformule le contenu
+        with mock.patch.object(voice_mod, "ask", ask):
+            answer = self.voice.handle(UNROUTED)
+        self.assertEqual(answer, voice_mod.PRIVATE_MSG)
+        self.assertNotIn(SECRET, answer)
+
+    def test_outil_prive_via_routeur_rien_du_contenu_lu(self):
+        self.privé()
+        with mock.patch.object(self.chat.router, "route", return_value=("test_prive", {})):
+            answer = self.voice.handle("n'importe quoi")
+        self.assertEqual(answer, voice_mod.PRIVATE_MSG)
 
     def test_valueerror_de_l_outil_message_fixe(self):
         with mock.patch.object(voice_mod, "ask", side_effect=ValueError(f"outil {SECRET} inconnu")):

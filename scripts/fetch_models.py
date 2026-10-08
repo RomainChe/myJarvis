@@ -14,12 +14,14 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:  # lancé par chemin (python scripts/fetch_models.py) : le dépôt n'est pas encore importable
+    sys.path.insert(0, str(ROOT))
+from jarvis.core.modelcheck import CHUNK, is_good  # noqa: E402
 # Hôtes exacts ou suffixes (redirections de CDN) acceptés, HTTPS seulement.
 HOSTS = {"huggingface.co", "github.com", "objects.githubusercontent.com",
          "release-assets.githubusercontent.com"}
 SUFFIXES = (".hf.co", ".huggingface.co")
 TIMEOUT = 60
-CHUNK = 1 << 20
 
 
 def host_ok(url):
@@ -36,18 +38,6 @@ class _Redirect(urllib.request.HTTPRedirectHandler):
 
 
 _opener = urllib.request.build_opener(_Redirect)
-
-
-def sha256_of(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(CHUNK):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def is_good(path, size, sha):
-    return path.is_file() and path.stat().st_size == size and sha256_of(path) == sha
 
 
 def fetch(url, dest, size, sha):

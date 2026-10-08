@@ -16,6 +16,23 @@ SOURCE = "voix"
 BUSY_MSG = "Je suis occupé, redemande dans un instant."
 N2_MSG = "Action sensible : fais-la depuis l'application."
 N3_MSG = "À faire sur le téléphone."
+PRIVATE_MSG = "Fait, voir l'application."  # un outil privé a tourné : rien de son contenu (ni reformulé) n'est lu à voix haute
+
+
+class _Tap:
+    """Journal transmis à la garde : repère l'exécution d'un outil `private` (voies routeur et LLM passent par `log`)."""
+
+    def __init__(self, audit):
+        self._audit, self.private_ran = audit, False
+
+    def log(self, source, tool, *a, **kw):
+        t = REGISTRY.get(tool) if isinstance(tool, str) else None
+        if t is not None and t.private and "en cours" in a[-1:]:  # écrit juste avant `tool.run`
+            self.private_ran = True
+        return self._audit.log(source, tool, *a, **kw)
+
+    def __getattr__(self, name):
+        return getattr(self._audit, name)
 
 
 class Voice:
@@ -48,14 +65,15 @@ class Voice:
                 refused[0] = max(refused[0], int(effective(tool)), int(tool.level))  # même règle que execute
                 return False
 
+            tap = _Tap(chat.audit)
             strong = lambda tool, args: False  # noqa: E731  (N3 jamais à la voix)
             try:
                 routed = chat.router.route(text)
                 if routed is None:
-                    answer = ask(text, audit=chat.audit, confirm=confirm, strong_auth=strong, source=f"{SOURCE}/llm")
+                    answer = ask(text, audit=tap, confirm=confirm, strong_auth=strong, source=f"{SOURCE}/llm")
                 else:
                     name, args = routed
-                    result = execute(name, args, source=SOURCE, audit=chat.audit, confirm=confirm, strong_auth=strong)
+                    result = execute(name, args, source=SOURCE, audit=tap, confirm=confirm, strong_auth=strong)
                     answer = f"<{type(result).__name__}, {len(str(result))} car.>" if REGISTRY[name].private else str(result)
             except Refused:
                 answer = "Action refusée."
@@ -65,6 +83,8 @@ class Voice:
                 answer = "Demande invalide."
             except Exception as e:  # pas de trace : elle pourrait contenir des arguments ou des noms de fichiers
                 answer = f"Erreur interne : {type(e).__name__}"
+            if tap.private_ran:
+                answer = PRIVATE_MSG
             if refused[0] >= Level.N3:  # le message ne vient jamais du LLM
                 answer = N3_MSG
             elif refused[0] >= Level.N2:

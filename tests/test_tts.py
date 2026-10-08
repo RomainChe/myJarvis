@@ -1,6 +1,8 @@
 """Phase 4, étape 3 : synthèse Piper et anti-écho (fausse voix, faux sounddevice : jamais de son réel)."""
+import json
 import os
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -50,7 +52,7 @@ class TTSTest(unittest.TestCase):
         self.audit = Audit(str(Path(self.tmp.name) / "a.db"))
         self.addCleanup(self.audit.db.close)
         self.sd, self.fv = FakeSD(), FakeVoice()
-        p = mock.patch("jarvis.core.tts._fetch_models", return_value=SimpleNamespace(is_good=lambda *a: True))
+        p = mock.patch("jarvis.core.tts.is_good", return_value=True)
         p.start()
         self.addCleanup(p.stop)
 
@@ -78,13 +80,47 @@ class TTSTest(unittest.TestCase):
         self.assertEqual(self.rows(), [])
 
     def test_voix_refusee_si_hash_faux(self):
-        with mock.patch("jarvis.core.tts._fetch_models", return_value=SimpleNamespace(is_good=lambda *a: False)):
+        with mock.patch("jarvis.core.tts.is_good", return_value=False):
             s = self.speaker()
             with self.assertRaises(tts.TTSError):
                 s._load()
             s.say(SECRET)
         self.assertEqual(s.error, tts.ERR_MSG)
         self.assertEqual(self.sd.written, [])
+
+    def test_manifeste_vide_ou_incomplet_refuse(self):
+        for files in ([], [{"path": tts.VOICE, "size": 1, "sha256": "0" * 64}]):  # config .json absente
+            m = Path(self.tmp.name) / "m.json"
+            m.write_text(json.dumps({"files": files}), encoding="utf-8")
+            with self.assertRaises(tts.TTSError):
+                self.speaker(manifest=m)._load()
+
+    def test_hors_ligne_impose(self):
+        with mock.patch.dict(os.environ, {"HF_HUB_OFFLINE": "0"}):
+            self.speaker().say("Un.")
+            self.assertEqual(os.environ["HF_HUB_OFFLINE"], "1")
+
+    def test_say_concurrent_une_seule_lecture(self):
+        self.fv.delay = 0.1
+        s = self.speaker()
+        start = threading.Barrier(2)
+
+        def go():
+            start.wait()
+            s.say("Un. Deux.", block=False)
+        ts = [threading.Thread(target=go) for _ in range(2)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+        s._thread.join()
+        self.assertEqual(len(self.fv.texts), 1)
+
+    def test_echec_du_journal_n_empeche_pas_l_erreur(self):
+        self.fv.fail = True
+        self.audit.log = mock.Mock(side_effect=RuntimeError(f"disque {SECRET}"))
+        s = self.speaker()
+        s.say("Un.")
+        self.assertEqual(s.error, tts.ERR_MSG)
+        self.assertFalse(s.is_speaking())
 
     def test_erreur_generique_sans_fuite(self):
         self.fv.fail = True
@@ -155,17 +191,20 @@ class TTSTest(unittest.TestCase):
 
 
 class GpuTest(unittest.TestCase):
-    def test_path_prefixe_et_absent(self):
+    def test_path_en_fin_site_courant_seulement(self):
         with tempfile.TemporaryDirectory() as t:
             d = Path(t) / "nvidia" / "cublas" / "bin"
             d.mkdir(parents=True)
-            with mock.patch.dict(os.environ, {"PATH": "x"}), mock.patch("site.getsitepackages", return_value=[t]), \
-                    mock.patch("site.getusersitepackages", return_value=str(Path(t) / "vide")):
+            user = Path(t) / "user" / "nvidia" / "cudnn" / "bin"  # site utilisateur : ignoré
+            user.mkdir(parents=True)
+            paths = {"purelib": t, "platlib": t}
+            with mock.patch.dict(os.environ, {"PATH": "x"}), mock.patch("sysconfig.get_path", side_effect=paths.get),                     mock.patch("site.getusersitepackages", return_value=str(Path(t) / "user"), create=True),                     mock.patch("os.add_dll_directory", create=True) as add:
                 self.assertEqual(gpu.prepare_cuda_path(), [str(d)])
-                self.assertEqual(os.environ["PATH"], str(d) + os.pathsep + "x")
+                self.assertEqual(os.environ["PATH"], "x" + os.pathsep + str(d))
+                add.assert_called_once_with(str(d))
                 self.assertEqual(gpu.prepare_cuda_path(), [])  # déjà présent
-            with mock.patch.dict(os.environ, {"PATH": "x"}), mock.patch("site.getsitepackages", return_value=[str(Path(t) / "non")]), \
-                    mock.patch("site.getusersitepackages", return_value=str(Path(t) / "non")):
+            paths = {"purelib": str(Path(t) / "non"), "platlib": str(Path(t) / "non")}
+            with mock.patch.dict(os.environ, {"PATH": "x"}), mock.patch("sysconfig.get_path", side_effect=paths.get):
                 self.assertEqual(gpu.prepare_cuda_path(), [])
                 self.assertEqual(os.environ["PATH"], "x")
 
