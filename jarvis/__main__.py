@@ -3,7 +3,9 @@
     python -m jarvis "<phrase>"
     python -m jarvis run <outil> [clé=valeur ...]
     python -m jarvis audit [n]
+    python -m jarvis secret set|check <nom>
 """
+import getpass
 import json
 import os
 import sys
@@ -13,6 +15,7 @@ from jarvis.core.audit import Audit
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
+from jarvis.core.secrets import get_secret, set_secret
 from jarvis.core.tools import Tool
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 
@@ -48,6 +51,20 @@ def main(argv: list[str]) -> int:
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return 2
+    if argv[0] == "secret":  # avant le journal : pas besoin de la base, et la valeur n'est jamais affichée
+        if len(argv) != 3 or argv[1] not in ("set", "check"):
+            print(__doc__)
+            return 2
+        try:
+            if argv[1] == "set":
+                set_secret(argv[2], getpass.getpass(f"Valeur de {argv[2]} (invisible) : "))
+                print("Enregistré dans le coffre Windows.")
+            else:
+                print("présent" if get_secret(argv[2]) else "absent")
+        except ValueError as e:
+            print(e)
+            return 2
+        return 0
     if str(DB_PATH) == ":memory:" or str(DB_PATH).startswith("file:"):
         print("JARVIS_DB doit être un chemin de fichier : le journal d'audit doit persister.")
         return 2

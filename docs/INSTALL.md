@@ -66,7 +66,8 @@ d'environnement. Pour changer `JARVIS_DB`, la définir pour l'utilisateur :
 ```
 
 (puis rouvrir PowerShell). Laisser vide pour garder le défaut. Aucun secret ne va dans `.env` :
-les secrets iront dans le coffre Windows via `keyring` (ARCHITECTURE §4).
+les secrets vont dans le coffre Windows via `keyring` (ARCHITECTURE §4) :
+`pip install keyring`, puis `python -m jarvis secret set ha_token` (saisie invisible) et `secret check ha_token`.
 
 ## 5. Lancement et vérification
 
