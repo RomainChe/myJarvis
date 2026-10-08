@@ -77,3 +77,9 @@ Micro : celui du casque d'abord (décidé le 2026-10-07) ; périphérique d'entr
 Reportés de la revue étape 6 (docs/SECURITY_REVIEW_PHASE_1.md) : S3 (SHA-256 du script affiché à la confirmation puis revérifié avant exécution, exige un état partagé entre confirmation et exécution) ; S5 (captures : `~/Pictures` n'est pas redirigé par OneDrive sur ce PC, donc pas urgent ; à faire : dossier `~/.jarvis/captures`, purge après N jours, mention RGPD) ; S8 (`kill_process` : refuser les ancêtres de Jarvis, Ollama, Tailscale, Home Assistant, afficher le chemin de l'image : demande la table parent/enfant des processus) ; S12 (Phase 4 : mot de réveil ou identification du locuteur ; le test C4 interdit déjà toute intention N2/N3).
 À faire : `search_files` ouvre les dossiers par handle (risque R3 accepté en Phase 1).
 Audit de sécurité complet, tests d'intrusion (injection de prompt, rejeu de token, accès hors Tailscale), sauvegardes automatiques (SQLite + HA), supervision, documentation finale. À reconsidérer : un serveur dédié (un Pi) pour la disponibilité 24 h/24.
+
+## Pistes OpenJarvis (open-jarvis/OpenJarvis, Apache 2.0, analysé le 2026-10-08)
+Rien à reprendre en bloc : c'est un framework généraliste, sans outil Windows ni domotique. À lire comme modèle le moment venu ; toute reprise de code exige un fichier `NOTICE` (attribution Apache 2.0) et une relecture Sécurité.
+- **Phase 4 (voix)** : `src/openjarvis/speech/faster_whisper.py` (reconnaissance locale) ; `kokoro_tts.py` (synthèse locale, français, cache de pipeline par langue) comme alternative à comparer avec Piper.
+- **Phase 3–4 (tâches et mémoire, ARCHITECTURE §3.8)** : `scheduler/` (≈300 l) et `memory/` (store, extractor) comme modèle.
+- **Phase 5 (durcissement)** : `security/injection_scanner.py` en complément de `as_data` (regex en anglais seulement : ajouter les motifs français) ; `ssrf.py`, `credential_stripper.py`, `rate_limiter.py` (petits fichiers, 23 à 160 l).
