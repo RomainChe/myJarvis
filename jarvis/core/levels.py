@@ -91,6 +91,8 @@ LABELS = {
     "tv_key": ("Télécommande de la TV", "Touches de navigation de la télécommande."),
     "tv_open_app": ("Appli sur la TV", "Lance YouTube, Netflix ou une autre appli sur la TV."),
     "scene_cinema": ("Mode cinéma", "Allume la TV et lance l'appli demandée."),
+    "claude_code": ("Modifier le code de Jarvis", "Claude Code sur une branche ; fusion si les tests passent, puis redémarrage."),
+    "claude_code_status": ("Compte rendu du code", "Statut, résumé et fichiers du dernier travail Claude Code."),
 }
 
 

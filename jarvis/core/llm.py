@@ -45,7 +45,7 @@ def schemas() -> list[dict]:
         "name": t.name, "description": t.description,
         "parameters": {"type": "object", "required": list(t.params),
                        "properties": {k: {"type": JSON_TYPES[v]} for k, v in t.params.items()}},
-    }} for t in REGISTRY.values()]
+    }} for t in REGISTRY.values() if not t.owner_only]
 
 
 def post(path: str, body: dict) -> dict:

@@ -40,6 +40,7 @@ class Tool:
     hidden: tuple[str, ...] = ()  # paramètres dont la valeur n'est jamais journalisée (texte dicté, mot de passe)
     taint_blocked: bool = False  # refusé au LLM après du contenu externe, comme N2/N3 (N1 qui écrit chez l'utilisateur)
     describe: Callable[..., str] | None = None  # texte de confirmation (ex. chemin résolu) ; reçoit les paramètres
+    owner_only: bool = False  # jamais proposé au LLM ni exécuté pour lui : seulement le routeur (mots exacts du propriétaire)
 
     def preview(self, args: dict) -> str:
         """Ce que le propriétaire confirme : `describe` s'il existe, sinon les arguments masqués."""
@@ -73,7 +74,7 @@ REGISTRY = MappingProxyType(_registry)  # lecture seule : un module ne peut pas 
 
 def tool(name: str, description: str, level: Level, /, *, private: bool = False, external: bool = False,
          hidden: tuple[str, ...] = (), taint_blocked: bool = False,
-         describe: Callable[..., str] | None = None, **params: type):
+         describe: Callable[..., str] | None = None, owner_only: bool = False, **params: type):
     """Décorateur : enregistre une fonction comme outil Jarvis.
 
     Arguments positionnels seulement : un outil peut avoir un paramètre `name` ou `level`.
@@ -90,6 +91,6 @@ def tool(name: str, description: str, level: Level, /, *, private: bool = False,
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
         if name in _registry:
             raise ValueError(f"outil déjà enregistré : {name}")
-        _registry[name] = Tool(name, description, Level(level), params, fn, private, external, hidden, taint_blocked, describe)
+        _registry[name] = Tool(name, description, Level(level), params, fn, private, external, hidden, taint_blocked, describe, owner_only)
         return fn
     return register

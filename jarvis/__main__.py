@@ -39,6 +39,7 @@ from jarvis.core.secrets import get_secret, set_secret
 from jarvis.core.tools import Tool
 from jarvis.core.webauthn import Passkeys
 from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
+import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)

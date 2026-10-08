@@ -80,5 +80,16 @@
     ],
     "defaults": {"app": ""},
     "choices": {"app": ["youtube", "netflix", "twitch", "spotify"]}
+  },
+  {
+    "tool": "claude_code",
+    "patterns": [
+      "(code|(modifie|change|am[eé]liore) ton code|ajoute (à|a|dans) ton code) ?: ?{request}",
+      "((modifie|change|am[eé]liore) ton code|ajoute (à|a|dans) ton code)( pour)? {request}"
+    ]
+  },
+  {
+    "tool": "claude_code_status",
+    "phrases": ["ou en est le code", "resultat du code", "compte rendu du code", "etat du code"]
   }
 ]

@@ -11,6 +11,7 @@ from .levels import effective
 from .tools import REGISTRY, Level, Tool, masked
 
 ERROR_MAX = 200
+_OWNER_SOURCE = re.compile(r"pwa:\d+")
 
 
 DATA_MAX = 2000
@@ -45,6 +46,10 @@ def execute(
     if tool is None:
         audit.log(source, str(name), masked(args), None, "inconnu", None)
         raise ValueError(f"outil inconnu : {name}")
+    # Garde (a) de l'outil Claude Code : liste blanche des sources tapées par le propriétaire (ni LLM, ni voix, ni automatisme).
+    if tool.owner_only and not (source == "cli" or _OWNER_SOURCE.fullmatch(source)):
+        audit.log(source, name, masked(args, tool.hidden), None, "refusé", "réservé aux demandes directes du propriétaire")
+        raise Refused(f"{name} refusé : à taper dans l'application ou le terminal")
     level = effective(tool)  # niveau du registre, relevé par le propriétaire, jamais sous le plancher
     if source.split("/")[0] == "voix":  # le micro entend aussi la TV ou un visiteur : un abaissement ne vaut pas à la voix
         level = max(level, tool.level)

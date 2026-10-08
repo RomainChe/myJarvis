@@ -87,7 +87,8 @@ class Router:
             match = regex.fullmatch(light)
             if match:
                 slots = {k: v.strip(" ,;:") for k, v in match.groupdict().items()}
-                if any(not v or len(v) > SLOT_MAX for v in slots.values()):
+                limit = TEXT_MAX if REGISTRY[tool].owner_only else SLOT_MAX  # une demande de code tient en une longue phrase
+                if any(not v or len(v) > limit for v in slots.values()):
                     return None
                 if any(fold(slots[k]) not in allowed for k, allowed in choices.items() if k in slots):
                     return None  # valeur hors liste blanche : au LLM, pas au motif suivant

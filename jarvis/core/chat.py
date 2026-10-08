@@ -11,6 +11,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 
+import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)

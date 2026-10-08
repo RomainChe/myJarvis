@@ -218,6 +218,25 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : `python -m jarvis run social_reschedule title=ma_video at=2026-10-12T18:00`.
 - **Notes** : ni création, ni suppression, ni publication immédiate (restent à lol-clipper, qui met en ligne à la nouvelle heure). Refusé si l'ancien créneau est échu ou dans les 2 minutes (lol-clipper est peut-être en train de publier) ou si la vidéo est déjà en ligne (`<titre>.youtube.json` / `.tiktok.json`). Écriture atomique avec relecture avant remplacement, liens symboliques ignorés, titre absent ou ambigu refusé. `social_schedule` n'est pas marqué `external` (noms de fichiers de lol-clipper, enveloppés dans `<data>`) : sinon le LLM ne pourrait plus enchaîner lister puis décaler. Dépend du format `publish_at` ISO naïf de lol-clipper (`upload.py`).
 
+## claude_code (`jarvis/tools/dev.py`)
+
+- **Description** : fait modifier le code de JARVIS par Claude Code (`claude -p`), sur une branche `jarvis/claude-<horodatage>` placée dans un worktree de `%LOCALAPPDATA%\jarvis-claude-work`. La fusion `--ff-only` dans `main` n'a lieu que si tous les contrôles passent (voir DECISIONS.md, 2026-10-08) ; JARVIS redémarre ensuite. Sinon, le statut est « revue requise » et la branche est gardée.
+- **Niveau** : N1 (décision du propriétaire, CLAUDE.md §4). L'outil est `owner_only` : il n'est jamais proposé au LLM, et seules les sources `cli` et `pwa:<id>` sont acceptées. La voix est refusée.
+- **Paramètres** : `request` (5 à 500 caractères au routeur).
+- **Retour** : PWA : « C'est lancé », puis le travail tourne en arrière-plan, un seul à la fois. CLI : le travail est synchrone et l'outil renvoie le statut.
+- **Exemple** : « code : ajoute un bouton pause dans la console », « modifie ton code pour afficher l'heure en gros ».
+- **Notes** :
+  - Claude tourne en `--restricted --strict-mcp-config`, sans git ni web ; en Bash, il n'a droit qu'à `python -m unittest`.
+  - Chemins protégés (`dev.PROTECTED`) : un diff qui y touche n'est jamais fusionné automatiquement.
+  - Rien n'est poussé vers GitHub.
+  - Compte rendu dans `~/.jarvis/claude_last.json` ; audit `claude_code_merge` (« en cours » avant la fusion, puis le statut).
+
+## claude_code_status
+
+- **Description** : compte rendu du dernier travail Claude Code : `status`, `summary` (sortie de Claude), `diffstat`, `at`.
+- **Niveau** : N0, `external` (texte produit hors de JARVIS).
+- **Exemple** : « où en est le code ? ».
+
 ## screenshot
 
 - **Description** : capture tous les écrans dans un PNG de `~/Pictures/Jarvis` et renvoie le chemin.

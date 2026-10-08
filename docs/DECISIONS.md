@@ -50,3 +50,34 @@
 - **Finances, constat 7** : l'onglet s'ouvre sans clé d'accès WebAuthn (token d'appareil seul). Risque accepté.
 - **Finances, constat 1** et **Veille IA, constat 1** : l'expéditeur d'un mail est falsifiable (pas de contrôle `Authentication-Results`). Risque accepté : faux chiffres en Finances ; en Veille, liens https cliquables posés par un mail usurpé (le domaine réel reste affiché sous chaque lien).
 - **Test manuel S6** (corbeille, gros fichier) retiré par le propriétaire ; `delete_file` reste couvert par les tests automatiques.
+
+## 2026-10-08 — Gel de la Phase 5 levé pour l'outil Claude Code (Phase 6 étape 9)
+- Le propriétaire a demandé de coder l'étape 9 pendant l'audit de la Phase 5 : le gel des fonctions est levé pour cette seule étape.
+- Revue Sécurité : veto sur les garde-fous (pas sur le niveau N1). Correctifs apportés :
+  - **Garde (a)** : l'outil est `owner_only`, donc jamais proposé au LLM. `execute` ne l'accepte que de la liste blanche `cli` et `pwa:<id>` : ni LLM, ni voix, ni automatisme. Seul le routeur le déclenche, sur le préfixe « code : » ou « modifie ton code ».
+  - **Session de Claude isolée** : `--restricted --strict-mcp-config`, sans connecteurs claude.ai, sans web. Le seul Bash autorisé est `python -m unittest`. Le worktree est dans `%LOCALAPPDATA%\jarvis-claude-work`, hors de `~/.jarvis`.
+  - **Garde (b)**, la fusion `--ff-only` exige :
+    - un dépôt propre et sur `main` ;
+    - aucun chemin protégé touché (`dev.PROTECTED` : garde, routeur, serveur, audit, appareils, CLAUDE.md, `.claude/`…) ;
+    - aucun test existant modifié ;
+    - aucune IP, adresse mail ou secret ajouté ;
+    - une suite verte, signée par un jeton passé sur stdin, sans moins de tests ni plus de tests sautés ;
+    - un import sain du serveur.
+  - Sinon : « revue requise », la branche est gardée.
+  - **Commit** : le message est générique, la demande reste dans `~/.jarvis/claude_last.json`. Une ligne d'audit précède la fusion (échec fermé), avec le hash du commit.
+  - **Contre-revue** :
+    - Les niveaux et drapeaux de chaque outil existant sont comparés entre `main` et la branche. Un outil abaissé, affaibli ou retiré donne « revue requise » ; les nouveaux outils sont listés dans le compte rendu et l'audit.
+    - `jarvis/web/app.js`, `index.html`, `sw.js`, `mic.py`, `scenes.py` et `tests/__init__.py` sont protégés.
+    - Les fichiers ajoutés sous `tests/` doivent s'appeler `test_*.py`.
+    - `credential.helper` est vidé.
+- **Décisions du propriétaire (2026-10-08)** :
+  - **Voix refusée** pour `claude_code` : la demande se tape dans la PWA ou au terminal.
+  - **Constat 8, risque accepté** : tout appareil enrôlé peut lancer l'outil, sans clé d'accès. Un token d'appareil volé suffit donc à faire exécuter du code sur le PC.
+  - **Constats 9 et 5, risque accepté jusqu'à la Phase 5** :
+    - Le code lancé par les tests tourne avec les droits de l'utilisateur ; il peut lire le keyring et le réseau. Le push est neutralisé (`pushurl=disabled://`, pas d'identifiants).
+    - Le verdict des tests protège contre une erreur de bonne foi, pas contre un code malveillant : un module de test tourne dans le processus du lanceur.
+    - Correctif prévu en Phase 5 : un compte Windows dédié ou un bac à sable sans réseau.
+- **Suivis** :
+  - Les fichiers non suivis du dépôt ne sont pas contrôlés (constat 7 de la contre-revue).
+  - Le nouveau serveur ne réessaie pas de prendre le port, et aucun retour au dernier commit sain n'est prévu (constat 10, partiel).
+  - Au délai dépassé, l'arbre de processus n'est pas tué (constat 13). Sans effet aujourd'hui : `claude.exe` est natif.
