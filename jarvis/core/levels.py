@@ -80,6 +80,7 @@ LABELS = {
     "lock_session": ("Verrouiller la session", "Verrouille la session Windows."),
     "power": ("Veille, redémarrage, arrêt", "Alimentation du PC, avec délai d'annulation."),
     "power_cancel": ("Annuler l'arrêt", "Annule un redémarrage ou un arrêt en attente."),
+    "mail_recent": ("Résumer les mails", "Lit expéditeur, objet et début des mails récents, en lecture seule."),
     "tv_status": ("État de la TV", "Allumée, appli en cours, volume."),
     "tv_on": ("Allumer la TV", "TV du salon."),
     "tv_off": ("Éteindre la TV", "La barre de son suit."),

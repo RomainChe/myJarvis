@@ -191,6 +191,15 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : `python -m jarvis run clipboard_read`.
 - **Notes** : le LLM reçoit le contenu encadré par `<data>` et tronqué à 2 000 caractères (`as_data`) : c'est une donnée, jamais un ordre.
 
+## mail_recent
+
+- **Description** : liste les mails reçus ces dernières heures (expéditeur, objet, début du texte) pour que le LLM les résume.
+- **Niveau** : N2 (confirmation, lecture des mails §4). Drapeaux `private` (contenu jamais journalisé) et `external` (mails = données non fiables : pas d'action N2/N3 ensuite dans la même demande). Refusé à la voix (plafond N0/N1).
+- **Paramètres** : `hours` (1 à 72).
+- **Retour** : `total` et `mails` (8 au plus, les plus récents d'abord : `de`, `objet`, `extrait` de 120 caractères).
+- **Exemple** : `python -m jarvis run mail_recent hours=24`.
+- **Notes** : IMAP/SSL en lecture seule (`BODY.PEEK`, rien n'est marqué lu, aucun envoi ni suppression). Compte dans `~/.jarvis/mail.json` (`{"host": "imap.gmail.com", "user": "..."}`), mot de passe d'application dans le coffre : `python -m jarvis secret set mail_password`.
+
 ## screenshot
 
 - **Description** : capture tous les écrans dans un PNG de `~/Pictures/Jarvis` et renvoie le chemin.

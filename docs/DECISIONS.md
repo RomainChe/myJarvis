@@ -34,3 +34,8 @@
 - Décision du propriétaire : **couper** le micro reste libre (PWA, CLI) ; **réarmer** depuis la PWA est traité comme un N3 : signature d'une clé d'accès sur un défi `mic:on` (usage unique, lié à l'appareil), sans repli sur le token seul. Un appareil sans clé d'accès reçoit un 403 journalisé « refusé ». `GET /api/mic` n'expose plus `strong`.
 - Assouplit la règle d'origine « réarmer exige un terminal » : le terminal (`python -m jarvis mic on`) reste possible et sert de repli, la PWA l'est aussi, mais seulement avec WebAuthn. Sans `JARVIS_TS_HOST` (pas d'adresse HTTPS Tailscale), WebAuthn ne marche pas : réarmer se fait alors au terminal.
 - Remplace le risque accepté du 2026-10-08 « Phase 6 : bouton micro » (réarmement au token seul). Tests : `tests/test_mic_web.py` (sans clé, signature invalide, assertion sans clé enregistrée, signature valide, journal en échec).
+
+## 2026-10-08 — Connecteur mail : actions N1 encore permises après lecture d'un mail (revue Sécurité, constat 6)
+- `mail_recent` est N2 + `external` : après lui le LLM ne peut plus lancer de N2/N3 ni d'outil `taint_blocked`. Restent permis `lock_session`, `screen_off`, `set_volume`, `mute`, `media_control`, `open_app` (liste blanche), `power_cancel` : un mail piégé pourrait verrouiller la session ou couper l'écran, sans exfiltration ni destruction.
+- **Risque accepté en attendant la décision du propriétaire** : passer `taint_blocked` sur `lock_session`, `screen_off` et `power_cancel` si ce n'est pas souhaité.
+- Le `Date:` d'un mail est contrôlé par l'expéditeur : l'ordre de la liste n'est pas une preuve de fraîcheur.
