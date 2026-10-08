@@ -229,4 +229,4 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 | `tv_volume` | N1 | `direction` (`up`/`down`), `steps` (1 à 5) | `volume`, `steps` | `run tv_volume direction=down steps=2` |
 | `tv_mute` | N1 | `muted` (bool) | `muted` | `run tv_mute muted=true` |
 | `tv_key` | N1, `taint_blocked` | `button` : `home back up down left right ok play_pause` | `button` | `run tv_key button=back` |
-| `tv_open_app` | N1, `taint_blocked` (un achat peut se valider avec `ok`) | `app` : `youtube`, `netflix` (liste blanche de liens propres aux applis, vérifiés sur la TV ; Disney+ et Prime Video : aucun lien ne les a lancées) | `app` | `run tv_open_app app=youtube` |
+| `tv_open_app` | N1, `taint_blocked` (un achat peut se valider avec `ok`) | `app` : `youtube`, `netflix`, `twitch` (liste blanche de liens propres aux applis, vérifiés sur la TV ; Disney+ et Prime Video : aucun lien ne les a lancées) | `app` | `run tv_open_app app=youtube` |

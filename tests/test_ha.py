@@ -88,7 +88,7 @@ class TestHA(unittest.TestCase):
 
     def test_redirection_non_suivie(self):
         with self.assertRaises(ha.HAError):
-            ha._request("GET", "/redir")
+            ha._request("GET", "/redir", dict)
 
     def test_identifiants_dans_l_url_et_coffre_indisponible(self):
         with mock.patch.object(ha, "URL", "http://user:pw@127.0.0.1"):

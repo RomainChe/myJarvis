@@ -12,7 +12,8 @@ STEPS_MAX = 5
 # un lien web ouvre un sélecteur « Ouvrir avec », et `market://` ou le nom de paquet ne lancent rien.
 # Une appli absente de la liste n'est pas lançable (nom = donnée, pas commande).
 APPS = {"youtube": ("com.google.android.youtube.tv", "vnd.youtube://"),
-        "netflix": ("com.netflix.ninja", "nflx://www.netflix.com")}
+        "netflix": ("com.netflix.ninja", "nflx://www.netflix.com"),
+        "twitch": ("tv.twitch.android.app", "twitch://home")}
 LAUNCHER = "com.google.android.apps.tv.launcherx"
 KEYS = {"home": "HOME", "back": "BACK", "up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT",
         "right": "DPAD_RIGHT", "ok": "DPAD_CENTER", "play_pause": "MEDIA_PLAY_PAUSE"}
@@ -22,7 +23,10 @@ KEYS = {"home": "HOME", "back": "BACK", "up": "DPAD_UP", "down": "DPAD_DOWN", "l
 def tv_status() -> dict:
     s = ha.state(PLAYER)
     a = s.get("attributes", {})
-    volume = a.get("volume_level")
+    volume = a.get("volume_level") if isinstance(a, dict) else None
+    if not isinstance(s.get("state"), str) or not isinstance(a, dict) or not (
+            volume is None or isinstance(volume, (int, float)) and not isinstance(volume, bool) and 0 <= volume <= 1):
+        raise ha.HAError("réponse inattendue")
     # Le nom d'appli vient d'un tiers : on ne renvoie qu'un nom connu (constat S3).
     raw = a.get("app_id") or a.get("app_name")
     app = next((n for n, pkg in APPS.items() if pkg[0] == raw), "accueil" if raw == LAUNCHER else None if raw is None else "autre")

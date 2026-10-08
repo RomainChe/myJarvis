@@ -72,6 +72,9 @@ def main(argv: list[str]) -> int:
         except keyring.errors.KeyringError:
             print("coffre Windows indisponible")
             return 1
+        except (EOFError, KeyboardInterrupt):
+            print("\nSaisie annulée.")
+            return 1
         return 0
     if argv == ["ha", "check"]:
         try:

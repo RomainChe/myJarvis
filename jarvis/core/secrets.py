@@ -12,9 +12,10 @@ def _check(name: str) -> None:
 
 def set_secret(name: str, value: str) -> None:
     _check(name)
-    if not value.strip():
-        raise ValueError("valeur vide")
-    keyring.set_password(SERVICE, name, value.strip())
+    value = value.strip()
+    if not value or not value.isascii() or not value.isprintable() or any(c.isspace() for c in value):
+        raise ValueError("valeur vide ou invalide (ASCII imprimable sans espace : un seul token collé une fois ?)")
+    keyring.set_password(SERVICE, name, value)
 
 
 def get_secret(name: str) -> str | None:
