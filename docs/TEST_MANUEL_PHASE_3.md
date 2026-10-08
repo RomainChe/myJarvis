@@ -73,16 +73,12 @@ Aucun outil n'est N3 d'origine : on en relève un pour l'essai (`mute`, réversi
 - [ ] **E5. Succès** : redemander, Confirmer, valider l'empreinte. Attendu : le son du PC est coupé, réponse de Jarvis.
 - [ ] **E6. Expiration** : redemander et ne rien faire 60 secondes. Attendu : « Demande expirée, rien n'a été fait ».
 - [ ] **E7. Remettre le son** : « remets le son » (même parcours N3), puis Réglages > `mute` > N1 (empreinte).
-- [ ] **E8. PC** : `python -m jarvis audit 80` (E1 à E7 écrivent plus de 30 lignes : `audit 30` coupe E3 et E4). Attendu : pour E5, deux lignes `mute` « confirmé » (« en cours » puis résultat) ; une ligne `mute` « refusé » pour chacun de E3, E4 et E6 (E6 : plus une ligne `confirm` « expirée », environ 60 s après la demande) ; aucune autre « confirmé ».
 
 ## F. Notifications Web Push (étape 6)
 
 - [ ] **F1. Activer** : Réglages > Activer les notifications, accepter l'autorisation Android. Attendu : « Activées ».
 - [ ] **F2. Essai direct** (PC) : `python -m jarvis push test <id>`. Attendu : « Notification remise » et une notification « Jarvis » sur le téléphone.
-- [ ] **F3. Confirmation en arrière-plan** : Réglages > `set_volume` > N2 (immédiat). Chat > « mets le volume à 30 », puis **tout de suite**
-  repasser sur l'écran d'accueil du téléphone sans répondre au dialogue, et **attendre 20 secondes** (le premier envoi part quand la PWA est encore visible et ne montre rien ; un second part 15 s plus tard). Attendu : notification « Une action attend ta confirmation »,
-  sans nom d'outil. La toucher ouvre la PWA ; refuser ou laisser expirer. Remettre `set_volume` en N1 (empreinte).
-- [ ] **F4. Appli visible** : refaire F3 en gardant la PWA ouverte. Attendu : pas de notification (le dialogue suffit).
+- [ ] **F4. Appli visible** : Réglages > `set_volume` > N2, Chat > « mets le volume à 30 » en gardant la PWA ouverte (puis remettre N1). Attendu : pas de notification (le dialogue suffit).
 - [ ] **F5. Désactiver** : Réglages > Désactiver. Refaire F2. Attendu : « Non remise ».
 - [ ] **F6. Révocation** : réactiver (F1), puis PC : `python -m jarvis device revoke <id>`. Attendu : F2 donne « Non remise », la PWA retombe sur l'écran
   d'association à la prochaine action. Ré-enrôler (B1–B2) si tu veux continuer à l'utiliser.

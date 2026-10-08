@@ -145,6 +145,14 @@ class PushTest(unittest.TestCase):
             self.assertFalse(self.push.send(self.dev))
         post.assert_not_called()
 
+    def test_cle_vapid_jamais_gardee_si_le_coffre_echoue(self):
+        def boom(*_):
+            raise OSError("coffre")
+        push = Push(Devices(":memory:"), "https://x.test", lambda _: None, boom)
+        for _ in range(2):  # le second appel doit retenter, pas servir une clé non persistée
+            with self.assertRaises(OSError):
+                push.key()
+
     def test_revoquer_supprime_l_abonnement(self):
         self.subscribe()
         self.devices.revoke(self.dev)

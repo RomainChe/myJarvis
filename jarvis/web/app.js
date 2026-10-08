@@ -45,6 +45,13 @@ function setStatus(msg) {
   s.textContent = msg || '';
   s.hidden = !msg;
 }
+function setLink(on) {
+  $('link').textContent = on ? 'En ligne' : 'Hors ligne';
+  $('link').classList.toggle('off', !on);
+}
+function tickClock() {
+  $('clock').textContent = new Date().toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
 function fmtTime(v) {
   if (v === null || v === undefined || v === '') return '—';
   let d;
@@ -69,9 +76,11 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
     });
   } catch {
     setStatus('Hors ligne : le PC est injoignable.');
+    setLink(false);
     throw new Error('network');
   }
   setStatus('');
+  setLink(true);
   if (res.status === 401 && auth) { await signOut(); throw new Error('unauthorized'); }
   if (res.status === 429) toast('Jarvis est occupé, réessayez dans un instant.');
   const data = await res.json().catch(() => null);
@@ -83,7 +92,7 @@ async function signOut() {
   await clearToken();
   if (self.caches) { for (const k of await caches.keys()) await caches.delete(k); }
   // Rien de l'ancienne session ne reste dans le DOM masqué (réponses, journal, appareils).
-  $('log').replaceChildren();
+  $('log').replaceChildren($('log-empty'));
   $('log-empty').hidden = false;
   $('audit-list').replaceChildren();
   $('devices-list').replaceChildren();
@@ -138,7 +147,7 @@ $('enroll-form').addEventListener('submit', (e) => {
 
 // ---- Navigation ------------------------------------------------------------------------------
 const wide = window.matchMedia('(min-width: 1200px)');
-const views = { chat: $('view-chat'), audit: $('view-audit'), devices: $('view-devices'), settings: $('view-settings') };
+const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
@@ -153,8 +162,7 @@ document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () 
 // Raccourcis clavier (bureau) : Alt+1..4 change de vue, « / » met le focus sur la saisie du chat.
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
-  const tabs = ['chat', 'audit', 'devices', 'settings'];
-  if (e.altKey && /^[1-4]$/.test(e.key)) { e.preventDefault(); show(tabs[Number(e.key) - 1]); return; }
+  if (e.altKey && /^[1-4]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
   if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
     e.preventDefault(); show('chat'); $('chat-input').focus();
   }
@@ -318,7 +326,8 @@ async function loadAudit() {
     const out = [];
     for (const [src, list] of groups) {
       const g = el('section', 'group');
-      g.appendChild(el('h2', '', src));
+      const panel = el('div', 'panel hud');
+      g.append(el('h2', '', src), panel);
       for (const row of list) {
         // Le serveur envoie le niveau comme un entier (0 à 3, ou null) : « N2 », jamais « N? » pour un vrai niveau.
         const lvl = Number.isInteger(row.level) && row.level >= 0 && row.level <= 3 ? `N${row.level}` : 'N?';
@@ -330,7 +339,7 @@ async function loadAudit() {
         meta.appendChild(el('span', decisionClass(row.decision), `Décision : ${row.decision ?? '—'}`));
         item.appendChild(meta);
         if (row.result) item.appendChild(el('div', 'meta', clip(row.result, 120)));
-        g.appendChild(item);
+        panel.appendChild(item);
       }
       out.push(g);
     }
@@ -419,8 +428,34 @@ async function applyLevel(row, level) {
     if (!body.assertion) { toast('Clé d\'accès non validée : niveau inchangé.'); return; }
   }
   const r = await api('/api/levels', { method: 'POST', body });
-  toast(r.ok ? `${row.tool} : N${level}` : 'Changement refusé.');
-  loadSettings();
+  toast(r.ok ? `${row.title ?? row.tool} : N${level}` : 'Changement refusé.');
+  await loadSettings();
+  // Le focus revient sur le niveau en vigueur de cet outil (la liste vient d'être redessinée).
+  const pressed = [...document.querySelectorAll('#levels-list .seg button[aria-pressed="true"]')].find((b) => b.dataset.tool === row.tool);
+  if (pressed) pressed.focus();
+}
+const LEVEL_HELP = ['Lecture, automatique', 'Action courante, automatique', 'Demande une confirmation', 'Confirmation et clé d'accès'];
+function levelRow(row) {
+  const title = String(row.title ?? row.tool);
+  const li = el('li', 'row lv');
+  const text = el('div', 'lv-text');
+  text.append(el('span', 'lv-title', title));
+  if (row.description) text.append(el('span', 'lv-desc', String(row.description)));
+  const seg = el('div', 'seg');
+  seg.setAttribute('role', 'group');
+  seg.setAttribute('aria-label', `Niveau : ${title}`);
+  for (let n = 0; n <= 3; n += 1) {
+    const b = el('button', `n${n}`, `N${n}`);
+    b.type = 'button';
+    b.dataset.tool = String(row.tool);
+    b.title = n < row.floor ? `Jamais sous N${row.floor} pour cet outil` : LEVEL_HELP[n];
+    b.setAttribute('aria-pressed', String(n === row.level));
+    b.disabled = n < row.floor;
+    b.addEventListener('click', () => { if (n !== row.level) applyLevel(row, n); });
+    seg.append(b);
+  }
+  li.append(text, seg);
+  return li;
 }
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 async function loadPush() {
@@ -469,25 +504,18 @@ async function loadSettings() {
     $('passkey-add').hidden = !enabled || !window.PublicKeyCredential;
     const rows = lv.ok && lv.data && Array.isArray(lv.data.levels) ? lv.data.levels : null;
     if (!rows) { box.replaceChildren(el('p', 'error', 'Niveaux indisponibles pour le moment.')); return; }
-    box.replaceChildren(...rows.map((row) => {
-      const item = el('article', 'row');
-      item.appendChild(el('div', 'tool', String(row.tool)));
-      const meta = el('div', 'meta');
-      meta.appendChild(el('span', `badge n${row.level}`, `N${row.level}`));
-      const select = el('select');
-      select.setAttribute('aria-label', `Niveau de ${row.tool}`);
-      for (let n = row.floor; n <= 3; n += 1) {
-        const o = el('option', '', `N${n}`);
-        o.value = String(n);
-        o.selected = n === row.level;
-        select.appendChild(o);
-      }
-      const apply = el('button', 'btn', 'Appliquer');
-      apply.type = 'button';
-      apply.addEventListener('click', () => { if (Number(select.value) !== row.level) applyLevel(row, Number(select.value)); });
-      meta.append(select, apply);
-      item.appendChild(meta);
-      return item;
+    const groups = new Map();
+    for (const row of rows) {
+      const g = String(row.group ?? 'Autres');
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(row);
+    }
+    box.replaceChildren(...[...groups].map(([name, list]) => {
+      const g = el('section', 'lv-group');
+      const ul = el('ul', 'panel hud plain');
+      ul.append(...list.map(levelRow));
+      g.append(el('h3', '', name), ul);
+      return g;
     }));
   } catch {
     box.replaceChildren(el('p', 'error', 'Réglages indisponibles : PC injoignable.'));
@@ -495,8 +523,10 @@ async function loadSettings() {
 }
 
 // ---- Démarrage -------------------------------------------------------------------------------
-window.addEventListener('offline', () => setStatus('Hors ligne.'));
-window.addEventListener('online', () => setStatus(''));
+window.addEventListener('offline', () => { setStatus('Hors ligne.'); setLink(false); });
+window.addEventListener('online', () => { setStatus(''); setLink(true); });
+tickClock();
+setInterval(tickClock, 10000);
 
 (async function start() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});

@@ -81,9 +81,9 @@ class LevelsTest(unittest.TestCase):
 
     def test_chaque_outil_reel_a_un_titre_et_un_groupe(self):
         import jarvis.tools.home  # noqa: F401
-        for name in REGISTRY.keys() - {"test_lv_light"}:
-            if not name.startswith("test_"):
-                self.assertIn(name, levels.LABELS, "ajouter le titre de l'outil dans levels.LABELS")
+        for t in REGISTRY.values():
+            if t.run.__module__.startswith("jarvis."):
+                self.assertIn(t.name, levels.LABELS, "ajouter le titre de l'outil dans levels.LABELS")
         self.assertEqual(levels.label(REGISTRY["tv_on"])["group"], "Maison")
         self.assertEqual(levels.label(REGISTRY["delete_file"]), {"title": "Supprimer un fichier",
                          "description": "Envoie à la corbeille, récupérable.", "group": "PC"})

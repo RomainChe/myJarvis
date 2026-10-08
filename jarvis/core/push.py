@@ -84,8 +84,9 @@ class Push:
                 if stored:
                     self._key = ec.derive_private_key(int.from_bytes(unb64u(stored), "big"), ec.SECP256R1())
                 else:
-                    self._key = ec.generate_private_key(ec.SECP256R1())
-                    self._put("vapid_key", b64u(self._key.private_numbers().private_value.to_bytes(32, "big")))
+                    key = ec.generate_private_key(ec.SECP256R1())
+                    self._put("vapid_key", b64u(key.private_numbers().private_value.to_bytes(32, "big")))
+                    self._key = key  # en mémoire seulement une fois le coffre écrit
             return self._key
 
     def public_key(self) -> str:
