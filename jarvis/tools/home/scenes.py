@@ -12,7 +12,7 @@ from jarvis.core.tools import REGISTRY, Level, tool
 from jarvis.tools.home import tv
 
 _sleep, _now = time.sleep, time.monotonic  # remplacés dans les tests
-WAIT_S = 15  # échéance (temps réel) par étape : la scène bloque l'appelant au plus ~30 s + une lecture HA
+WAIT_S = 15  # échéance (temps réel) par étape : la scène bloque l'appelant ~1 min au pire (HA lent : +5 s par lecture)
 NOT_EQUIPPED = ["volets du salon", "lumière du salon", "volume préréglé"]
 
 
@@ -32,7 +32,7 @@ def _wait(ok) -> bool:
 @tool("scene_cinema", f"Mode cinéma : allume la TV du salon et lance l'appli demandée ({', '.join(tv.APPS)} ; "
       "chaîne vide = aucune appli). Vérifie l'état réel ensuite.", Level.N1, taint_blocked=True, app=str)
 def scene_cinema(app: str) -> dict:
-    name = app.casefold().strip()
+    name = tv.app_key(app)
     if name and name not in tv.APPS:  # refusé avant d'allumer quoi que ce soit
         raise ValueError(f"appli inconnue (attendu : {', '.join(tv.APPS)} ou vide)")
     # Les sous-outils sont appelés sans repasser par la garde : si le propriétaire en relève un au-dessus de N1,
@@ -40,11 +40,14 @@ def scene_cinema(app: str) -> dict:
     needed = ["tv_on"] + (["tv_open_app"] if name else [])
     if over := [t for t in needed if REGISTRY[t].level > Level.N1]:
         raise ValueError(f"scène refusée : {', '.join(over)} dépasse N1, à exécuter séparément avec confirmation")
-    result = {"tv": "allumée" if tv.tv_status()["state"] == "on" else None, "app": None, "non_traité": NOT_EQUIPPED}
+    result = {"tv": "allumée" if tv.tv_status()["state"] == "on" else None, "app": None, "non_traité": list(NOT_EQUIPPED)}
     if result["tv"] is None:
         tv.tv_on()
         result["tv"] = "allumée" if _wait(lambda s: s["state"] == "on") else "non confirmée"
     if name and result["tv"] == "allumée":
-        tv.tv_open_app(name)
-        result["app"] = name if _wait(lambda s: s["app"] == name) else "non confirmée"
+        try:
+            tv.tv_open_app(name)
+            result["app"] = name if _wait(lambda s: s["app"] == name) else "non confirmée"
+        except ha.HAError:  # la TV est déjà allumée : on le dit au lieu de tout effacer par une exception
+            result["app"] = "non confirmée"
     return result

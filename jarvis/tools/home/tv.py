@@ -2,6 +2,8 @@
 
 Le volume n'a pas de valeur absolue sur cette intégration : montée/descente par pas. La barre de son suit en HDMI-CEC.
 """
+import unicodedata
+
 from jarvis.core import ha
 from jarvis.core.tools import Level, tool
 
@@ -18,6 +20,11 @@ APPS = {"youtube": ("com.google.android.youtube.tv", "vnd.youtube://"),
 LAUNCHER = "com.google.android.apps.tv.launcherx"
 KEYS = {"home": "HOME", "back": "BACK", "up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT",
         "right": "DPAD_RIGHT", "ok": "DPAD_CENTER", "play_pause": "MEDIA_PLAY_PAUSE"}
+
+
+def app_key(app: str) -> str:
+    """Nom d'appli comparé comme le routeur : casse, accents et espaces ignorés (« Nétflix » = netflix)."""
+    return "".join(c for c in unicodedata.normalize("NFD", app.casefold()) if not unicodedata.combining(c)).strip()
 
 
 @tool("tv_status", "État de la TV du salon : allumée, appli en cours, volume, muet.", Level.N0, external=True)
@@ -76,8 +83,8 @@ def tv_key(button: str) -> dict:
 
 @tool("tv_open_app", f"Lance une appli sur la TV du salon : {', '.join(APPS)}.", Level.N1, taint_blocked=True, app=str)
 def tv_open_app(app: str) -> dict:
-    entry = APPS.get(app.casefold().strip())
+    entry = APPS.get(app_key(app))
     if entry is None:
         raise ValueError(f"appli inconnue (attendu : {', '.join(APPS)})")
     ha.call_service("remote", "turn_on", REMOTE, activity=entry[1])
-    return {"app": app.casefold().strip()}
+    return {"app": app_key(app)}
