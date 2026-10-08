@@ -22,7 +22,7 @@ Rappel des principes (ARCHITECTURE §3.4) : Home Assistant (HA) est le hub uniqu
    `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All`
 2. Créer le commutateur externe sur la carte réseau physique (le PC garde l'accès au réseau) :
    `New-VMSwitch -Name "JarvisLAN" -NetAdapterName "<carte>" -AllowManagementOS $true`
-   Si le PC est en **Wi-Fi**, le pont fonctionne mais le multicast (mDNS) est moins fiable : Ethernet recommandé (question Q9).
+   Si le PC est en **Wi-Fi**, le pont fonctionne mais le multicast (mDNS) est moins fiable : Ethernet recommandé (question Q9). Réponse du propriétaire le 2026-10-08 : le PC est en **Ethernet**, donc commutateur sur la carte filaire.
 3. Télécharger `haos_ova-<version>.vhdx.zip` depuis la page officielle d'installation Windows (home-assistant.io/installation/windows), vérifier la somme de contrôle publiée, décompresser dans un dossier dédié (ex. `C:\HyperV\HAOS\`).
 4. Créer la VM :
    ```powershell
