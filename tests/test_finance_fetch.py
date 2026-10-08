@@ -33,6 +33,16 @@ class FetchTest(unittest.TestCase):
         self.assertIn(("select", "INBOX", True), FakeImap.calls)
         self.assertTrue(all("PEEK" in c[1] for c in FakeImap.calls if c[0] == "fetch"))
 
+    def test_objet_autre_que_depenses_ignore(self):
+        veille = report(41).replace("[D=C3=A9penses]".encode(), b"[Veille_IA]")
+        FakeImap.mails = [mine(veille)]
+        self.assertEqual(finance_fetch.fetch_reports(self.dest), 0)
+
+    def test_recherche_imap_par_mot_entier(self):
+        finance_fetch.fetch_reports(self.dest)
+        search = next(c for c in FakeImap.calls if c[0] == "search")
+        self.assertIn('"Semaine"', search[1:])  # Gmail compare des mots entiers : « penses] » ne trouve rien
+
     def test_relance_remplace_sans_doublon(self):
         finance_fetch.fetch_reports(self.dest)
         self.assertEqual(finance_fetch.fetch_reports(self.dest), 2)

@@ -26,7 +26,7 @@ USER_OK = re.compile(r"[\w.+@-]{1,254}", re.ASCII)
 
 
 def fetch_reports(dest: Path | None = None) -> int:
-    return fetch_mails(dest or finance.finance_dir(), '"penses] Semaine"', finance.parse,
+    return fetch_mails(dest or finance.finance_dir(), '"Semaine"', finance.parse,
                        lambda r: f"semaine-{r['year']}-{r['week']:02}.eml", "semaine-*.eml")
 
 

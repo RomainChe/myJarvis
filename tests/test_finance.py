@@ -75,7 +75,8 @@ class FinanceTest(unittest.TestCase):
         self.assertEqual(finance.snapshot(root)["latest"]["week"], 52)
 
     def test_champ_manquant_vaut_none(self):
-        raw = b"Date: Mon, 5 Oct 2026 00:00:10 -0700\nSubject: Semaine 7\nContent-Type: text/html\n\n<p>rien</p>"
+        raw = (b"Date: Mon, 5 Oct 2026 00:00:10 -0700\nSubject: =?UTF-8?Q?[D=C3=A9penses]_Semaine_7?=\n"
+               b"Content-Type: text/html\n\n<p>rien</p>")
         d = finance.snapshot(folder({"a.eml": raw}))["latest"]
         self.assertEqual((d["week"], d["spent"], d["left_to_live"], d["categories"]), (7, None, None, []))
 

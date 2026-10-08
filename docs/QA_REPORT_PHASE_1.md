@@ -147,15 +147,6 @@ Essai réel sur qwen3:14b (127.0.0.1:11434, mode jeu forcé à faux) : « quel e
 Suite : 153 tests verts (146 + 7 nouveaux dans `tests/test_llm.py`).
 
 
-## 6. Test manuel S6 : corbeille et gros fichier (à faire par le propriétaire, étape 6)
-
-Pas automatisable (la corbeille réelle ne se simule pas). Ne jamais le lancer sur des données utiles.
-1. Créer `%USERPROFILE%\Documents	est-jarvis\petit.txt` (quelques octets) et `gros.bin` (2 Gio : `fsutil file createnew gros.bin 2147483648`).
-2. `python -m jarvis run delete_file path=Documents/test-jarvis/petit.txt` puis `o` : le fichier est dans la corbeille Windows et restaurable.
-3. Même commande sur `gros.bin` : refus « trop volumineux pour la corbeille » ; le fichier est toujours là, aucune boîte de dialogue.
-4. Remplacer ensuite `gros.bin` par un fichier de 900 Mio (sous la limite) : si Windows le refuse (corbeille plus petite), noter le résultat ici : il ne doit y avoir ni boîte bloquante ni suppression définitive. Sinon abaisser `RECYCLE_MAX_BYTES`.
-5. Supprimer le dossier de test à la main.
-
 ## 7. Recette étape 6 (outils PC, routeur N1, correctifs Sécurité)
 
 Date : 2026-10-07. Périmètre : `jarvis/tools/pc/` (19 outils enregistrés, tous présents dans docs/TOOLS.md), `jarvis/intents.json`, correctifs S1–S11.
@@ -178,7 +169,7 @@ Date : 2026-10-07. Périmètre : `jarvis/tools/pc/` (19 outils enregistrés, tou
 ### Observations non bloquantes
 - `run_script` sur délai dépassé : `subprocess.run` ne tue que `cmd`/`powershell`, pas les processus petits-enfants (ex. `ping` lancé par le script) ; à traiter en Phase 5 avec S3/S8 (objet Job Windows).
 - Un `apps.json` de plus de 64 Kio donne « illisible (ValueError) » sans préciser la taille.
-- Non joué en réel (consigne) : `power`, `kill_process`, `lock_session`, `screen_off`. Test manuel S6 (corbeille, gros fichier) toujours à faire par le propriétaire (section 6). `apps.json` et `scripts/` n'existent pas encore sur ce PC.
+- Non joué en réel (consigne) : `power`, `kill_process`, `lock_session`, `screen_off`. Test manuel S6 retiré par décision du propriétaire (2026-10-08). `apps.json` et `scripts/` n'existent pas encore sur ce PC.
 - Incident de recette : l'essai réel de `clipboard_write` a écrasé le presse-papiers de l'utilisateur (sauvegarde ratée par une erreur de variable shell dans la commande de test) ; il a été vidé, le contenu d'origine est perdu.
 
 Suite : 271 tests verts (270 + 1 nouveau, plus 2 assertions ajoutées).

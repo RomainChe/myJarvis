@@ -31,6 +31,7 @@ class FakeImap:
         FakeImap.calls.append(("select", box, readonly))
 
     def search(self, *a):
+        FakeImap.calls.append(("search", *a))
         return "OK", [b" ".join(str(i + 1).encode() for i in range(len(self.mails)))]
 
     def fetch(self, num, spec):

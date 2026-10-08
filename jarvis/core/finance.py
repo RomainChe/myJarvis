@@ -66,7 +66,7 @@ def _categories(text: str) -> list[dict]:
 
 def parse(raw: bytes) -> dict | None:
     msg = email.message_from_bytes(raw, policy=policy.default)
-    wk = re.search(r"Semaine\s+(\d{1,2})", str(msg["Subject"] or ""))
+    wk = re.search(r"^\[Dépenses\]\s*Semaine\s+(\d{1,2})", str(msg["Subject"] or ""))  # objet exact : la recherche IMAP est plus large
     try:
         body = msg.get_body(("html",))
         text = _tokens(body.get_content() if body else "")

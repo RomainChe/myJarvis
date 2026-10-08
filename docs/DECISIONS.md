@@ -45,3 +45,8 @@
 - Le renouvellement demande `scope=youtube.readonly` : le jeton d'accès en mémoire ne peut pas publier.
 - **Risque accepté** : Jarvis lit `youtube_token.json` de lol-clipper, dont le `refresh_token` porte aussi le droit d'envoi de vidéos. Idéal à terme : un jeton `youtube.readonly` séparé.
 - Constat 2 (redirections HTTP) laissé : hôtes Google seulement. Constat 6 (cache sans les ids récents) cosmétique.
+
+## 2026-10-08 — Finances et Veille IA : risques acceptés par le propriétaire
+- **Finances, constat 7** : l'onglet s'ouvre sans clé d'accès WebAuthn (token d'appareil seul). Risque accepté.
+- **Finances, constat 1** et **Veille IA, constat 1** : l'expéditeur d'un mail est falsifiable (pas de contrôle `Authentication-Results`). Risque accepté : faux chiffres en Finances ; en Veille, liens https cliquables posés par un mail usurpé (le domaine réel reste affiché sous chaque lien).
+- **Test manuel S6** (corbeille, gros fichier) retiré par le propriétaire ; `delete_file` reste couvert par les tests automatiques.
