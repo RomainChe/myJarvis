@@ -1,10 +1,15 @@
 """Phase 3, étape 3 : chat et confirmations N2 par l'API (vrai serveur local ; le LLM et l'exécution sont simulés)."""
+import dataclasses
+import json
+import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from jarvis.core import chat as chat_mod
-from jarvis.core.tools import REGISTRY
+from jarvis.core.router import Router
+from jarvis.core.tools import REGISTRY, Level, _registry
 from test_server import ServerBase
 
 def kill_call():  # `test_llm.call` ne sait pas passer un argument nommé « name »
@@ -181,6 +186,103 @@ class EndToEndTest(ChatBase):
                 self.assertEqual(self.done(job)["answer"], "terminé")
             self.assertEqual(kill.call_count, expected_calls, approve)
         self.assertIn(f"pwa:{self.device}/llm", str(self.audit.last(30)))
+
+
+class N2SurLeWebTest(ChatBase):
+    """Porte de l'étape 3 : chaque outil N2 est refusé ou expire sur le canal web, sans jamais s'exécuter."""
+
+    DUMMY = {str: "x", int: 1, float: 1.0, bool: True}
+
+    def run_mock(self, name):
+        run = mock.Mock(return_value="fait")
+        return run, mock.patch.dict(_registry, {name: dataclasses.replace(REGISTRY[name], run=run)})
+
+    def llm_call(self, name):
+        from functools import partial
+        from jarvis.core import llm
+        from test_llm import FakeOllama
+        args = {k: self.DUMMY[t] for k, t in REGISTRY[name].params.items()}
+        replies = FakeOllama({"message": {"content": "", "tool_calls": [{"function": {"name": name, "arguments": args}}]}},
+                             {"message": {"content": "terminé", "tool_calls": []}})
+        return mock.patch.object(chat_mod, "ask", partial(llm.ask, send=replies, gaming=lambda: False))
+
+    def test_tous_les_outils_n2_refuses_ou_expires(self):
+        names = [n for n, t in REGISTRY.items()  # seulement les vrais outils : d'autres tests en enregistrent de faux
+                 if t.level >= Level.N2 and t.run.__module__.startswith("jarvis.tools")]
+        self.assertTrue({"run_script", "clipboard_read", "screenshot", "move_file", "delete_file", "kill_process",
+                         "power"} <= set(names))  # un outil N2 abaissé ou retiré ferait échouer ce test
+        for name in names:
+            for how in ("refus", "expiration"):
+                run, patched = self.run_mock(name)
+                ttl = mock.patch.object(chat_mod, "CONFIRM_TTL_S", 0.3 if how == "expiration" else 60)
+                with patched, ttl, self.llm_call(name):
+                    job = self.start()[1]["job"]
+                    cid = self.pending(job)["id"]
+                    if how == "refus":
+                        self.assertEqual(self.decide(cid, False)[0], 200, name)
+                    self.done(job)
+                run.assert_not_called()  # ni refusé ni expiré ne s'exécute
+        # et approuvé, il s'exécute une fois : le banc d'essai fonctionne
+        run, patched = self.run_mock(names[0])
+        with patched, self.llm_call(names[0]):
+            job = self.start()[1]["job"]
+            self.decide(self.pending(job)["id"], True)
+            self.done(job)
+        run.assert_called_once()
+
+    def test_motif_route_n2_demande_une_confirmation_web(self):
+        catalogue = Path(tempfile.mkdtemp()) / "intents.json"
+        catalogue.write_text(json.dumps([{"tool": "delete_file", "patterns": ["supprime le fichier {path}"]}]))
+        self.chat.router = Router(catalogue)
+        for approve, calls in ((False, 0), (True, 1)):
+            run, patched = self.run_mock("delete_file")
+            with patched, mock.patch.object(chat_mod, "ask") as ask:
+                job = self.start("supprime le fichier notes.txt")[1]["job"]
+                pending = self.pending(job)
+                self.assertEqual(pending["tool"], "delete_file")
+                self.assertIn("notes.txt", pending["preview"])
+                self.decide(pending["id"], approve)
+                self.done(job)
+            ask.assert_not_called()  # le routeur n'a pas appelé le LLM, mais la garde a demandé
+            self.assertEqual(run.call_count, calls)
+
+    def test_n3_refuse_sans_demander_de_confirmation(self):
+        n3 = mock.Mock(level=Level.N3, preview=lambda args: "x")
+        n3.name = "serrure"
+        with mock.patch.object(chat_mod, "ask", side_effect=lambda *a, confirm, **k: str(confirm(n3, {}))):
+            job = self.start()[1]["job"]
+            result = self.done(job)
+        self.assertEqual((result["answer"], result["pending"]), ("False", None))  # aucune demande n'a été affichée
+        self.assertIn("N3 refusé (web)", str(self.audit.last(10)))
+
+    def test_apres_un_refus_le_job_ne_redemande_plus(self):
+        calls = []
+
+        def ask(text, *, audit, confirm, strong_auth, source):
+            tool = REGISTRY["kill_process"]
+            calls.append(confirm(tool, {"pid": 4242, "name": "a.exe"}))
+            calls.append(confirm(tool, {"pid": 4243, "name": "b.exe"}))  # le LLM insiste
+            return "fini"
+        with mock.patch.object(chat_mod, "ask", ask):
+            job = self.start()[1]["job"]
+            self.decide(self.pending(job)["id"], False)
+            result = self.done(job)
+        self.assertEqual((calls, result["answer"]), ([False, False], "fini"))  # la 2e n'a pas créé de demande
+
+    def test_job_trop_long_refuse_d_office(self):
+        with mock.patch.object(chat_mod, "JOB_MAX_S", -1), self.fake_ask():
+            job = self.start()[1]["job"]
+            self.assertEqual(self.done(job)["answer"], "refusé")
+
+    def test_resultat_d_un_outil_prive_jamais_renvoye(self):
+        catalogue = Path(tempfile.mkdtemp()) / "intents.json"
+        catalogue.write_text(json.dumps([{"tool": "clipboard_write", "patterns": ["copie {text}"]}]))
+        self.chat.router = Router(catalogue)
+        private = dataclasses.replace(REGISTRY["clipboard_write"], private=True, run=lambda text: "MOT-DE-PASSE-COPIE")
+        with mock.patch.dict(_registry, {"clipboard_write": private}):
+            answer = self.done(self.start("copie bonjour")[1]["job"])["answer"]
+        self.assertNotIn("MOT-DE-PASSE", answer)
+        self.assertRegex(answer, r"^<str, \d+ car\.>$")
 
 
 if __name__ == "__main__":

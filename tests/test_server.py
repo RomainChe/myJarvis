@@ -12,6 +12,7 @@ from jarvis import __main__ as cli
 from jarvis import server
 from jarvis.core import devices as dev
 from jarvis.core.audit import Audit
+from jarvis.core.chat import Chat
 from jarvis.core.devices import Devices
 
 
@@ -25,7 +26,8 @@ class ServerBase(unittest.TestCase):
     def setUp(self):
         self.port = free_port()
         self.devices, self.audit = Devices(":memory:"), Audit(":memory:")
-        self.srv = server.make_server(self.devices, self.audit, self.port)
+        self.chat = Chat(self.audit)
+        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat)
         threading.Thread(target=self.srv.run, daemon=True).start()
         for _ in range(100):
             if self.srv.started:

@@ -17,10 +17,11 @@ from jarvis.core.audit import Audit
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
-from jarvis.core.tools import Tool
+from jarvis.core.tools import REGISTRY, Level, Tool
 
 _now = time.monotonic  # remplacé dans les tests
 CONFIRM_TTL_S = 60
+JOB_MAX_S = 300  # au-delà, les confirmations suivantes d'un même job sont refusées d'office (constat 4)
 JOBS_MAX = 20
 ANSWER_MAX = 4000
 TEXT_MAX = 1000
@@ -43,6 +44,8 @@ class Job:
     done: bool = False
     answer: str | None = None
     pending: Pending | None = None
+    deadline: float = field(default_factory=lambda: _now() + JOB_MAX_S)
+    aborted: bool = False  # un refus ou une expiration : le LLM ne peut pas harceler de nouvelles confirmations
 
 
 class Chat:
@@ -97,6 +100,13 @@ class Chat:
         return False
 
     def _confirm(self, job: Job, tool: Tool, args: dict) -> bool:
+        if tool.level >= Level.N3:  # inutile de demander : WebAuthn n'existe pas encore (étape 5), N3 est refusé
+            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(tool.level), "refusé", "N3 refusé (web)")
+            return False
+        if job.aborted or _now() > job.deadline:
+            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(tool.level), "refusé",
+                           "job interrompu après un refus ou trop long")
+            return False
         p = Pending(secrets.token_urlsafe(16), tool.name, tool.preview(args), _now() + CONFIRM_TTL_S)
         with self.lock:
             job.pending = p
@@ -105,7 +115,9 @@ class Chat:
             job.pending = None
         if not answered:
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, None, "refusé", "expirée")
-        return answered and p.approved is True
+        ok = answered and p.approved is True
+        job.aborted = job.aborted or not ok
+        return ok
 
     def _run(self, job: Job, text: str) -> None:
         source = f"pwa:{job.device}"
@@ -118,8 +130,9 @@ class Chat:
                 answer = ask(text, audit=self.audit, confirm=confirm, strong_auth=no_strong, source=f"{source}/llm")
             else:
                 name, args = routed
-                answer = str(execute(name, args, source=source, audit=self.audit, confirm=confirm,
-                                     strong_auth=no_strong))
+                result = execute(name, args, source=source, audit=self.audit, confirm=confirm, strong_auth=no_strong)
+                # Outil privé (presse-papiers, capture, script) : le résultat n'est jamais renvoyé, comme au journal.
+                answer = f"<{type(result).__name__}, {len(str(result))} car.>" if REGISTRY[name].private else str(result)
         except Refused:
             answer = "Action refusée."
         except LLMUnavailable as e:
