@@ -86,9 +86,30 @@ class VoiceTest(unittest.TestCase):
 
     def test_n3_refuse_meme_si_le_llm_dit_oui(self):
         patch, _ = self.fake_ask("power", {"action": "shutdown"}, answer="C'est fait, oui !")
-        with patch, mock.patch.object(voice_mod, "effective", return_value=3),                 mock.patch("jarvis.core.permissions.effective", return_value=3), mock.patch("subprocess.run") as run:
+        with patch, mock.patch.object(voice_mod, "effective", return_value=3), \
+                mock.patch("jarvis.core.permissions.effective", return_value=3), mock.patch("subprocess.run") as run:
             self.assertEqual(self.voice.handle("ouvre la serrure"), voice_mod.N3_MSG)
         run.assert_not_called()
+
+    def test_n1_puis_n2_dans_le_meme_tour(self):
+        """Décision Sécurité : les N0/N1 d'un tour restent exécutés, le N2 est refusé sans effet."""
+        def ask(text, *, audit, confirm, strong_auth, source):
+            execute("system_status", {}, source=source, audit=audit, confirm=confirm, strong_auth=strong_auth)
+            for _ in range(3):  # retentatives du LLM : toutes refusées
+                with self.assertRaises(Refused):
+                    execute("power", {"action": "shutdown"}, source=source, audit=audit, confirm=confirm, strong_auth=strong_auth)
+            return "C'est fait."
+        with mock.patch.object(voice_mod, "ask", ask), mock.patch("subprocess.run") as run:
+            self.assertEqual(self.voice.handle("coupe le son et éteins le PC"), voice_mod.N2_MSG)
+        self.assertFalse([c for c in run.call_args_list if "shutdown" in str(c)])  # le N0 a tourné (nvidia-smi), pas le N2
+        rows = self.rows()
+        self.assertIn(("voix/llm", "system_status", "auto"), rows)
+        self.assertEqual(sum(r == ("voix/llm", "power", "refusé") for r in rows), 3)
+        self.assertFalse([r for r in rows if r[1] == "power" and r[2] != "refusé"])
+
+    def test_valueerror_de_l_outil_message_fixe(self):
+        with mock.patch.object(voice_mod, "ask", side_effect=ValueError(f"outil {SECRET} inconnu")):
+            self.assertEqual(self.voice.handle(UNROUTED), "Demande invalide.")
 
     def test_audit_sans_le_texte(self):
         with mock.patch.object(voice_mod, "ask", return_value="ok"):

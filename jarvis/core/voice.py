@@ -1,7 +1,7 @@
 """Socle voix : un tour de chat dont le texte vient d'une reconnaissance vocale (source `voix`, jamais `pwa:*`).
 
 Plafond N0/N1 : la voix n'a ni appareil ni clé d'accès, donc aucune confirmation n'est possible.
-N2 est refusé (« Confirme dans l'application »), N3 aussi (`strong_auth` toujours faux). Le verrou `busy`,
+N2 est refusé (« fais-la depuis l'application » : aucune demande n'est créée, cela viendra à l'étape 5), N3 aussi (`strong_auth` toujours faux). Le verrou `busy`,
 le routeur et le journal sont ceux du chat : aucune voie vers `execute` hors de la garde de permissions.
 """
 import hashlib
@@ -14,7 +14,7 @@ from jarvis.core.tools import Level
 
 SOURCE = "voix"
 BUSY_MSG = "Je suis occupé, redemande dans un instant."
-N2_MSG = "Confirme dans l'application."
+N2_MSG = "Action sensible : fais-la depuis l'application."
 N3_MSG = "À faire sur le téléphone."
 
 
@@ -23,7 +23,10 @@ class Voice:
         self.chat = chat
 
     def handle(self, text: str) -> str:
-        """Texte reconnu -> réponse à lire. Lève ValueError si le texte est vide ou trop long."""
+        """Texte reconnu -> réponse à lire. Lève ValueError si le texte est vide ou trop long.
+
+        L'appelant (STT/TTS) doit attraper toute exception (ex. échec du journal) et lire un message générique.
+        """
         if not isinstance(text, str) or not 0 < len(text) <= TEXT_MAX:
             raise ValueError("texte invalide")
         chat = self.chat
@@ -49,8 +52,10 @@ class Voice:
                     answer = f"<{type(result).__name__}, {len(str(result))} car.>" if REGISTRY[name].private else str(result)
             except Refused:
                 answer = "Action refusée."
-            except (LLMUnavailable, ValueError) as e:
+            except LLMUnavailable as e:
                 answer = str(e)
+            except ValueError:  # message fixe : le texte d'origine peut venir du LLM (nom d'outil, arguments)
+                answer = "Demande invalide."
             except Exception as e:  # pas de trace : elle pourrait contenir des arguments ou des noms de fichiers
                 answer = f"Erreur interne : {type(e).__name__}"
             if refused[0] >= Level.N3:  # le message ne vient jamais du LLM
