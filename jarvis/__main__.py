@@ -4,6 +4,7 @@
     python -m jarvis run <outil> [clé=valeur ...]
     python -m jarvis audit [n]
     python -m jarvis secret set|check <nom>
+    python -m jarvis ha check
 """
 import getpass
 import json
@@ -11,6 +12,7 @@ import os
 import sys
 from pathlib import Path
 
+from jarvis.core import ha
 from jarvis.core.audit import Audit
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
@@ -64,6 +66,13 @@ def main(argv: list[str]) -> int:
         except ValueError as e:
             print(e)
             return 2
+        return 0
+    if argv == ["ha", "check"]:
+        try:
+            print(f"Home Assistant {ha.version()} joignable, token accepté.")
+        except ha.HAError as e:
+            print(e)
+            return 1
         return 0
     if str(DB_PATH) == ":memory:" or str(DB_PATH).startswith("file:"):
         print("JARVIS_DB doit être un chemin de fichier : le journal d'audit doit persister.")
