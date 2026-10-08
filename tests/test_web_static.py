@@ -64,6 +64,23 @@ class WebStaticTest(unittest.TestCase):
                                "javascript:": re.compile(r"javascript:", re.IGNORECASE)}.items():
             self.assertIsNone(pattern.search(html), label)
 
+    def test_ids_du_js_presents_dans_le_html_et_aucun_id_mort(self):
+        # Un $('id') vers un élément retiré (ex. view-home, st-ms) casse toute la PWA au chargement.
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        ids = set(re.findall(r'\sid="([^"]+)"', html))
+        used = set(re.findall(r"\$\('([\w-]+)'\)", js))
+        self.assertEqual(sorted(used - ids), [], "ids utilisés par app.js absents du HTML")
+        for dead in ("view-home", "log-empty", "st-ms"):
+            self.assertNotIn(dead, html + js + (WEB_DIR / "app.css").read_text(encoding="utf-8"))
+
+    def test_ordre_du_menu_et_raccourcis(self):
+        # Ordre voulu par le propriétaire (2026-10-08) ; Alt+n suit cet ordre dans app.js.
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        tabs = re.findall(r'data-view="(\w+)" aria-keyshortcuts="Alt\+(\d)"', html)
+        self.assertEqual([v for v, _ in tabs], ["chat", "settings", "social", "finance", "veille", "devices", "audit"])
+        self.assertEqual([int(n) for _, n in tabs], list(range(1, 8)))
+
     def test_service_worker_ne_met_pas_l_api_en_cache(self):
         sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
         self.assertIn("/api/", sw)  # un contournement explicite des routes d'API existe

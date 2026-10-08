@@ -36,19 +36,18 @@
     <span id="link" class="pill" role="status">En ligne</span>
   </header>
 
-  <nav class="tabs hud" aria-label="Navigation principale">
-    <p class="nav-title" aria-hidden="true">Contrôles // Menu</p>
-    <button class="tab" type="button" data-view="chat" aria-keyshortcuts="Alt+1" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Console</span></button>
-    <button class="tab" type="button" data-view="devices" aria-keyshortcuts="Alt+2"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Appareils</span></button>
-    <button class="tab" type="button" data-view="settings" aria-keyshortcuts="Alt+3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Réglages</span></button>
-    <button class="tab" type="button" data-view="audit" aria-keyshortcuts="Alt+4"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg><span>Journal</span></button>
-    <button class="tab" type="button" data-view="social" aria-keyshortcuts="Alt+5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>Réseaux</span></button>
-    <button class="tab" type="button" data-view="finance" aria-keyshortcuts="Alt+6"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg><span>Finances</span></button>
-    <button class="tab" type="button" data-view="veille" aria-keyshortcuts="Alt+7"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h7M8 13h7"/></svg><span>Veille IA</span></button>
+  <nav class="tabs" aria-label="Navigation principale">
+    <button class="tab" type="button" data-view="chat" aria-keyshortcuts="Alt+1" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Dashboard</span></button>
+    <button class="tab" type="button" data-view="settings" aria-keyshortcuts="Alt+2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Réglages</span></button>
+    <button class="tab" type="button" data-view="social" aria-keyshortcuts="Alt+3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>Réseaux</span></button>
+    <button class="tab" type="button" data-view="finance" aria-keyshortcuts="Alt+4"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg><span>Finances</span></button>
+    <button class="tab" type="button" data-view="veille" aria-keyshortcuts="Alt+5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h7M8 13h7"/></svg><span>Veille IA</span></button>
+    <button class="tab" type="button" data-view="devices" aria-keyshortcuts="Alt+6"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Appareils</span></button>
+    <button class="tab" type="button" data-view="audit" aria-keyshortcuts="Alt+7"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg><span>Journal</span></button>
   </nav>
 
   <section id="view-chat" class="view console" aria-labelledby="t-chat">
-    <h1 id="t-chat" class="sr">Console</h1>
+    <h1 id="t-chat" class="sr">Dashboard</h1>
     <aside class="side" aria-label="État du PC et de l'environnement">
       <section class="panel hud">
         <h2>Système</h2>
@@ -67,11 +66,31 @@
       <div id="log" class="log" role="log" aria-live="polite" aria-label="Conversation avec Jarvis"></div>
       <p id="thinking" class="thinking" hidden><span class="orb small" aria-hidden="true"></span> Jarvis réfléchit…</p>
       <form id="chat-form" class="composer">
-        <label for="chat-input" class="sr">Demander à Jarvis</label>
-        <textarea id="chat-input" rows="1" maxlength="1000" placeholder="Demander à Jarvis…" enterkeyhint="send"></textarea>
+        <svg class="wave" viewBox="0 0 64 24" aria-hidden="true"><path d="M2 12h8M14 9v6M18 5v14M22 8v8M26 3v18M30 7v10M34 10v4M38 6v12M42 9v6M46 11v2M50 12h12"/></svg>
+        <label for="chat-input" class="sr">Parler à Jarvis</label>
+        <textarea id="chat-input" rows="1" maxlength="1000" placeholder="Parler à Jarvis…" enterkeyhint="send"></textarea>
+        <svg class="wave" viewBox="0 0 64 24" aria-hidden="true"><path d="M2 12h12M18 11v2M22 9v6M26 6v12M30 10v4M34 7v10M38 3v18M42 8v8M46 5v14M50 9v6M54 12h8"/></svg>
         <button id="chat-send" class="send" type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-6 16-3-7z"/><path d="m11 13 9-9"/></svg></button>
       </form>
     </div>
+    <aside class="digest" aria-label="Résumé : réseaux, finances, veille">
+      <section class="panel hud">
+        <h2>Réseaux</h2>
+        <p id="dg-subs" class="big">—</p>
+        <p id="dg-social" class="muted"></p>
+      </section>
+      <section class="panel hud">
+        <h2>Finances</h2>
+        <p id="dg-left" class="big">•••• €</p>
+        <p id="dg-fin" class="muted"></p>
+        <button id="dg-fin-show" class="btn" type="button">Afficher</button>
+      </section>
+      <section class="panel hud">
+        <h2>Veille IA</h2>
+        <p id="dg-veille-state" class="muted"></p>
+        <ul id="dg-veille" class="plain digest-links"></ul>
+      </section>
+    </aside>
   </section>
 
   <section id="view-devices" class="view" aria-labelledby="t-devices" hidden>

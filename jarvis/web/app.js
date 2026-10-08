@@ -102,6 +102,8 @@ async function signOut() {
   for (const id of ['st-sky', 'st-net', 'sys-error']) $(id).textContent = '';
   clearTimeout(homeTimer);
   $('levels-list').replaceChildren();
+  clearFinance();
+  clearDigest();
   $('push-state').textContent = '';
   $('mic').hidden = true;
   $('overlay').hidden = true;
@@ -160,8 +162,7 @@ function show(name) {
   });
   if (name === 'audit') loadAudit();
   if (name === 'devices') loadDevices();
-  if (name === 'chat') loadHome();
-  else clearTimeout(homeTimer);
+  if (name === 'chat') { loadHome(); loadDigest(); } else { clearTimeout(homeTimer); clearDigest(); }
   if (name === 'settings') loadSettings();
   if (name === 'social') loadSocial();
   if (name === 'finance') loadFinance(); else clearFinance();
@@ -169,10 +170,11 @@ function show(name) {
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
-// Raccourcis clavier (bureau) : Alt+1..7 change de vue, « / » met le focus sur la saisie du chat.
+// Raccourcis clavier (bureau) : Alt+1..7 suit l'ordre du menu, « / » met le focus sur la saisie du chat.
+const tabOrder = [...document.querySelectorAll('.tab')].map((t) => t.dataset.view);
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
-  if (e.altKey && /^[1-7]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
+  if (e.altKey && /^[1-7]$/.test(e.key)) { e.preventDefault(); show(tabOrder[Number(e.key) - 1]); return; }
   if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
     e.preventDefault(); show('chat'); $('chat-input').focus();
   }
@@ -191,7 +193,7 @@ function showApp() {
 function addMsg(kind, text) {
   const m = el('p', `msg ${kind}`, text);
   $('log').appendChild(m);
-  m.scrollIntoView({ block: 'end' });
+  m.scrollIntoView({ block: m.offsetHeight > $('log').clientHeight ? 'start' : 'end' }); // réponse plus haute que le journal : on lit depuis son début
 }
 let busy = false;
 function setBusy(b) {
@@ -385,7 +387,7 @@ function svg(tag, attrs) {
 }
 // Jauge en anneau (pathLength 100 : le remplissage vaut directement le pourcentage). Texte lisible par les lecteurs d'écran.
 function gauge(label, value, detail, hot = value >= 90) {
-  const v = Math.max(0, Math.min(100, Math.round(value)));
+  const v = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 0; // jamais « NaN % »
   const li = el('li', 'gauge');
   li.setAttribute('role', 'img');
   li.setAttribute('aria-label', `${label} : ${v} %${detail ? `, ${detail}` : ''}`);
@@ -424,7 +426,7 @@ async function loadHome() {
       rows.push(gauge('Disque', s.disk.percent, `${s.disk.free_gb} Go libres`));
       if (s.gpu) {
         rows.push(gauge('GPU', s.gpu.percent, `${s.gpu.temperature_c} °C`));
-        rows.push(gauge('VRAM', 100 * s.gpu.vram_used_mb / s.gpu.vram_total_mb, `${(s.gpu.vram_used_mb / 1024).toFixed(1)} sur ${(s.gpu.vram_total_mb / 1024).toFixed(1)} Go`));
+        if (s.gpu.vram_total_mb > 0) rows.push(gauge('VRAM', 100 * s.gpu.vram_used_mb / s.gpu.vram_total_mb, `${(s.gpu.vram_used_mb / 1024).toFixed(1)} sur ${(s.gpu.vram_total_mb / 1024).toFixed(1)} Go`));
       }
     }
     $('sys-list').replaceChildren(...rows);
@@ -433,8 +435,10 @@ async function loadHome() {
   } catch (e) {
     $('sys-error').hidden = false;
     $('sys-error').textContent = unavailable('Tableau de bord indisponible', e);
+    if (!$('sys-list').querySelector('.gauge')) $('sys-list').replaceChildren(); // plus de « Chargement… » à côté de l'erreur
   }
   if (!token) return; // déconnecté pendant la requête : ne pas réarmer le minuteur
+  clearTimeout(homeTimer); // un chargement lancé entre-temps par show() a pu armer le sien : une seule boucle
   homeTimer = setTimeout(() => { if (!views.chat.hidden && !document.hidden) loadHome(); else if (!views.chat.hidden) homeTimer = setTimeout(loadHome, 5000); }, 5000);
 }
 
@@ -542,6 +546,58 @@ async function loadVeille() {
     err.textContent = unavailable('Veille indisponible', e);
   }
 }
+
+// ---- Résumé du dashboard (bureau ≥ 1200 px seulement) : réseaux, finances, 2 sources de la veille ----------------
+// Chargé une fois à l'ouverture du dashboard, sans minuteur. Finances masquées : lues seulement sur clic
+// (écran d'accueil visible par un tiers, revue Sécurité constat 1). Vidé dès qu'on quitte la vue.
+const wide = matchMedia('(min-width: 1200px)');
+let digestRun = 0;
+const getData = (path) => api(path).then((r) => { if (!r.ok || !r.data) throw new Error('bad'); return r.data; });
+function clearDigest() {
+  digestRun++; // une réponse arrivée après coup est ignorée
+  $('dg-subs').textContent = '—';
+  $('dg-left').textContent = '•••• €';
+  $('dg-fin-show').hidden = false;
+  for (const id of ['dg-social', 'dg-fin', 'dg-veille-state']) $(id).textContent = '';
+  $('dg-veille').replaceChildren();
+}
+$('dg-fin-show').addEventListener('click', async () => {
+  const run = digestRun;
+  $('dg-fin-show').hidden = true;
+  let f = null, failed = false;
+  try { f = (await getData('/api/finance')).latest; } catch { failed = true; }
+  if (run !== digestRun || views.chat.hidden) return;
+  if (f) {
+    $('dg-left').textContent = eur(f.left_to_live);
+    $('dg-fin').textContent = `Reste à vivre · dépensé S${f.week} : ${eur(f.spent?.amount)}`;
+  } else $('dg-fin').textContent = failed ? 'Indisponible.' : 'Aucun rapport.';
+});
+async function loadDigest() {
+  clearDigest();
+  if (!token || !wide.matches) return;
+  const run = digestRun;
+  const [so, ve] = await Promise.allSettled([getData('/api/social'), getData('/api/veille')]);
+  if (run !== digestRun || views.chat.hidden) return;
+  const yt = so.value?.youtube;
+  if (yt && !yt.error) {
+    $('dg-subs').textContent = `${yt.subs} abonnés`;
+    const d7 = yt.delta?.d7;
+    $('dg-social').textContent = `YouTube${d7 ? ` · 7 j : ${d7.subs >= 0 ? '+' : ''}${d7.subs}` : ''}`;
+  } else $('dg-social').textContent = so.status === 'rejected' ? 'Indisponible.' : 'Statistiques YouTube indisponibles.';
+  const next = so.value?.scheduled?.[0];
+  if (next) $('dg-social').textContent += ` · prochaine : ${fmtDate(next.at)}`;
+  const issue = ve.value?.issues?.[0];
+  const links = (issue?.links ?? []).filter((l) => typeof l.url === 'string' && URL.canParse(l.url) && new URL(l.url).protocol === 'https:').slice(0, 2);
+  $('dg-veille-state').textContent = ve.status === 'rejected' ? 'Indisponible.' : !issue ? 'Aucun envoi.' : `${VEILLE[issue.kind] ?? issue.kind} · semaine ${issue.week}`;
+  $('dg-veille').replaceChildren(...links.map((l) => {
+    const host = new URL(l.url).hostname; // destination réelle, pas le champ du serveur
+    const li = el('li'), a = el('a', '', l.label || host);
+    a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    li.append(a, el('span', 'muted', host));
+    return li;
+  }));
+}
+wide.addEventListener('change', () => { if (!views.chat.hidden) loadDigest(); });
 
 // ---- Appareils -------------------------------------------------------------------------------
 async function loadDevices() {
