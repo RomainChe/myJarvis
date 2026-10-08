@@ -338,7 +338,7 @@ async function loadAudit() {
     const out = [];
     for (const [src, list] of groups) {
       const g = el('section', 'group');
-      const panel = el('div', 'panel hud');
+      const panel = el('div', 'panel hud cards');
       g.append(el('h2', '', src), panel);
       for (const row of list) {
         // Le serveur envoie le niveau comme un entier (0 à 3, ou null) : « N2 », jamais « N? » pour un vrai niveau.
@@ -466,10 +466,15 @@ async function loadSocial() {
     const yt = r.data.youtube;
     $('social-yt').hidden = !yt;
     if (yt) {
-      const d = (x) => (x ? `${x.subs >= 0 ? '+' : ''}${x.subs} abonnés` : '…');
-      $('yt-subs').textContent = yt.error ? '—' : `${yt.subs} abonnés`;
-      $('yt-detail').textContent = yt.error === 'reconnexion' ? 'Reconnexion de lol-clipper à faire (droit youtube.readonly).'
-        : yt.error ? 'Statistiques indisponibles.' : `${yt.views} vues · ${yt.videos} vidéos · 7 j : ${d(yt.delta.d7)} · 30 j : ${d(yt.delta.d30)}`;
+      const d = (x) => (x ? `${x.subs >= 0 ? '+' : ''}${x.subs}` : '…');
+      const n = (x) => (Number.isFinite(x) ? x.toLocaleString('fr-FR') : '—');
+      $('yt-subs').textContent = yt.error ? '—' : n(yt.subs);
+      $('yt-views').textContent = yt.error ? '—' : n(yt.views);
+      $('yt-videos').textContent = yt.error ? '—' : n(yt.videos);
+      $('yt-d7').textContent = yt.error ? '—' : `${d(yt.delta?.d7)} en 7 j`;
+      $('yt-d30').textContent = yt.error ? '' : `${d(yt.delta?.d30)} en 30 j`;
+      $('yt-detail').hidden = !yt.error;
+      $('yt-detail').textContent = yt.error === 'reconnexion' ? 'Reconnexion de lol-clipper à faire (droit youtube.readonly).' : 'Statistiques indisponibles.';
     }
     fill('social-todo', r.data.scheduled, 'Rien de programmé.', false);
     fill('social-done', r.data.published, 'Aucune publication.', true);
@@ -854,7 +859,7 @@ async function loadSettings() {
     }
     box.replaceChildren(...[...groups].map(([name, list]) => {
       const g = el('section', 'lv-group');
-      const ul = el('ul', 'panel hud plain');
+      const ul = el('ul', 'panel hud plain cards two');
       ul.append(...list.sort((a, b) => String(a.title).localeCompare(String(b.title), 'fr')).map(levelRow));
       g.append(el('h3', '', name), ul);
       return g;

@@ -32,8 +32,10 @@
   <header class="top">
     <span class="brand" aria-hidden="true">J.A.R.V.I.S</span>
     <span id="clock" class="clock hud" aria-hidden="true"></span>
+    <div class="top-right">
     <button id="mic" class="mic" type="button" aria-pressed="true" aria-label="Micro de Jarvis : actif" title="Micro actif" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path class="slash" d="M4 4l16 16"/></svg></button>
     <span id="link" class="pill" role="status">En ligne</span>
+    </div>
   </header>
 
   <nav class="tabs" aria-label="Navigation principale">
@@ -100,6 +102,7 @@
 
   <section id="view-settings" class="view" aria-labelledby="t-settings" hidden>
     <h1 id="t-settings" class="title">Réglages</h1>
+    <div class="settings-top">
     <section class="panel hud setting">
       <div>
         <h2>Clé d'accès</h2>
@@ -114,6 +117,7 @@
       </div>
       <button id="push-toggle" class="btn" type="button" hidden></button>
     </section>
+    </div>
     <h2 class="section">Niveaux des outils</h2>
     <p class="muted">N0 lecture · N1 automatique · N2 confirmation · N3 clé d'accès. Relever est immédiat ; abaisser exige votre clé d'accès.</p>
     <div id="levels-list"></div>
@@ -127,15 +131,19 @@
   <section id="view-social" class="view" aria-labelledby="t-social" hidden>
     <h1 id="t-social" class="title">Réseaux</h1>
     <p id="social-error" class="error" hidden></p>
-    <section id="social-yt" class="panel hud" hidden>
-      <h2>YouTube</h2>
-      <p id="yt-subs" class="big">—</p>
-      <p id="yt-detail" class="muted"></p>
+    <section id="social-yt" aria-label="YouTube" hidden>
+      <div class="strip yt">
+        <section class="panel hud stat"><h2>Abonnés</h2><p id="yt-subs" class="big">—</p></section>
+        <section class="panel hud stat"><h2>Vues</h2><p id="yt-views" class="big">—</p></section>
+        <section class="panel hud stat"><h2>Vidéos</h2><p id="yt-videos" class="big">—</p></section>
+        <section class="panel hud stat"><h2>Évolution des abonnés</h2><p id="yt-d7" class="big">—</p><p id="yt-d30" class="muted"></p></section>
+      </div>
+      <p id="yt-detail" class="muted" hidden></p>
     </section>
     <h2 class="section">Programmées</h2>
-    <ul id="social-todo" class="panel hud plain"></ul>
+    <ul id="social-todo" class="panel hud plain cards"></ul>
     <h2 class="section">Dernières publications</h2>
-    <ul id="social-done" class="panel hud plain"></ul>
+    <ul id="social-done" class="panel hud plain cards"></ul>
   </section>
   <section id="view-veille" class="view" aria-labelledby="t-veille" hidden>
     <h1 id="t-veille" class="title">Veille IA</h1>
