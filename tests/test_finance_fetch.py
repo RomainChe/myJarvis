@@ -50,7 +50,12 @@ class FetchTest(unittest.TestCase):
         self.dest.mkdir()
         for i in range(finance_fetch.MAX_STORED):
             (self.dest / f"semaine-1999-{i:02}.eml").write_bytes(b"x")
-        self.assertEqual(finance_fetch.fetch_reports(self.dest), 0)
+        (self.dest / "autre.eml").write_bytes(b"x")  # hors motif : ne compte pas et n'est jamais supprimé
+        self.assertEqual(finance_fetch.fetch_reports(self.dest), 2)  # le plus ancien cède la place, pas de saturation silencieuse
+        names = sorted(f.name for f in self.dest.glob("semaine-*.eml"))
+        self.assertEqual(len(names), finance_fetch.MAX_STORED)
+        self.assertIn("semaine-2026-40.eml", names)
+        self.assertTrue((self.dest / "autre.eml").exists())
 
     def test_adresse_invalide_refusee_sans_connexion(self):
         for user in ('a"b', "a\r\nb", "é@x.org"):
@@ -69,6 +74,14 @@ class FetchTest(unittest.TestCase):
         with mock.patch.object(finance_fetch.os, "replace", flaky):
             self.assertEqual(finance_fetch.fetch_reports(self.dest), 1)
         self.assertEqual([f.suffix for f in self.dest.iterdir()], [".eml"])
+
+    def test_fetch_mails_generique_pour_la_veille(self):
+        from jarvis.core import veille
+        from tests.test_veille import issue
+        FakeImap.mails = [mine(issue()), mine(issue("[Veille Plugins] Semaine 40 – Top 3")), mine(report(40)),
+                          mine(issue("[Veille IA] Semaine 41"), "Mallory <m@example.org>")]
+        self.assertEqual(finance_fetch.fetch_mails(self.dest, '"[Veille"', veille.parse, veille.name), 2)
+        self.assertEqual(sorted(f.name for f in self.dest.iterdir()), ["veille-actus-2026-40.eml", "veille-plugins-2026-40.eml"])
 
     def test_mot_de_passe_absent(self):
         with mock.patch.object(finance_fetch, "get_secret", return_value=None), self.assertRaises(RuntimeError):

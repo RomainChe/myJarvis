@@ -5,6 +5,7 @@
     python -m jarvis audit [n]
     python -m jarvis secret set|check <nom>
     python -m jarvis ha check
+    python -m jarvis veille fetch                      (copie les envois « [Veille ...] » du compte mail dans ~/.jarvis/veille/, lecture seule)
     python -m jarvis finance fetch                     (copie les rapports « [Dépenses] » du compte mail dans ~/.jarvis/finance/, lecture seule)
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
@@ -253,16 +254,18 @@ def main(argv: list[str]) -> int:
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
     levels.load(audit)
-    if argv == ["finance", "fetch"]:
-        from jarvis.core.finance_fetch import fetch_reports
+    if argv in (["finance", "fetch"], ["veille", "fetch"]):
+        from jarvis.core import finance, finance_fetch, veille
+        what, fetch = (("finance_fetch", lambda: finance_fetch.fetch_reports()) if argv[0] == "finance" else
+                       ("veille_fetch", lambda: finance_fetch.fetch_mails(veille.veille_dir(), '"[Veille"', veille.parse, veille.name, "veille-*.eml")))
         try:
-            n = fetch_reports()
+            n = fetch()
         except (RuntimeError, OSError, ValueError, imaplib.IMAP4.error) as e:  # texte serveur/mail jamais affiché
-            audit.log("cli", "finance_fetch", {}, 2, "auto", "échec")
+            audit.log("cli", what, {}, 2, "auto", "échec")
             print(f"Récupération impossible : {e if isinstance(e, RuntimeError) else type(e).__name__}")
             return 1
-        audit.log("cli", "finance_fetch", {}, 2, "auto", f"{n} rapport(s) écrit(s)")
-        print(f"{n} rapport(s) enregistré(s).")
+        audit.log("cli", what, {}, 2, "auto", f"{n} mail(s) écrit(s)")
+        print(f"{n} mail(s) enregistré(s).")
         return 0
     if argv[0] == "say":
         if len(argv) < 2:

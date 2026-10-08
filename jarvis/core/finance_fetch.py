@@ -26,13 +26,20 @@ USER_OK = re.compile(r"[\w.+@-]{1,254}", re.ASCII)
 
 
 def fetch_reports(dest: Path | None = None) -> int:
+    return fetch_mails(dest or finance.finance_dir(), '"penses] Semaine"', finance.parse,
+                       lambda r: f"semaine-{r['year']}-{r['week']:02}.eml", "semaine-*.eml")
+
+
+def fetch_mails(dest: Path, subject: str, parse, name, pattern: str = "*.eml") -> int:
+    """Copie dans `dest` les mails du compte dont l'objet contient `subject` (déjà entre guillemets IMAP), reconnus par
+    `parse(raw)` (None = ignoré), sous le nom `name(parse(raw))`. Générique : la veille IA réutilise ce chemin."""
     host, user = mail.load_config()
     password = get_secret("mail_password")
     if not password:
         raise RuntimeError("mot de passe mail absent du coffre (python -m jarvis secret set mail_password)")
     if not USER_OK.fullmatch(user):
         raise RuntimeError("adresse du compte mail invalide (~/.jarvis/mail.json)")
-    dest = Path(dest) if dest else finance.finance_dir()
+    dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
     oldest = now - timedelta(days=DAYS)
@@ -42,7 +49,7 @@ def fetch_reports(dest: Path | None = None) -> int:
     try:
         imap.login(user, password)
         imap.select("INBOX", readonly=True)
-        typ, data = imap.search(None, "SINCE", since, "FROM", f'"{user}"', "SUBJECT", '"penses] Semaine"')
+        typ, data = imap.search(None, "SINCE", since, "FROM", f'"{user}"', "SUBJECT", subject)
         if typ != "OK" or data is None:
             raise RuntimeError("réponse IMAP inattendue")
         for num in reversed((data[0] or b"").split()[-MAX_FETCH:]):
@@ -56,12 +63,13 @@ def fetch_reports(dest: Path | None = None) -> int:
             try:
                 msg = message_from_bytes(raw, policy=policy.default)
                 sent = msg["Date"].datetime  # un Date hors fenêtre (an 9999...) pourrait masquer les vrais rapports
-                report = finance.parse(raw) if parseaddr(str(msg["From"] or ""))[1].lower() == user.lower() else None
+                report = parse(raw) if parseaddr(str(msg["From"] or ""))[1].lower() == user.lower() else None
                 if report is None or not oldest <= sent.astimezone(timezone.utc) <= now + timedelta(days=1):
                     continue
-                target = dest / f"semaine-{report['year']}-{report['week']:02}.eml"
-                if not target.exists() and sum(1 for _ in dest.glob("semaine-*.eml")) >= MAX_STORED:
-                    continue
+                target = dest / name(report)
+                stored = sorted(dest.glob(pattern), key=lambda f: f.stat().st_mtime)
+                if not target.exists() and len(stored) >= MAX_STORED:
+                    stored[0].unlink()  # plafond : le plus ancien cède la place, jamais de saturation silencieuse
                 tmp = target.with_suffix(".tmp")
                 tmp.write_bytes(raw)
                 os.replace(tmp, target)
