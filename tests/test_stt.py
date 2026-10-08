@@ -88,21 +88,36 @@ class TestTranscriber(unittest.TestCase):
         self.assertEqual(t.transcribe(AUDIO), "allume le salon")
         self.assertEqual(t.device, "cpu")
 
-    def test_mode_jeu_decharge_le_gpu_puis_le_recharge(self):
-        state, calls = {"jeu": False}, []
+    def test_mode_jeu_decharge_le_gpu_puis_le_recharge_apres_60_s(self):
+        state, calls, now, checks = {"jeu": False}, [], [0.0], []
 
         def loader(path, dev, compute):
             calls.append(dev)
             return FakeModel()
-        t = self.make(loader, gaming=lambda: state["jeu"])
+
+        def gaming():
+            checks.append(now[0])
+            return state["jeu"]
+        t = self.make(loader, gaming=gaming)
+        t._clock = lambda: now[0]
         t.transcribe(AUDIO)
-        state["jeu"] = True
+        state["jeu"], now[0] = True, 10.0
         self.assertEqual(t.transcribe(AUDIO), "allume le salon")  # la phrase passe quand même, sur le CPU
         self.assertEqual(t.device, "cpu")
-        t.transcribe(AUDIO)
-        state["jeu"] = False
+        state["jeu"], now[0] = False, 12.0
+        t.transcribe(AUDIO)  # détection gardée 5 s : pas de nouvel appel à gaming
+        self.assertEqual(checks, [0.0, 10.0])
+        now[0] = 40.0
+        t.transcribe(AUDIO)  # jeu fini mais moins de 60 s depuis la dernière détection : toujours CPU
+        now[0] = 71.0
         t.transcribe(AUDIO)
         self.assertEqual(calls, ["cuda", "cpu", "cuda"])
+
+    def test_detect_en_panne_donne_stt_error(self):
+        def gaming():
+            raise OSError("boom")
+        with self.assertRaises(STTError):
+            self.make(lambda *a: FakeModel(), gaming=gaming).transcribe(AUDIO)
 
     def test_modele_modifie_refuse(self):
         t = self.make(lambda *a: FakeModel(), good=False)
