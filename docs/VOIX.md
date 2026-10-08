@@ -55,6 +55,25 @@ notification + PWA) pendant l'écoute.
 - Ne lire que des réponses courtes (cf. `docs/PERSONNALITE.md` §3) ; découper par phrase pour
   commencer à parler avant la fin de la synthèse.
 
+## 2bis. Modèles téléchargés (Phase 4 étape 2, 2026-10-08)
+`python scripts/fetch_models.py` lit `models/MANIFEST.json` (versionné : URL épinglée, taille, SHA-256, licence) et
+remplit `models/` (poids ignorés par git, ~1,7 Go). Stdlib seulement ; hôtes HTTPS en liste blanche (redirections
+comprises) ; fichier `.part` renommé seulement si le SHA-256 correspond ; un fichier déjà bon n'est pas retéléchargé.
+Chargement ensuite par chemin local (`local_files_only=True`, `HF_HUB_OFFLINE=1`).
+
+| Modèle | Source épinglée | Taille | Licence |
+|---|---|---|---|
+| openWakeWord `hey_jarvis_v0.1.onnx`, `melspectrogram.onnx`, `embedding_model.onnx` | GitHub `dscripka/openWakeWord`, release **v0.5.1** (celle qu'utilise le paquet 0.6.0) | 3,7 Mo | **CC BY-NC-SA 4.0** (README du dépôt : modèles pré-entraînés). Usage personnel non commercial : OK, ne pas redistribuer à des fins commerciales. |
+| faster-whisper `large-v3-turbo` (CTranslate2) | HF `mobiuslabsgmbh/faster-whisper-large-v3-turbo` (dépôt que `faster-whisper` 1.2.1 désigne lui-même ; Systran n'a pas de dépôt turbo), révision `0a363e91…` | 1,62 Go | MIT |
+| Piper `fr_FR-tom-medium` (.onnx + .onnx.json) | HF `rhasspy/piper-voices`, révision `c10ece1a…` | 63,5 Mo | **AGPL-3.0** (jeu de données de la voix, d'après son MODEL_CARD). Usage personnel local ; ne pas exposer en service réseau ni redistribuer sans en respecter les termes. |
+| Silero VAD | **rien à télécharger** : `silero_vad_v6.onnx` est embarqué dans le paquet `faster-whisper` (`vad_filter=True`) | - | MIT |
+
+Recoupement : le SHA-256 de `model.bin` et de `fr_FR-tom-medium.onnx` est identique au `lfs.sha256` donné par l'API
+Hugging Face. Les autres fichiers (petits, hors LFS) : SHA-256 calculé au premier téléchargement.
+Essais de chargement (CPU) : openWakeWord, Piper (44,1 kHz) et `WhisperModel` chargent depuis le chemin local.
+GPU : `WhisperModel(device="cuda")` échoue pour l'instant avec `RuntimeError: Library cublas64_12.dll is not found or cannot be loaded`
+(CUDA 12 / cuDNN 9 absents du PC ; rien n'a été installé, à traiter avant l'activation de la voix GPU).
+
 ## 3. Budget VRAM (16 Go)
 
 | Composant | VRAM |

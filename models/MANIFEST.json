@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "note": "SHA-256 calculés au premier téléchargement (2026-10-08) ; model.bin et fr_FR-tom-medium.onnx recoupés avec le sha256 LFS de l'API Hugging Face.",
+  "files": [
+    {
+      "path": "openwakeword/hey_jarvis_v0.1.onnx",
+      "url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/hey_jarvis_v0.1.onnx",
+      "size": 1271370,
+      "sha256": "94a13cfe60075b132f6a472e7e462e8123ee70861bc3fb58434a73712ee0d2cb",
+      "licence": "CC BY-NC-SA 4.0 (modèles pré-entraînés openWakeWord)",
+      "source": "github.com/dscripka/openWakeWord, release v0.5.1"
+    },
+    {
+      "path": "openwakeword/melspectrogram.onnx",
+      "url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/melspectrogram.onnx",
+      "size": 1087958,
+      "sha256": "ba2b0e0f8b7b875369a2c89cb13360ff53bac436f2895cced9f479fa65eb176f",
+      "licence": "CC BY-NC-SA 4.0 (modèles pré-entraînés openWakeWord)",
+      "source": "github.com/dscripka/openWakeWord, release v0.5.1"
+    },
+    {
+      "path": "openwakeword/embedding_model.onnx",
+      "url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/embedding_model.onnx",
+      "size": 1326578,
+      "sha256": "70d164290c1d095d1d4ee149bc5e00543250a7316b59f31d056cff7bd3075c1f",
+      "licence": "CC BY-NC-SA 4.0 (modèles pré-entraînés openWakeWord)",
+      "source": "github.com/dscripka/openWakeWord, release v0.5.1"
+    },
+    {
+      "path": "whisper-large-v3-turbo/config.json",
+      "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/config.json",
+      "size": 2263,
+      "sha256": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e",
+      "licence": "MIT",
+      "source": "huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo (sert aussi de source à faster-whisper), révision 0a363e91"
+    },
+    {
+      "path": "whisper-large-v3-turbo/model.bin",
+      "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/model.bin",
+      "size": 1617884929,
+      "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da",
+      "licence": "MIT",
+      "source": "huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo (sert aussi de source à faster-whisper), révision 0a363e91"
+    },
+    {
+      "path": "whisper-large-v3-turbo/tokenizer.json",
+      "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/tokenizer.json",
+      "size": 2710337,
+      "sha256": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd",
+      "licence": "MIT",
+      "source": "huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo (sert aussi de source à faster-whisper), révision 0a363e91"
+    },
+    {
+      "path": "whisper-large-v3-turbo/vocabulary.json",
+      "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/vocabulary.json",
+      "size": 1068114,
+      "sha256": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1",
+      "licence": "MIT",
+      "source": "huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo (sert aussi de source à faster-whisper), révision 0a363e91"
+    },
+    {
+      "path": "whisper-large-v3-turbo/preprocessor_config.json",
+      "url": "https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo/resolve/0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf/preprocessor_config.json",
+      "size": 340,
+      "sha256": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
+      "licence": "MIT",
+      "source": "huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo (sert aussi de source à faster-whisper), révision 0a363e91"
+    },
+    {
+      "path": "piper/fr_FR-tom-medium.onnx",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx",
+      "size": 63511038,
+      "sha256": "bf65074ccdeeeeaa832e75edb1c0a513c01c9a972bdf085ff8a6e71ea234fd41",
+      "licence": "AGPL-3.0 (jeu de données de la voix, d'après MODEL_CARD)",
+      "source": "huggingface.co/rhasspy/piper-voices, révision c10ece1a"
+    },
+    {
+      "path": "piper/fr_FR-tom-medium.onnx.json",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx.json",
+      "size": 4959,
+      "sha256": "2f7f885ad5a0aad802e3cc24e4f57239febdcb142b4876de5d238094674361cc",
+      "licence": "AGPL-3.0 (jeu de données de la voix, d'après MODEL_CARD)",
+      "source": "huggingface.co/rhasspy/piper-voices, révision c10ece1a"
+    }
+  ]
+}

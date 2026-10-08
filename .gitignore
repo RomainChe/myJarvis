@@ -15,3 +15,7 @@ node_modules/
 *.sqlite3
 .claude/settings.local.json
 .claude/worktrees/
+
+# Poids des modèles de la voix (le MANIFEST.json, lui, est versionné)
+models/*
+!models/MANIFEST.json
