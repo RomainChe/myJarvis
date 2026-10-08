@@ -16,14 +16,14 @@ WAIT_S = 15  # échéance (temps réel) par étape : la scène bloque l'appelant
 NOT_EQUIPPED = ["volets du salon", "lumière du salon", "volume préréglé"]
 
 
-def _wait(ok) -> bool:
+def _wait(ok, result: dict) -> bool:
     deadline = _now() + WAIT_S
     while True:
         try:
             if ok(tv.tv_status()):
                 return True
-        except ha.HAError:  # HA tombe après l'action : « non confirmée », pas une exception
-            pass
+        except ha.HAError as e:  # HA tombe après l'action : « non confirmée », cause gardée dans le résultat
+            result["erreur"] = str(e)  # message fixe de ha.py, sans secret (un 403 ne passe pas pour une TV lente)
         if _now() >= deadline:
             return False
         _sleep(1)
@@ -43,11 +43,11 @@ def scene_cinema(app: str) -> dict:
     result = {"tv": "allumée" if tv.tv_status()["state"] == "on" else None, "app": None, "non_traité": list(NOT_EQUIPPED)}
     if result["tv"] is None:
         tv.tv_on()
-        result["tv"] = "allumée" if _wait(lambda s: s["state"] == "on") else "non confirmée"
+        result["tv"] = "allumée" if _wait(lambda s: s["state"] == "on", result) else "non confirmée"
     if name and result["tv"] == "allumée":
         try:
             tv.tv_open_app(name)
-            result["app"] = name if _wait(lambda s: s["app"] == name) else "non confirmée"
-        except ha.HAError:  # la TV est déjà allumée : on le dit au lieu de tout effacer par une exception
-            result["app"] = "non confirmée"
+            result["app"] = name if _wait(lambda s: s["app"] == name, result) else "non confirmée"
+        except ha.HAError as e:  # la TV est déjà allumée : on le dit au lieu de tout effacer par une exception
+            result["app"], result["erreur"] = "non confirmée", str(e)
     return result

@@ -42,6 +42,13 @@ class CinemaTest(PcBase):
         tv.tv_status.side_effect = status
         self.assertEqual(self.run_tool("scene_cinema", {"app": ""})["tv"], "non confirmée")
 
+    def test_erreur_ha_visible_dans_le_resultat(self):
+        self.state = {"state": "on", "app": "accueil"}
+        with mock.patch.object(tv, "tv_open_app", side_effect=ha.HAError("action refusée pour l'utilisateur jarvis")):
+            out = self.run_tool("scene_cinema", {"app": "youtube"})
+        self.assertEqual((out["app"], out["erreur"]), ("non confirmée", "action refusée pour l'utilisateur jarvis"))
+        self.assertNotIn("erreur", self.run_tool("scene_cinema", {"app": ""}))
+
     def test_sous_outil_releve_refuse_toute_la_scene(self):
         for sub_tool, app in (("tv_on", ""), ("tv_open_app", "youtube")):
             raised = dataclasses.replace(REGISTRY[sub_tool], level=Level.N2)

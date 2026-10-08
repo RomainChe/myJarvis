@@ -23,7 +23,7 @@ KEYS = {"home": "HOME", "back": "BACK", "up": "DPAD_UP", "down": "DPAD_DOWN", "l
 
 
 def app_key(app: str) -> str:
-    """Nom d'appli comparé comme le routeur : casse, accents et espaces ignorés (« Nétflix » = netflix)."""
+    """Nom d'appli comparé comme le routeur : casse, accents et espaces de bordure ignorés (« Nétflix » = netflix)."""
     return "".join(c for c in unicodedata.normalize("NFD", app.casefold()) if not unicodedata.combining(c)).strip()
 
 
