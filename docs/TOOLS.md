@@ -234,7 +234,7 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 ## scene_cinema (`jarvis/tools/home/scenes.py`)
 
 - **Description** : mode cinéma. Allume la TV du salon (la barre de son suit en HDMI-CEC) si elle ne l'est pas, lance l'appli demandée, puis **vérifie l'état réel** (jusqu'à 15 s par étape). Une TV non confirmée n'ouvre pas d'appli.
-- **Niveau** : N1, `taint_blocked` (lance une appli, comme `tv_open_app`).
+- **Niveau** : N1, `taint_blocked` (lance une appli, comme `tv_open_app`). Les sous-outils (`tv_on`, `tv_open_app`) sont appelés sans repasser par la garde, donc non journalisés à part : si le propriétaire en relève un au-dessus de N1, **toute la scène est refusée** avant la première action. Bloquante : 15 s au plus par étape (échéance en temps réel).
 - **Paramètres** : `app` : `youtube`, `netflix`, `twitch`, `spotify`, ou chaîne vide (aucune appli). Une appli inconnue est refusée avant toute action.
 - **Retour** : `tv` (`allumée` / `non confirmée`), `app` (nom / `non confirmée` / `null`), `non_traité` : ce que la scène ne fait pas encore (volets, lumière du salon, volume préréglé : matériel absent ou volume absolu indisponible).
 - **Exemples** : « mets le mode cinéma », « lance le mode cinéma sur Netflix » (motifs exacts du routeur) ; `python -m jarvis run scene_cinema app=netflix`.

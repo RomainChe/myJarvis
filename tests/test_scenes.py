@@ -1,8 +1,10 @@
+import dataclasses
 import unittest
 from unittest import mock
 
+from jarvis.core import ha
 from jarvis.core.router import Router
-from jarvis.core.tools import REGISTRY, Level
+from jarvis.core.tools import REGISTRY, Level, _registry
 from jarvis.tools.home import scenes, tv
 from pcbase import PcBase
 
@@ -10,15 +12,43 @@ from pcbase import PcBase
 class CinemaTest(PcBase):
     def setUp(self):
         super().setUp()
+        self.clock = 0.0
         self.state = {"state": "off", "app": None}
         self.calls = []
         patches = [mock.patch.object(tv, "tv_status", side_effect=lambda: dict(self.state)),
                    mock.patch.object(tv, "tv_on", side_effect=lambda: self.calls.append("on")),
                    mock.patch.object(tv, "tv_open_app", side_effect=lambda a: self.calls.append(a)),
-                   mock.patch.object(scenes, "_sleep")]
+                   mock.patch.object(scenes, "_sleep", side_effect=self.tick),
+                   mock.patch.object(scenes, "_now", side_effect=lambda: self.clock)]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
+
+    def tick(self, seconds):
+        self.clock += seconds
+
+    def test_attente_bornee_en_temps_reel(self):
+        tv.tv_status.side_effect = lambda: (self.tick(4), dict(self.state))[1]  # HA lent : 4 s par lecture
+        self.run_tool("scene_cinema", {"app": ""})
+        self.assertLess(self.clock, scenes.WAIT_S + 4 + 1 + 4)  # une seule échéance, pas 15 itérations x 4 s
+
+    def test_ha_qui_tombe_pendant_l_attente_donne_non_confirmee(self):
+        calls = iter([dict(self.state)])  # première lecture ok, puis HA injoignable
+        def status():
+            try:
+                return next(calls)
+            except StopIteration:
+                raise ha.HAError("Home Assistant injoignable") from None
+        tv.tv_status.side_effect = status
+        self.assertEqual(self.run_tool("scene_cinema", {"app": ""})["tv"], "non confirmée")
+
+    def test_sous_outil_releve_refuse_toute_la_scene(self):
+        for sub_tool, app in (("tv_on", ""), ("tv_open_app", "youtube")):
+            raised = dataclasses.replace(REGISTRY[sub_tool], level=Level.N2)
+            with mock.patch.dict(_registry, {sub_tool: raised}):
+                with self.assertRaises(ValueError):
+                    self.run_tool("scene_cinema", {"app": app})
+            self.assertEqual(self.calls, [], sub_tool)
 
     def test_niveau(self):
         self.assertEqual(REGISTRY["scene_cinema"].level, Level.N1)
