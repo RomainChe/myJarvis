@@ -121,6 +121,9 @@ Astuce perçue : un bip court dès la fin de phrase détectée.
 Limite connue : une empreinte vocale peut être trompée par un enregistrement ou une voix de
 synthèse. C'est acceptable pour du N2 (réversible ou confirmé par conséquence énoncée), jamais pour du N3.
 
+## 5bis. Micro (étape 4)
+`jarvis/core/mic.py` : flux 16 kHz mono sur `JARVIS_AUDIO_IN` (nom ou index, `python -m jarvis mic devices`), jamais de nom dans le dépôt. Seuil `JARVIS_WAKE_THRESHOLD` (0,2 à 0,95, défaut 0,5). Kill switch persistant : `python -m jarvis mic off|on` (fichier `mic_off` à côté de la base). **Limite connue : la voix seule n'authentifie personne** (pas d'empreinte vocale) ; le plafond N0/N1 de `Voice` s'applique.
+
 ## 6. Questions pour la Phase 4
 - Micro : quel matériel (casque, micro de webcam, micro d'ambiance) ? Il conditionne les faux réveils.
 - « hey jarvis » suffit-il, ou faut-il entraîner « Jarvis » seul ?

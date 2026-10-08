@@ -10,6 +10,7 @@
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
     python -m jarvis say "<texte>"                     (lit le texte à voix haute, source `voix`)
+    python -m jarvis mic [listen] | on | off | devices (écoute « hey jarvis » ; `off` = kill switch persistant ; JARVIS_AUDIO_IN)
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
 import getpass
@@ -120,6 +121,35 @@ def passkey_cmd(argv: list[str], audit: Audit) -> int:
     return 0 if ok else 1
 
 
+def mic_cmd(argv: list[str], audit: Audit) -> int:
+    from jarvis.core.mic import Mic, threshold_from_env
+    sub = argv[1] if len(argv) > 1 else "listen"
+    if sub == "devices":
+        import sounddevice
+        for i, d in enumerate(sounddevice.query_devices()):
+            if d["max_input_channels"] > 0:
+                print(i, d["name"])
+        return 0
+    mic = Mic(lambda audio: print(f"phrase de {len(audio) / 16000:.1f} s (jetée, étape 5 : Whisper)"), audit,
+              on_state=lambda s: print(f"[{s}]"), flag=DB_PATH.parent / "mic_off", threshold=threshold_from_env())
+    if sub in ("on", "off"):
+        mic.disable() if sub == "off" else mic.enable()
+        print("micro coupé" if sub == "off" else "micro autorisé")
+        return 0
+    if sub != "listen":
+        print(__doc__)
+        return 2
+    print("Dis « hey jarvis » puis une phrase. Ctrl+C pour quitter.")
+    try:
+        mic.run()
+    except KeyboardInterrupt:
+        pass
+    if mic.error:
+        print(mic.error)
+        return 1
+    return 0
+
+
 def push_cmd(argv: list[str], audit: Audit) -> int:
     if len(argv) != 3 or argv[1] != "test" or not argv[2].isdigit():
         print("Usage : push test <id appareil>")
@@ -203,6 +233,8 @@ def main(argv: list[str]) -> int:
             print(voice.speaker.error)
             return 1
         return 0
+    if argv[0] == "mic":
+        return mic_cmd(argv, audit)
     if argv[0] == "passkey":
         return passkey_cmd(argv, audit)
     if argv[0] == "push":

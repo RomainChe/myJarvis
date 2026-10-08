@@ -26,9 +26,9 @@ class TTSError(Exception):
     """Message fixe : ne contient jamais le texte lu."""
 
 
-def audio_device():
-    """JARVIS_AUDIO_OUT : nom ou index ; vide = sortie par défaut."""
-    raw = os.environ.get("JARVIS_AUDIO_OUT", "").strip()
+def audio_device(var="JARVIS_AUDIO_OUT"):
+    """Variable d'environnement (nom ou index) ; vide = périphérique par défaut. Jamais de nom dans le dépôt (31)."""
+    raw = os.environ.get(var, "").strip()
     return int(raw) if raw.isdigit() else (raw or None)
 
 
