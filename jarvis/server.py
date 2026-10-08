@@ -24,6 +24,7 @@ from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.dashboard import Dashboard
 from jarvis.core.devices import Devices
+from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
 from jarvis.core.push import Push, subject_from_env
@@ -352,6 +353,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         return with_youtube(social_snapshot(), youtube)
+
+    @app.get("/api/finance")
+    def finance_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        audit.log(f"pwa:{auth[0]}", "finance_read", {}, 2, "auto", "rapports financiers lus")  # trace d'abord : journal en échec = rien lu
+        return finance_snapshot()
 
     @app.get("/api/mic")
     def mic_state(request: Request):

@@ -152,7 +152,7 @@ $('enroll-form').addEventListener('submit', (e) => {
 
 // ---- Navigation ------------------------------------------------------------------------------
 const wide = window.matchMedia('(min-width: 1200px)');
-const views = { chat: $('view-chat'), home: $('view-home'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social') };
+const views = { chat: $('view-chat'), home: $('view-home'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social'), finance: $('view-finance') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
@@ -164,13 +164,14 @@ function show(name) {
   else clearTimeout(homeTimer);
   if (name === 'settings') loadSettings();
   if (name === 'social') loadSocial();
+  if (name === 'finance') loadFinance(); else clearFinance();
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
-// Raccourcis clavier (bureau) : Alt+1..6 change de vue, « / » met le focus sur la saisie du chat.
+// Raccourcis clavier (bureau) : Alt+1..7 change de vue, « / » met le focus sur la saisie du chat.
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
-  if (e.altKey && /^[1-6]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
+  if (e.altKey && /^[1-7]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
   if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
     e.preventDefault(); show('chat'); $('chat-input').focus();
   }
@@ -442,6 +443,41 @@ async function loadSocial() {
   } catch (e) {
     err.hidden = false;
     err.textContent = unavailable('Réseaux indisponibles', e);
+  }
+}
+
+// ---- Finances : rapports hebdo (lecture seule, données sensibles : rien n'est gardé hors de la vue ouverte) ---------
+const eur = (n) => (Number.isFinite(n) ? n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : '—');
+function clearFinance() {
+  for (const id of ['fin-cards', 'fin-cats', 'fin-trend']) $(id).replaceChildren();
+  $('fin-body').hidden = true;
+  $('fin-left').textContent = $('fin-balance').textContent = $('fin-period').textContent = '';
+}
+async function loadFinance() {
+  const err = $('fin-error'), state = $('fin-state');
+  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…';
+  try {
+    const r = await api('/api/finance');
+    if (!r.ok || !r.data) throw new Error('bad');
+    const d = r.data.latest;
+    if (views.finance.hidden) return; // vue quittée pendant le chargement
+    if (!d) { state.textContent = r.data.configured ? 'Aucun rapport reconnu.' : 'Dossier des rapports introuvable.'; return; }
+    state.hidden = true; $('fin-body').hidden = false;
+    $('fin-period').textContent = `Semaine ${d.week}${d.period ? ` · ${d.period}` : ''}`;
+    const card = (title, c) => {
+      const s = el('section', 'panel hud stat');
+      s.append(el('h2', '', title), el('p', 'big', eur(c?.amount)), el('p', 'muted', Number.isInteger(c?.vs_pct) ? `${c.vs_pct > 0 ? '+' : ''}${c.vs_pct} % vs sem. préc.` : ''));
+      return s;
+    };
+    $('fin-cards').replaceChildren(card('Dépenses', d.spent), card('Épargne', d.saved), card('Consommation', d.consumed), card('Entrées', d.income));
+    $('fin-left').textContent = eur(d.left_to_live) + (Number.isFinite(d.per_day) ? ` · ≈ ${eur(d.per_day)}/jour` : '');
+    $('fin-balance').textContent = Number.isFinite(d.balance) ? `Total disponible : ${eur(d.balance)}` : '';
+    $('fin-cats').replaceChildren(...(d.categories.length ? d.categories.map((c) => meter(c.name, c.pct, `${eur(c.amount)} · ${c.pct} %`)) : [el('li', 'muted', 'Aucune catégorie.')]));
+    const top = Math.max(1, ...r.data.trend.map((t) => t.spent ?? 0));
+    $('fin-trend').replaceChildren(...r.data.trend.map((t) => meter(`S${t.week}`, ((t.spent ?? 0) / top) * 100, eur(t.spent))));
+  } catch (e) {
+    state.hidden = true; err.hidden = false;
+    err.textContent = unavailable('Finances indisponibles', e);
   }
 }
 
