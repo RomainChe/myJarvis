@@ -195,6 +195,23 @@ class KillProcessTest(PcBase):
             with self.assertRaises(ValueError, msg=image):
                 apps._check_target(image, name, 1)
 
+    def test_processus_de_jarvis_proteges(self):  # S8 minimal : Tailscale et Ollama ne se coupent pas à distance
+        for exe in ("tailscaled.exe", "Tailscale.exe", "tailscale-ipn.exe", "ollama.exe", "ollama app.exe",
+                    "ollama_llama_server.exe", "OLLAMA.EXE"):
+            image = rf"C:\Program Files\Truc\{exe}"
+            with self.assertRaises(ValueError, msg=exe):
+                apps._check_target(image, exe, 1)
+        apps._check_target(r"C:\Program Files\Truc\olla.exe", "olla.exe", 1)  # pas de préfixe trop large
+
+    def test_kill_refuse_un_processus_protege_sans_le_terminer(self):
+        with mock.patch.object(apps, "_k32") as k32, mock.patch.object(apps, "_image_of",
+                                                                       return_value=r"C:\Ollama\ollama.exe"):
+            k32.OpenProcess.return_value = 1234
+            with self.assertRaises(ValueError):
+                apps._kill(4242, "ollama.exe")
+        k32.TerminateProcess.assert_not_called()
+        k32.CloseHandle.assert_called_once_with(1234)
+
     def test_pid_inexistant_leve_une_erreur_sans_rien_tuer(self):
         with self.assertRaises(OSError):
             apps._kill(0x7FFFFFF0, "x.exe")

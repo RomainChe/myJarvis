@@ -113,7 +113,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : `pid` (entier, > 4) et `name` (texte, ex. `notepad.exe`) : le nom doit être celui de l'image du processus au moment de l'arrêt.
 - **Retour** : `killed` (pid) et `name`.
 - **Exemple** : `python -m jarvis run kill_process pid=4242 name=notepad.exe`.
-- **Notes** : un seul handle sert à vérifier le nom puis à terminer (un PID réattribué est refusé). Refusés : PID ≤ 4, le processus Jarvis lui-même, tout exécutable situé sous le dossier Windows. Test réel limité à un PID inexistant ; l'arrêt est testé avec un mock.
+- **Notes** : un seul handle sert à vérifier le nom puis à terminer (un PID réattribué est refusé). Refusés : PID ≤ 4, le processus Jarvis lui-même, tout exécutable situé sous le dossier Windows (donc Hyper-V : `vmwp`, `vmms`), et par nom d'image réel (S8 minimal) `tailscaled`, `tailscale`, `tailscale-ipn` et tout `ollama*`. Les ancêtres complets de Jarvis restent en Phase 5. Test réel limité à un PID inexistant ; l'arrêt est testé avec un mock.
 
 ## set_volume
 

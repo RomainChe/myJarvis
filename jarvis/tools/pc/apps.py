@@ -24,6 +24,10 @@ WINDOWS_DIR = Path(os.environ.get("SystemRoot", r"C:\Windows"))
 DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 PROCESS_TERMINATE, QUERY_LIMITED = 0x0001, 0x1000
 WM_CLOSE = 0x0010
+# S8 minimal (revue Phase 3) : le téléphone ne doit pas pouvoir couper sa propre liaison ni le LLM. Les processus
+# de Hyper-V (vmwp, vmms) sont sous le dossier Windows, donc déjà refusés. Les ancêtres de Jarvis : Phase 5.
+PROTECTED_IMAGES = {"tailscaled.exe", "tailscale.exe", "tailscale-ipn.exe"}
+PROTECTED_PREFIXES = ("ollama",)  # ollama.exe, "ollama app.exe", ollama_llama_server.exe
 
 _k32 = ctypes.WinDLL("kernel32", use_last_error=True)
 _u32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -155,6 +159,9 @@ def _check_target(image: str, name: str, pid: int) -> None:
         raise ValueError(f"le processus {pid} n'est pas {name}")
     if Path(image).is_relative_to(WINDOWS_DIR):
         raise ValueError(f"processus système protégé : {name}")
+    real = PureWindowsPath(image).name.lower()
+    if real in PROTECTED_IMAGES or real.startswith(PROTECTED_PREFIXES):
+        raise ValueError(f"processus protégé (accès distant ou LLM de Jarvis) : {name}")
 
 
 def _kill(pid: int, name: str) -> None:
