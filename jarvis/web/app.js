@@ -150,7 +150,7 @@ $('enroll-form').addEventListener('submit', (e) => {
 
 // ---- Navigation ------------------------------------------------------------------------------
 const wide = window.matchMedia('(min-width: 1200px)');
-const views = { chat: $('view-chat'), home: $('view-home'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit') };
+const views = { chat: $('view-chat'), home: $('view-home'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
@@ -161,13 +161,14 @@ function show(name) {
   if (name === 'home') loadHome();
   else clearTimeout(homeTimer);
   if (name === 'settings') loadSettings();
+  if (name === 'social') loadSocial();
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
-// Raccourcis clavier (bureau) : Alt+1..5 change de vue, « / » met le focus sur la saisie du chat.
+// Raccourcis clavier (bureau) : Alt+1..6 change de vue, « / » met le focus sur la saisie du chat.
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
-  if (e.altKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
+  if (e.altKey && /^[1-6]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
   if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
     e.preventDefault(); show('chat'); $('chat-input').focus();
   }
@@ -403,6 +404,35 @@ async function loadHome() {
     $('sys-error').textContent = 'Tableau de bord indisponible : PC injoignable.';
   }
   homeTimer = setTimeout(() => { if (!views.home.hidden && !document.hidden) loadHome(); else if (!views.home.hidden) homeTimer = setTimeout(loadHome, 5000); }, 5000);
+}
+
+// ---- Réseaux : publications et planning de lol-clipper (lecture seule) -----------------------------------------------
+const PLATFORMS = { youtube: 'YouTube', tiktok: 'TikTok', all: 'YouTube + TikTok' };
+const fmtDate = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+function socialRow(r, withLink) {
+  const li = el('li', 'row');
+  li.append(el('div', 'tool', r.title), el('div', 'meta', `${PLATFORMS[r.platform] ?? r.platform} · ${fmtDate(r.at)}${r.privacy ? ` · ${r.privacy}` : ''}`));
+  if (withLink && typeof r.url === 'string' && URL.canParse(r.url) && new URL(r.url).protocol === 'https:') {
+    const a = el('a', '', 'Ouvrir');
+    a.href = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    li.append(a);
+  }
+  return li;
+}
+async function loadSocial() {
+  const err = $('social-error');
+  try {
+    const r = await api('/api/social');
+    if (!r.ok || !r.data) throw new Error('bad');
+    err.hidden = r.data.configured;
+    err.textContent = 'Dossier de lol-clipper introuvable.';
+    const fill = (id, rows, empty, link) => $(id).replaceChildren(...(rows.length ? rows.map((x) => socialRow(x, link)) : [el('li', 'row muted', empty)]));
+    fill('social-todo', r.data.scheduled, 'Rien de programmé.', false);
+    fill('social-done', r.data.published, 'Aucune publication.', true);
+  } catch {
+    err.hidden = false;
+    err.textContent = 'Réseaux indisponibles : PC injoignable.';
+  }
 }
 
 // ---- Appareils -------------------------------------------------------------------------------
