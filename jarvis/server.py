@@ -8,11 +8,12 @@ import os
 import re
 import time
 from collections import deque
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, StrictBool
 
 from jarvis.core.audit import Audit
@@ -32,6 +33,13 @@ HEADERS = {
     "Cache-Control": "no-store",
 }
 _now = time.monotonic  # remplacé dans les tests
+WEB_DIR = Path(__file__).parent / "web"
+# Fichiers statiques : dossier plat, extensions de cette liste seulement. Un chemin ne sert que s'il est EXACTEMENT
+# le nom d'un de ces fichiers (jamais de jointure avec la saisie : pas de traversée de chemin).
+WEB_TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+             ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
+             ".webmanifest": "application/manifest+json"}
+AUDIT_ROWS = 50
 ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
@@ -55,7 +63,8 @@ class Confirm(BaseModel):
     approve: StrictBool  # « oui » ou 1 ne confirment rien : seul `true` confirme
 
 
-def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None) -> FastAPI:
+def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
+               web_dir: Path = WEB_DIR) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
     host, origin = f"{HOST}:{port}", f"http://{HOST}:{port}"
     failures: deque[float] = deque()
@@ -144,6 +153,25 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return reply(404, "introuvable")  # inconnue, expirée, déjà servie ou d'un autre appareil : même réponse
         return {"ok": True}
 
+    @app.get("/api/audit")
+    def audit_rows(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        with audit.lock:  # la connexion du journal est partagée avec les écritures des autres threads
+            rows = audit.last(AUDIT_ROWS)
+        # Ni la colonne `hash`, ni les arguments : l'écran n'en a pas besoin.
+        return {"rows": [{"ts": r[0], "source": r[1], "tool": r[2], "level": r[4], "decision": r[5], "result": r[6]}
+                         for r in rows]}
+
+    @app.get("/api/devices")
+    def device_list(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return {"devices": [{"id": r[0], "name": r[1], "created": r[2], "last_used": r[3], "revoked": bool(r[4])}
+                            for r in devices.list()], "current": auth[0]}
+
     @app.post("/api/enroll")
     def enroll(body: Enroll):
         locked = devices.locked()
@@ -158,10 +186,21 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         audit.log(f"pwa:{result[0]}", "enroll", {"name": body.name.strip()}, None, "auto", "appareil enrôlé")
         return {"id": result[0], "token": result[1]}
 
+    files = {p.name: p for p in web_dir.iterdir() if p.is_file() and p.suffix in WEB_TYPES} if web_dir.is_dir() else {}
+
+    @app.get("/")
+    @app.get("/{name}")
+    def static(name: str = "index.html"):  # le shell ne contient aucun secret : pas d'authentification
+        path = files.get(name)
+        if path is None:
+            return reply(404, "introuvable")
+        return Response(path.read_bytes(), media_type=WEB_TYPES[path.suffix])
+
     return app
 
 
-def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None) -> uvicorn.Server:
-    config = uvicorn.Config(create_app(devices, audit, port, chat), host=HOST, port=port, access_log=False,
+def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
+                web_dir: Path = WEB_DIR) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir), host=HOST, port=port, access_log=False,
                             server_header=False, proxy_headers=False, log_level="warning")
     return uvicorn.Server(config)

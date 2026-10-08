@@ -3,9 +3,11 @@ import http.client
 import json
 import re
 import socket
+import tempfile
 import threading
 import time
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from jarvis import __main__ as cli
@@ -27,7 +29,13 @@ class ServerBase(unittest.TestCase):
         self.port = free_port()
         self.devices, self.audit = Devices(":memory:"), Audit(":memory:")
         self.chat = Chat(self.audit)
-        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat)
+        self.web = Path(tempfile.mkdtemp())
+        for name, text in (("index.html", "<h1>JARVIS</h1>"), ("app.js", "export {}"), ("app.css", "body{}"),
+                           ("sw.js", "//"), ("notes.txt", "secret"), ("manifest.webmanifest", "{}")):
+            (self.web / name).write_text(text)
+        (self.web / "sub").mkdir()
+        (self.web / "sub" / "x.js").write_text("export {}")
+        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat, self.web)
         threading.Thread(target=self.srv.run, daemon=True).start()
         for _ in range(100):
             if self.srv.started:
@@ -54,7 +62,8 @@ class ServerBase(unittest.TestCase):
         r = conn.getresponse()
         raw = r.read()
         conn.close()
-        return r.status, (json.loads(raw) if raw else None), r
+        is_json = "json" in (r.getheader("Content-Type") or "") and not r.getheader("Content-Type", "").startswith("application/manifest")
+        return r.status, (json.loads(raw) if raw and is_json else raw or None), r
 
     def enroll(self, name="téléphone"):
         code = self.devices.new_code()
@@ -210,6 +219,55 @@ class GuardTest(ServerBase):
         with mock.patch.dict("os.environ", {"JARVIS_PORT": "80"}):
             with self.assertRaises(ValueError):
                 server.port_from_env()
+
+
+class StaticTest(ServerBase):
+    def test_shell_sans_authentification_avec_les_bons_types(self):
+        for path, kind in (("/", "text/html"), ("/index.html", "text/html"), ("/app.js", "text/javascript"),
+                           ("/app.css", "text/css"), ("/manifest.webmanifest", "application/manifest+json")):
+            status, _, r = self.call("GET", path)
+            self.assertEqual(status, 200, path)
+            self.assertTrue(r.getheader("Content-Type").startswith(kind), path)
+            self.assertIn("script-src 'self'", r.getheader("Content-Security-Policy"))  # CSP aussi sur le shell
+
+    def test_rien_d_autre_que_la_liste_de_fichiers(self):
+        for path in ("/notes.txt", "/sub/x.js", "/sub", "/nope.js", "/..%2fserver.py", "/%2e%2e/server.py",
+                     "/..\\server.py", "/app.js%00.txt", "//app.js", "/api", "/API/ping"):
+            self.assertIn(self.call("GET", path)[0], (400, 404, 405, 307), path)
+            status, body, _ = self.call("GET", path)
+            self.assertNotEqual(status, 200, path)
+        self.assertEqual(self.call("POST", "/", {"x": 1})[0], 405)  # lecture seule
+
+    def test_les_routes_api_priment_sur_le_shell(self):
+        self.assertEqual(self.call("GET", "/api/ping")[0], 401)  # pas du statique
+
+
+class ReadRoutesTest(ServerBase):
+    def test_authentification_obligatoire(self):
+        for path in ("/api/audit", "/api/devices"):
+            self.assertEqual(self.call("GET", path)[0], 401, path)
+
+    def test_journal_sans_hash_ni_arguments(self):
+        _, token = self.enroll("tel")
+        self.audit.log("pwa:1/llm", "kill_process", {"pid": 4242, "name": "SECRET.exe"}, 2, "refusé", None)
+        status, body, _ = self.call("GET", "/api/audit", token=token)
+        self.assertEqual(status, 200)
+        row = body["rows"][0]
+        self.assertEqual(set(row), {"ts", "source", "tool", "level", "decision", "result"})
+        self.assertEqual((row["source"], row["tool"], row["decision"]), ("pwa:1/llm", "kill_process", "refusé"))
+        self.assertNotIn("SECRET", json.dumps(body))
+        self.assertLessEqual(len(body["rows"]), server.AUDIT_ROWS)
+
+    def test_appareils_sans_hash_avec_l_appareil_courant(self):
+        first, token = self.enroll("tel")
+        second, _ = self.enroll("pc")
+        self.devices.revoke(second)
+        status, body, _ = self.call("GET", "/api/devices", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["current"], first)
+        self.assertEqual([(d["id"], d["name"], d["revoked"]) for d in body["devices"]], [(first, "tel", False), (second, "pc", True)])
+        self.assertNotIn("hash", json.dumps(body))
+        self.assertNotIn(token, json.dumps(body))
 
 
 class DevicesTest(unittest.TestCase):

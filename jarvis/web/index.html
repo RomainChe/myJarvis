@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JARVIS</title>
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F6F8" media="(prefers-color-scheme: light)">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="status" class="status" role="status" hidden></div>
+
+<main id="enroll" class="screen center" hidden>
+  <form id="enroll-form" class="card" autocomplete="off">
+    <div class="orb" aria-hidden="true"></div>
+    <h1>Associer cet appareil</h1>
+    <p class="muted">Saisissez le code d'enrôlement affiché par la commande JARVIS sur le PC.</p>
+    <label for="enroll-name">Nom de l'appareil</label>
+    <input id="enroll-name" type="text" maxlength="40" required>
+    <label for="enroll-code">Code d'enrôlement</label>
+    <input id="enroll-code" type="text" inputmode="text" autocapitalize="off" spellcheck="false" maxlength="64" required>
+    <p id="enroll-error" class="error" role="alert" hidden></p>
+    <button id="enroll-submit" class="btn primary" type="submit">Associer</button>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <section id="view-chat" class="view" aria-labelledby="t-chat">
+    <h1 id="t-chat" class="title">Chat</h1>
+    <div id="log" class="log" role="log" aria-live="polite" aria-label="Conversation avec Jarvis">
+      <p id="log-empty" class="muted">Demandez quelque chose à Jarvis, par exemple « état du PC ».</p>
+    </div>
+    <p id="thinking" class="thinking" hidden><span class="orb small" aria-hidden="true"></span> Jarvis réfléchit…</p>
+    <form id="chat-form" class="composer">
+      <label for="chat-input" class="sr">Demander à Jarvis</label>
+      <textarea id="chat-input" rows="1" maxlength="1000" placeholder="Demander à Jarvis" enterkeyhint="send"></textarea>
+      <button id="chat-send" class="btn primary" type="submit">Envoyer</button>
+    </form>
+  </section>
+
+  <section id="view-audit" class="view" aria-labelledby="t-audit" hidden>
+    <h1 id="t-audit" class="title">Journal</h1>
+    <p class="muted">Les 50 dernières actions, de la plus récente à la plus ancienne. Lecture seule.</p>
+    <div id="audit-list"></div>
+  </section>
+
+  <section id="view-devices" class="view" aria-labelledby="t-devices" hidden>
+    <h1 id="t-devices" class="title">Appareils</h1>
+    <p class="muted">Appareils autorisés. La révocation se fait en ligne de commande sur le PC.</p>
+    <ul id="devices-list" class="plain"></ul>
+  </section>
+
+  <nav class="tabs" aria-label="Navigation principale">
+    <button class="tab" type="button" data-view="chat" aria-current="page">Chat</button>
+    <button class="tab" type="button" data-view="audit">Journal</button>
+    <button class="tab" type="button" data-view="devices">Appareils</button>
+  </nav>
+</div>
+
+<div id="overlay" class="overlay" hidden>
+  <div id="dialog" class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-body">
+    <p class="badge n2">Action sensible · N2</p>
+    <h2 id="dlg-title">Confirmer l'action</h2>
+    <div id="dlg-body">
+      <p class="muted">Ce qui va se passer :</p>
+      <p id="dlg-preview" class="preview"></p>
+      <p class="muted">Outil : <span id="dlg-tool"></span></p>
+    </div>
+    <p id="dlg-timer" class="muted"></p>
+    <p id="dlg-alert" class="sr" role="status"></p>
+    <div class="actions">
+      <button id="dlg-deny" class="btn" type="button">Refuser</button>
+      <button id="dlg-ok" class="btn primary" type="button">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

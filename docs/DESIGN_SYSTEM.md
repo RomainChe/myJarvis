@@ -382,3 +382,22 @@ Propositions (petites, sans dépendance, à confier au Développeur généralist
 4. Navigation à 4 onglets (Chat, Appareils, Journal, Réglages) : l'accueil mobile prévu par le prompt
    UX (scènes + appareils actifs + micro) est fusionné dans l'onglet Appareils pour rester à 4 écrans.
 5. Lancer ou non les améliorations de la CLI (§6) dès la Phase 1.
+
+## 7bis. Implémentation de l'étape 4 (PWA minimale, `jarvis/web/`)
+
+Dossier plat : `index.html`, `app.css` (tokens `--j-*` de §2, sombre par défaut, clair par `prefers-color-scheme`),
+`app.js` (un module ES), `sw.js`, `manifest.webmanifest`, `icon.svg`. Aucune bibliothèque, police ni ressource externe
+(pile système, Inter si installée).
+
+- Écrans : enrôlement (`#code=` lu puis effacé du fragment, ou saisie à la main), Chat, Journal (50 lignes groupées par
+  `source.split('/')[0]`, niveau et décision en texte ET couleur), Appareils (sans révocation : reste en CLI).
+  Navigation basse à 3 onglets. Réglages et appareils domotiques : hors périmètre de l'étape.
+- Dialogue N2 (§3.4) : `role="alertdialog"`, focus piégé, Refuser a le focus par défaut, Échap refuse, compte à
+  rebours annoncé à 10 s seulement, fond rendu `inert`. À l'expiration : aucun appel, message « rien n'a été fait ».
+  Aucune interface N3 (refusé côté serveur).
+- Sécurité : CSP stricte respectée (aucun style/script en ligne), rendu serveur uniquement par `textContent`,
+  token en IndexedDB, jamais dans l'URL ni les logs. Un 401 efface le token, vide les caches et revient à l'enrôlement ;
+  un 429 affiche « occupé ».
+- Service worker : cache `jarvis-shell-v1` du seul shell statique (réseau d'abord, cache en secours), purge des anciens
+  caches à l'activation, `/api/*` et toute requête avec `Authorization` passent sans cache, un 401 vide les caches.
+- Limite connue : icône SVG seule (`any maskable`) ; certains Android exigent des PNG 192/512 pour l'installation.
