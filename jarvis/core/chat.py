@@ -19,6 +19,7 @@ from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
+from jarvis.core.push import Push
 from jarvis.core.tools import REGISTRY, Level, Tool
 from jarvis.core.webauthn import Passkeys
 
@@ -57,8 +58,9 @@ class Job:
 
 
 class Chat:
-    def __init__(self, audit: Audit, passkeys: Passkeys | None = None):
+    def __init__(self, audit: Audit, passkeys: Passkeys | None = None, push: Push | None = None):
         self.audit = audit
+        self.push = push  # notification générique quand une confirmation attend (l'appli peut être en arrière-plan)
         self.passkeys = passkeys
         levels.load(audit)  # le serveur applique toujours les niveaux réglés par le propriétaire
         self.busy = threading.Lock()  # un seul appel à la fois (un seul LLM local) : le reste reçoit « occupé »
@@ -137,6 +139,8 @@ class Chat:
             p.webauthn = self.passkeys.request_options(job.device, f"confirm:{p.id}")
         with self.lock:
             job.pending = p
+        if self.push:
+            self.push.notify(job.device, self.audit)
         answered = p.event.wait(CONFIRM_TTL_S)
         with self.lock:
             job.pending = None

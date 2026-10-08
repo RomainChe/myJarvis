@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS devices (
     revoked INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS enroll_codes (code_hash TEXT PRIMARY KEY, expires REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS push_subs (device_id INTEGER PRIMARY KEY, endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL);
 """
 
 
@@ -85,6 +86,7 @@ class Devices:
 
     def revoke(self, device_id: int) -> bool:
         with self.lock:
+            self.db.execute("DELETE FROM push_subs WHERE device_id = ?", (device_id,))  # plus de notification vers un appareil révoqué
             return self.db.execute("UPDATE devices SET revoked = 1 WHERE id = ? AND revoked = 0",
                                    (device_id,)).rowcount == 1
 

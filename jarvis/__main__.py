@@ -7,6 +7,7 @@
     python -m jarvis ha check
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
+    python -m jarvis push test <id appareil>           (envoie une notification d'essai)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
@@ -24,6 +25,7 @@ from jarvis.core.audit import Audit
 from jarvis.core.devices import CODE_TTL_S, Devices
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
+from jarvis.core.push import Push, subject_from_env
 from jarvis.core.router import Router
 from jarvis.core.secrets import get_secret, set_secret
 from jarvis.core.tools import Tool
@@ -114,6 +116,16 @@ def passkey_cmd(argv: list[str], audit: Audit) -> int:
     return 0 if ok else 1
 
 
+def push_cmd(argv: list[str], audit: Audit) -> int:
+    if len(argv) != 3 or argv[1] != "test" or not argv[2].isdigit():
+        print("Usage : push test <id appareil>")
+        return 2
+    ok = Push(Devices(str(DB_PATH)), subject_from_env()).send(int(argv[2]))
+    audit.log("cli", "push_test", {"id": int(argv[2])}, None, "auto", "remise" if ok else "non remise")
+    print("Notification remise." if ok else "Non remise : appareil sans abonnement, révoqué, ou service de push injoignable.")
+    return 0 if ok else 1
+
+
 def level_cmd(argv: list[str]) -> int:
     if argv == ["level", "list"]:
         for name, base, floor, now in levels.table():
@@ -176,6 +188,8 @@ def main(argv: list[str]) -> int:
     levels.load(audit)
     if argv[0] == "passkey":
         return passkey_cmd(argv, audit)
+    if argv[0] == "push":
+        return push_cmd(argv, audit)
     if argv[0] == "level":
         return level_cmd(argv)
     if argv[0] == "device" or argv == ["serve"]:

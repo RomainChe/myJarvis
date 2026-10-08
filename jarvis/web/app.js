@@ -88,6 +88,7 @@ async function signOut() {
   $('audit-list').replaceChildren();
   $('devices-list').replaceChildren();
   $('levels-list').replaceChildren();
+  $('push-state').textContent = '';
   $('overlay').hidden = true;
   $('app').inert = false;
   setBusy(false);
@@ -409,7 +410,41 @@ async function applyLevel(row, level) {
   toast(r.ok ? `${row.tool} : N${level}` : 'Changement refusé.');
   loadSettings();
 }
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+async function loadPush() {
+  const state = $('push-state');
+  const btn = $('push-toggle');
+  btn.hidden = true;
+  if (!pushSupported()) { state.textContent = 'Notifications indisponibles sur ce navigateur.'; return; }
+  const reg = await navigator.serviceWorker.ready;
+  const [local, remote] = [await reg.pushManager.getSubscription(), await api('/api/push')];
+  if (!remote.ok || !remote.data) { state.textContent = 'État indisponible.'; return; }
+  const on = Boolean(local) && remote.data.subscribed === true;
+  state.textContent = on ? 'Activées : vous êtes prévenu quand une action attend votre confirmation.'
+    : Notification.permission === 'denied' ? 'Bloquées dans les réglages du navigateur.' : 'Désactivées.';
+  btn.textContent = on ? 'Désactiver les notifications' : 'Activer les notifications';
+  btn.hidden = Notification.permission === 'denied';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try { await togglePush(reg, on ? local : null, local, remote.data.key); } catch { toast('Notifications : échec.'); }
+    btn.disabled = false;
+    loadPush();
+  };
+}
+async function togglePush(reg, active, existing, key) {
+  if (active) { // abonnement connu des deux côtés : on le coupe
+    await active.unsubscribe();
+    await api('/api/push/unsubscribe', { method: 'POST', body: {} });
+    return;
+  }
+  if (await Notification.requestPermission() !== 'granted') { toast('Notifications refusées.'); return; }
+  // Abonnement local que le PC a oublié (purgé, base remise à zéro) : on le réenregistre au lieu d'en créer un autre.
+  const sub = (existing || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(key) })).toJSON();
+  const r = await api('/api/push', { method: 'POST', body: { endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth } });
+  if (!r.ok) toast('Abonnement refusé par le PC.');
+}
 async function loadSettings() {
+  loadPush().catch(() => { $('push-state').textContent = 'État indisponible.'; });
   const box = $('levels-list');
   box.replaceChildren(el('p', 'muted', 'Chargement…'));
   try {

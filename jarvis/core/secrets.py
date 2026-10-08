@@ -2,7 +2,7 @@
 import keyring
 
 SERVICE = "jarvis"
-NAMES = ("ha_token",)  # liste blanche : une faute de frappe ne crée pas un secret orphelin
+NAMES = ("ha_token", "vapid_key")  # liste blanche : une faute de frappe ne crée pas un secret orphelin
 
 
 def _check(name: str) -> None:

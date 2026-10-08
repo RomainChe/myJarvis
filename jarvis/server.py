@@ -20,6 +20,7 @@ from jarvis.core import levels
 from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.devices import Devices
+from jarvis.core.push import Push, subject_from_env
 from jarvis.core.webauthn import Passkeys
 
 HOST = "127.0.0.1"  # volontairement non configurable
@@ -95,6 +96,12 @@ class Confirm(BaseModel):
     assertion: Assertion | None = None  # N3 : signature WebAuthn du défi de cette demande
 
 
+class Subscription(BaseModel):
+    endpoint: str = Field(max_length=600)
+    p256dh: str = Field(max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+    auth: str = Field(max_length=40, pattern=r"^[A-Za-z0-9_-]+$")
+
+
 class Attestation(BaseModel):
     clientDataJSON: str = B64
     attestationObject: str = Field(max_length=4000, pattern=r"^[A-Za-z0-9_-]+$")
@@ -107,7 +114,7 @@ class LevelIn(BaseModel):
 
 
 def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-               web_dir: Path = WEB_DIR, ts_host: str | None = None) -> FastAPI:
+               web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
     # Host accepté -> Origin attendu pour ce Host. Liste fermée : jamais de joker, jamais de confiance dans l'IP source
     # ni dans les en-têtes Tailscale (derrière `tailscale serve`, tout arrive de 127.0.0.1).
@@ -116,7 +123,10 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         hosts[ts_host] = f"https://{ts_host}"
     failures: deque[float] = deque()
     passkeys = Passkeys(devices, ts_host)  # sans nom Tailscale (HTTPS), WebAuthn est désactivé : N3 reste refusé
-    chat = chat or Chat(audit, passkeys)
+    push = push or Push(devices, subject_from_env())
+    chat = chat or Chat(audit, passkeys, push)
+    if chat.push is None:
+        chat.push = push
     if chat.passkeys is None:  # Chat fourni sans clés (tests) : mêmes clés que les routes
         chat.passkeys = passkeys
 
@@ -227,6 +237,32 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         return {"devices": [{"id": r[0], "name": r[1], "created": r[2], "last_used": r[3], "revoked": bool(r[4])}
                             for r in devices.list()], "current": auth[0]}
 
+    @app.get("/api/push")
+    def push_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return {"key": push.public_key(), "subscribed": push.subscribed(auth[0])}
+
+    @app.post("/api/push")
+    def push_subscribe(body: Subscription, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if not push.subscribe(auth[0], body.endpoint, body.p256dh, body.auth):
+            return reply(422, "requête invalide")
+        audit.log(f"pwa:{auth[0]}", "push_subscribe", {}, None, "auto", "notifications activées")
+        return {"ok": True}
+
+    @app.post("/api/push/unsubscribe")
+    def push_unsubscribe(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        push.unsubscribe(auth[0])
+        audit.log(f"pwa:{auth[0]}", "push_unsubscribe", {}, None, "auto", "notifications désactivées")
+        return {"ok": True}
+
     @app.get("/api/passkey")
     def passkey_state(request: Request):
         auth = authenticate(request)
@@ -312,7 +348,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
 
 def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-                web_dir: Path = WEB_DIR, ts_host: str | None = None) -> uvicorn.Server:
-    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host), host=HOST, port=port, access_log=False,
+                web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host, push), host=HOST, port=port, access_log=False,
                             server_header=False, proxy_headers=False, log_level="warning")
     return uvicorn.Server(config)

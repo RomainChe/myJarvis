@@ -1,5 +1,5 @@
 // Service worker : cache du shell statique uniquement. Jamais /api/*, jamais une requête avec Authorization.
-const CACHE = 'jarvis-shell-v3';
+const CACHE = 'jarvis-shell-v5';
 const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png',
                '/icon-512.png'];
 
@@ -13,6 +13,22 @@ self.addEventListener('activate', (e) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
+});
+
+// Notification générique (le serveur n'envoie jamais de contenu). Rien à signaler si l'appli est déjà visible.
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data.json(); } catch { /* contenu illisible : notification par défaut */ }
+  e.waitUntil(self.clients.matchAll({ type: 'window' }).then((list) => {
+    if (list.some((c) => c.visibilityState === 'visible')) return undefined;
+    return self.registration.showNotification(String(d.title || 'Jarvis').slice(0, 60),
+      { body: String(d.body || '').slice(0, 120), tag: 'jarvis', icon: '/icon-192.png' });
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window' }).then((list) => (list.length ? list[0].focus() : self.clients.openWindow('/'))));
 });
 
 const purge = () => caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
