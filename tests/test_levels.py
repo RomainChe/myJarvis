@@ -79,6 +79,16 @@ class LevelsTest(unittest.TestCase):
         self.assertEqual((row[1], row[5]), ("levels", "refusé"))
         self.assertIn('"from": 2', row[3])
 
+    def test_chaque_outil_reel_a_un_titre_et_un_groupe(self):
+        import jarvis.tools.home  # noqa: F401
+        for name in REGISTRY.keys() - {"test_lv_light"}:
+            if not name.startswith("test_"):
+                self.assertIn(name, levels.LABELS, "ajouter le titre de l'outil dans levels.LABELS")
+        self.assertEqual(levels.label(REGISTRY["tv_on"])["group"], "Maison")
+        self.assertEqual(levels.label(REGISTRY["delete_file"]), {"title": "Supprimer un fichier",
+                         "description": "Envoie à la corbeille, récupérable.", "group": "PC"})
+        self.assertEqual(levels.label(REGISTRY["test_lv_light"])["title"], "test_lv_light")  # repli : le nom
+
     def test_chaque_changement_est_journalise(self):
         levels.set_level("test_lv_light", 3, strong_auth=False)
         self.assertEqual(self.audit.last(1)[0][1:3], ("levels", "test_lv_light"))

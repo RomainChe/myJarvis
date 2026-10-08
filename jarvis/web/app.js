@@ -396,8 +396,9 @@ async function registerPasskey() {
       user: { ...o.user, id: b64uToBytes(o.user.id) }, pubKeyCredParams: o.pubKeyCredParams,
       authenticatorSelection: o.authenticatorSelection, excludeCredentials: o.excludeCredentials.map(credRef),
     } });
-  } catch {
-    toast('Enregistrement annulé.');
+  } catch (e) { // InvalidStateError : le téléphone a déjà une clé pour ce PC (excludeCredentials) ; NotAllowedError : annulé
+    toast(e && e.name === 'InvalidStateError' ? 'Une clé d\'accès existe déjà sur cet appareil : rien à faire.'
+      : e && e.name === 'NotAllowedError' ? 'Enregistrement annulé ou délai dépassé.' : 'Enregistrement impossible sur cet appareil.');
     return;
   }
   const r = await api('/api/passkey', { method: 'POST', body: {

@@ -349,11 +349,14 @@ class LevelsRoutesTest(WebAuthnServerBase):
     def test_liste_avec_planchers(self):
         rows = {r["tool"]: r for r in self.call("GET", "/api/levels")[1]["levels"]}
         self.assertEqual((rows["delete_file"]["floor"], rows["test_wa_light"]["level"]), (2, 1))
+        self.assertEqual((rows["delete_file"]["title"], rows["delete_file"]["group"]), ("Supprimer un fichier", "PC"))
 
     def test_relever_est_libre_abaisser_exige_une_assertion(self):
         self.assertEqual(self.set(2)[0], 200)
+        self.assertTrue(self.audit.last(1)[0][1].startswith("pwa:"))  # l'appareil est journalisé
         self.assertEqual(self.level(), 2)
         self.assertEqual(self.set(1)[0], 403)  # sans assertion
+        self.assertTrue(self.audit.last(1)[0][1].startswith("pwa:"))
         self.assertEqual(self.level(), 2)
         self.register_key()
         status, options, _ = self.call("POST", "/api/levels/challenge", {"tool": "test_wa_light", "level": 1})

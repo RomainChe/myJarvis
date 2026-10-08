@@ -14,6 +14,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field, StrictBool
 
 from jarvis.core import levels
@@ -181,6 +182,10 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     async def invalid(request: Request, exc: RequestValidationError):
         return reply(422, "requête invalide")  # le 422 par défaut renvoie les valeurs reçues
 
+    @app.exception_handler(StarletteHTTPException)
+    async def refused(request: Request, exc: StarletteHTTPException):
+        return reply(exc.status_code, "requête invalide")  # ex. corps JSON illisible (400) : jamais le texte par défaut
+
     @app.exception_handler(Exception)
     async def failed(request: Request, exc: Exception):
         return reply(500, "erreur interne")
@@ -295,7 +300,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return {"levels": [{"tool": n, "registry": b, "floor": f, "level": e} for n, b, f, e in levels.table()]}
+        return {"levels": [{"tool": n, "registry": b, "floor": f, "level": e, **levels.label(levels.REGISTRY[n])}
+                           for n, b, f, e in levels.table()]}
 
     @app.post("/api/levels/challenge")
     def level_challenge(body: LevelIn, request: Request):
@@ -314,7 +320,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if body.assertion and not strong:
             audit.log(f"pwa:{auth[0]}", "webauthn", {"tool": body.tool, "level": body.level}, 3, "refusé", "assertion invalide")
         try:
-            return {"result": levels.set_level(body.tool, body.level, strong_auth=strong)}
+            return {"result": levels.set_level(body.tool, body.level, strong_auth=strong, source=f"pwa:{auth[0]}")}
         except PermissionError:  # déjà journalisé par set_level
             return reply(403, "authentification forte requise")
         except ValueError:

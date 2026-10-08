@@ -25,6 +25,7 @@ from jarvis.core.webauthn import Passkeys
 
 _now = time.monotonic  # remplacé dans les tests
 CONFIRM_TTL_S = 60
+RENOTIFY_S = 15  # F3 : le push de la création arrive pendant que la PWA est encore visible (rien affiché) ; un second suit
 JOB_MAX_S = 300  # au-delà, les confirmations suivantes d'un même job sont refusées d'office (constat 4)
 JOBS_MAX = 20
 ANSWER_MAX = 4000
@@ -141,7 +142,11 @@ class Chat:
             job.pending = p
         if self.push:
             self.push.notify(job.device, self.audit)
-        answered = p.event.wait(CONFIRM_TTL_S)
+        first = min(RENOTIFY_S, CONFIRM_TTL_S)
+        answered = p.event.wait(first)
+        if not answered and self.push and CONFIRM_TTL_S > first:  # l'utilisateur a quitté l'appli depuis : on le prévient encore une fois
+            self.push.notify(job.device, self.audit)
+            answered = p.event.wait(CONFIRM_TTL_S - first)
         with self.lock:
             job.pending = None
         if not answered:

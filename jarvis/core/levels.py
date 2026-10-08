@@ -37,7 +37,7 @@ def effective(tool: Tool) -> Level:
     return max(level, floor(tool))
 
 
-def set_level(name: str, level: int, *, strong_auth: bool) -> str:
+def set_level(name: str, level: int, *, strong_auth: bool, source: str = "levels") -> str:
     """Enregistre la surcharge et renvoie ce qui a été fait. Lève ValueError (inconnu, sous le plancher) ou PermissionError."""
     tool = REGISTRY.get(name)
     if tool is None or _audit is None or level not in (0, 1, 2, 3):
@@ -47,15 +47,53 @@ def set_level(name: str, level: int, *, strong_auth: bool) -> str:
                PermissionError("abaisser un niveau est une action N3 : authentification forte requise")
                if level < before and not strong_auth else None)
     if refusal:
-        _audit.log("levels", name, {"from": int(before), "to": level}, 3, "refusé", str(refusal))
+        _audit.log(source, name, {"from": int(before), "to": level}, 3, "refusé", str(refusal))
         raise refusal
     with _audit.lock:
         if level == tool.level:  # retour au niveau du registre : pas de surcharge à garder
             _audit.db.execute("DELETE FROM levels WHERE tool = ?", (name,))
         else:
             _audit.db.execute("INSERT OR REPLACE INTO levels VALUES (?, ?)", (name, level))
-    _audit.log("levels", name, {"from": int(before), "to": level}, 3, "confirmé", "niveau modifié")
+    _audit.log(source, name, {"from": int(before), "to": level}, 3, "confirmé", "niveau modifié")
     return f"{name} : N{level}"
+
+
+# Titre et description courte de chaque outil pour l'écran de réglages (la description du registre s'adresse au LLM).
+LABELS = {
+    "system_status": ("État du PC", "Processeur, mémoire, disque et carte graphique."),
+    "list_processes": ("Processus actifs", "Les programmes qui utilisent le plus de mémoire."),
+    "search_files": ("Recherche de fichiers", "Cherche des fichiers par leur nom dans le dossier utilisateur."),
+    "open_app": ("Ouvrir une application", "Lance une application de la liste autorisée."),
+    "close_app": ("Fermer une application", "Ferme proprement une application de la liste autorisée."),
+    "run_script": ("Lancer un script", "Exécute un script du dossier scripts."),
+    "kill_process": ("Forcer l'arrêt d'un processus", "Termine un programme sans lui laisser le temps d'enregistrer."),
+    "set_volume": ("Volume du PC", "Règle le volume principal."),
+    "mute": ("Son du PC", "Coupe ou rétablit le son."),
+    "media_control": ("Lecture multimédia", "Lecture, pause, arrêt, piste suivante ou précédente."),
+    "clipboard_write": ("Écrire dans le presse-papiers", "Remplace le texte copié."),
+    "clipboard_read": ("Lire le presse-papiers", "Le texte copié peut contenir des mots de passe."),
+    "move_file": ("Déplacer un fichier", "Déplace ou renomme dans le dossier utilisateur."),
+    "delete_file": ("Supprimer un fichier", "Envoie à la corbeille, récupérable."),
+    "screenshot": ("Capture d'écran", "Enregistre tous les écrans dans Images/Jarvis."),
+    "screen_off": ("Éteindre les écrans", "Le PC reste allumé."),
+    "lock_session": ("Verrouiller la session", "Verrouille la session Windows."),
+    "power": ("Veille, redémarrage, arrêt", "Alimentation du PC, avec délai d'annulation."),
+    "power_cancel": ("Annuler l'arrêt", "Annule un redémarrage ou un arrêt en attente."),
+    "tv_status": ("État de la TV", "Allumée, appli en cours, volume."),
+    "tv_on": ("Allumer la TV", "TV du salon."),
+    "tv_off": ("Éteindre la TV", "La barre de son suit."),
+    "tv_volume": ("Volume de la TV", "Monte ou baisse le son de la TV du salon."),
+    "tv_mute": ("Son de la TV", "Coupe ou rétablit le son de la TV du salon."),
+    "tv_key": ("Télécommande de la TV", "Touches de navigation de la télécommande."),
+    "tv_open_app": ("Appli sur la TV", "Lance YouTube, Netflix ou une autre appli sur la TV."),
+    "scene_cinema": ("Mode cinéma", "Allume la TV et lance l'appli demandée."),
+}
+
+
+def label(tool: Tool) -> dict[str, str]:
+    """Titre, description et groupe (PC ou Maison) d'un outil ; un outil sans libellé garde son nom."""
+    title, desc = LABELS.get(tool.name, (tool.name, tool.description.split(". ")[0]))
+    return {"title": title, "description": desc, "group": "Maison" if ".home." in tool.run.__module__ else "PC"}
 
 
 def table() -> list[tuple[str, int, int, int]]:

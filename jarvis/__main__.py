@@ -139,7 +139,7 @@ def level_cmd(argv: list[str]) -> int:
             print("Refusé : cette commande exige un terminal interactif.")
             return 1
         try:
-            print(levels.set_level(argv[2], int(argv[3]), strong_auth=False))  # CLI sans WebAuthn : abaisser est refusé
+            print(levels.set_level(argv[2], int(argv[3]), strong_auth=False, source="cli"))  # CLI sans WebAuthn : abaisser est refusé
         except (ValueError, PermissionError) as e:
             print(e)
             return 1
