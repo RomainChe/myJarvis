@@ -217,3 +217,16 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Retour** : `recycled` (chemin résolu). Erreur si l'élément existe encore après l'opération.
 - **Exemple** : `python -m jarvis run delete_file path=documents/brouillon.txt`.
 - **Notes** : `IFileOperation` (COM via `ctypes`, `CoInitializeEx`/`CoUninitialize` équilibrés, objets relâchés) avec `FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOFX_RECYCLEONDELETE` : aucune boîte de dialogue, et si la corbeille est désactivée pour le lecteur ou pleine (quota), l'opération **échoue** au lieu de supprimer définitivement. Lecteur non fixe refusé (`GetDriveTypeW`) ; plus de limite de taille (la corbeille elle-même tranche). Testé par mocks dans la suite ; essai réel sur fichier et dossier temporaires : OK.
+
+## Outils TV (`jarvis/tools/home/tv.py`)
+
+Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateur `jarvis` non administrateur, `JARVIS_HA_URL`). Entités : `media_player.salon_tv` et `remote.salon_tv` (Android TV Remote). Un seul appareil par appel ; pas de valeur absolue de volume sur cette intégration. HA injoignable ou token refusé : erreur journalisée, sans le token.
+
+| Outil | Niveau | Paramètres | Retour | Exemple |
+|---|---|---|---|---|
+| `tv_status` | N0, `external` (le nom de l'appli est une donnée tierce) | aucun | `state`, `app`, `muted`, `volume_percent` | `python -m jarvis run tv_status` |
+| `tv_on` / `tv_off` | N1 | aucun | `tv` | « allume la télé », « éteins la TV » (motifs exacts du routeur, jamais approximatifs : « éteins tout » ne les déclenche pas) |
+| `tv_volume` | N1 | `direction` (`up`/`down`), `steps` (1 à 10) | `volume`, `steps` | `run tv_volume direction=down steps=2` |
+| `tv_mute` | N1 | `muted` (bool) | `muted` | `run tv_mute muted=true` |
+| `tv_key` | N1 | `button` : `home back up down left right ok play_pause` | `button` | `run tv_key button=back` |
+| `tv_open_app` | N1 | `app` : `youtube netflix "prime video" disney+` (liste blanche de paquets Android) | `app` | `run tv_open_app app=youtube` |

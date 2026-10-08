@@ -59,5 +59,17 @@
   {
     "tool": "screen_off",
     "patterns": ["([eé]teins|[eé]teindre|coupe|couper) l['’ ]?[eé]cran( du pc)?", "(mets|met) l['’ ]?[eé]cran en veille"]
+  },
+  {
+    "tool": "tv_on",
+    "patterns": ["(allume|allumer) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"]
+  },
+  {
+    "tool": "tv_off",
+    "patterns": ["([eé]teins|[eé]teindre) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"]
+  },
+  {
+    "tool": "tv_status",
+    "phrases": ["la tele est allumee", "etat de la tv", "etat de la tele"]
   }
 ]
