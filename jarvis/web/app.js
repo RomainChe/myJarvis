@@ -156,7 +156,7 @@ const views = { chat: $('view-chat'), home: $('view-home'), devices: $('view-dev
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
-    if (t.dataset.view === name) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
+    if (t.dataset.view === name) { t.setAttribute('aria-current', 'page'); t.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } else t.removeAttribute('aria-current');
   });
   if (name === 'audit' || (name === 'chat' && wide.matches)) loadAudit(); // bureau : le journal est affiché à côté du chat
   if (name === 'devices') loadDevices();
@@ -361,11 +361,11 @@ async function loadAudit() {
 
 // ---- Tableau de bord : bandeau d'état et système, rafraîchi toutes les 5 s tant que la vue est ouverte --------------
 let homeTimer = 0;
-function meter(label, value, text) {
+function meter(label, value, text, hot = value >= 90) {
   const li = el('li');
   const head = el('div', 'meter-head');
   head.append(el('span', '', label), el('span', '', text));
-  const bar = el('div', `meter-bar${value >= 90 ? ' hot' : ''}`);
+  const bar = el('div', `meter-bar${hot ? ' hot' : ''}`);
   bar.setAttribute('role', 'progressbar');
   bar.setAttribute('aria-label', label);
   bar.setAttribute('aria-valuenow', String(Math.round(value)));
@@ -474,7 +474,7 @@ async function loadFinance() {
     $('fin-balance').textContent = Number.isFinite(d.balance) ? `Total disponible : ${eur(d.balance)}` : '';
     $('fin-cats').replaceChildren(...(d.categories.length ? d.categories.map((c) => meter(c.name, c.pct, `${eur(c.amount)} · ${c.pct} %`)) : [el('li', 'muted', 'Aucune catégorie.')]));
     const top = Math.max(1, ...r.data.trend.map((t) => t.spent ?? 0));
-    $('fin-trend').replaceChildren(...r.data.trend.map((t) => meter(`S${t.week}`, ((t.spent ?? 0) / top) * 100, eur(t.spent))));
+    $('fin-trend').replaceChildren(...r.data.trend.map((t) => meter(`S${t.week}`, ((t.spent ?? 0) / top) * 100, eur(t.spent), false)));
   } catch (e) {
     state.hidden = true; err.hidden = false;
     err.textContent = unavailable('Finances indisponibles', e);
