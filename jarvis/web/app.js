@@ -98,6 +98,8 @@ async function signOut() {
   $('audit-list').replaceChildren();
   $('devices-list').replaceChildren();
   $('sys-list').replaceChildren();
+  for (const id of ['st-loc', 'st-weather', 'st-up']) $(id).textContent = '—';
+  for (const id of ['st-sky', 'st-net', 'sys-error']) $(id).textContent = '';
   clearTimeout(homeTimer);
   $('levels-list').replaceChildren();
   $('push-state').textContent = '';
@@ -404,6 +406,7 @@ function fmtUptime(s) {
 }
 async function loadHome() {
   clearTimeout(homeTimer);
+  if (!token) return;
   try {
     const r = await api('/api/dashboard');
     if (!r.ok || !r.data) throw new Error('bad');
@@ -431,6 +434,7 @@ async function loadHome() {
     $('sys-error').hidden = false;
     $('sys-error').textContent = unavailable('Tableau de bord indisponible', e);
   }
+  if (!token) return; // déconnecté pendant la requête : ne pas réarmer le minuteur
   homeTimer = setTimeout(() => { if (!views.chat.hidden && !document.hidden) loadHome(); else if (!views.chat.hidden) homeTimer = setTimeout(loadHome, 5000); }, 5000);
 }
 
