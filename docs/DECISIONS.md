@@ -26,6 +26,11 @@
 - La voix reste plafonnée à N0/N1 : une phrase reconnue ne peut pas confirmer un N2 (pas d'empreinte vocale).
 
 ## 2026-10-08 — Phase 6 : bouton micro, tableau de bord
-- **Micro** : `serve` lance l'écoute ; la PWA coupe librement (journalisé `pwa:<id>`). Réarmer depuis la PWA est libre si l'appareil n'a pas de clé d'accès, signature « mic:on » exigée sinon. Sans `JARVIS_TS_HOST`, `passkeys.has()` est faux : réarmer ne demande alors que le token (risque accepté : écoute d'ambiance à distance, l'audio reste en mémoire, la voix ne valide jamais N2/N3). Journal écrit AVANT le réarmement.
+- **Micro** : `serve` lance l'écoute ; la PWA coupe librement (journalisé `pwa:<id>`). Réarmer depuis la PWA : voir l'entrée du 2026-10-08 « Réarmer le micro » (remplace le risque accepté d'origine). Journal écrit AVANT le réarmement.
 - **Tableau de bord** (`/api/dashboard`, N0) : non journalisé (rafraîchi toutes les 5 s, lecture seule, données fixes) ; jamais exposé comme outil au LLM.
 - **Sorties réseau** : Open-Meteo (HTTPS, coordonnées arrondies à ~1 km, toutes les 15 min, avec l'IP du foyer ; échec mis en cache 60 s) et ping TCP vers 1.1.1.1:443. Coordonnées dans `~/.jarvis/dashboard.json`, hors dépôt.
+
+## 2026-10-08 — Réarmer le micro : clé d'accès obligatoire (revue Sécurité de l'étape 6, constat haut)
+- Décision du propriétaire : **couper** le micro reste libre (PWA, CLI) ; **réarmer** depuis la PWA est traité comme un N3 : signature d'une clé d'accès sur un défi `mic:on` (usage unique, lié à l'appareil), sans repli sur le token seul. Un appareil sans clé d'accès reçoit un 403 journalisé « refusé ». `GET /api/mic` n'expose plus `strong`.
+- Assouplit la règle d'origine « réarmer exige un terminal » : le terminal (`python -m jarvis mic on`) reste possible et sert de repli, la PWA l'est aussi, mais seulement avec WebAuthn. Sans `JARVIS_TS_HOST` (pas d'adresse HTTPS Tailscale), WebAuthn ne marche pas : réarmer se fait alors au terminal.
+- Remplace le risque accepté du 2026-10-08 « Phase 6 : bouton micro » (réarmement au token seul). Tests : `tests/test_mic_web.py` (sans clé, signature invalide, assertion sans clé enregistrée, signature valide, journal en échec).
