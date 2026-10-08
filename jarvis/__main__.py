@@ -5,6 +5,7 @@
     python -m jarvis audit [n]
     python -m jarvis secret set|check <nom>
     python -m jarvis ha check
+    python -m jarvis finance fetch                     (copie les rapports « [Dépenses] » du compte mail dans ~/.jarvis/finance/, lecture seule)
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
@@ -14,6 +15,7 @@
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
 import getpass
+import imaplib
 import json
 import os
 import sys
@@ -251,6 +253,17 @@ def main(argv: list[str]) -> int:
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
     levels.load(audit)
+    if argv == ["finance", "fetch"]:
+        from jarvis.core.finance_fetch import fetch_reports
+        try:
+            n = fetch_reports()
+        except (RuntimeError, OSError, ValueError, imaplib.IMAP4.error) as e:  # texte serveur/mail jamais affiché
+            audit.log("cli", "finance_fetch", {}, 2, "auto", "échec")
+            print(f"Récupération impossible : {e if isinstance(e, RuntimeError) else type(e).__name__}")
+            return 1
+        audit.log("cli", "finance_fetch", {}, 2, "auto", f"{n} rapport(s) écrit(s)")
+        print(f"{n} rapport(s) enregistré(s).")
+        return 0
     if argv[0] == "say":
         if len(argv) < 2:
             print(__doc__)
