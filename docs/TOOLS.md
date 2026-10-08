@@ -224,9 +224,9 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 
 | Outil | Niveau | Paramètres | Retour | Exemple |
 |---|---|---|---|---|
-| `tv_status` | N0, `external` (le nom de l'appli est une donnée tierce) | aucun | `state`, `app`, `muted`, `volume_percent` | `python -m jarvis run tv_status` |
+| `tv_status` | N0, `external` (le nom de l'appli est une donnée tierce) | aucun | `state`, `app` (nom connu, `accueil` ou `autre` : jamais le texte brut), `muted`, `volume_percent` | `python -m jarvis run tv_status` |
 | `tv_on` / `tv_off` | N1 | aucun | `tv` | « allume la télé », « éteins la TV » (motifs exacts du routeur, jamais approximatifs : « éteins tout » ne les déclenche pas) |
-| `tv_volume` | N1 | `direction` (`up`/`down`), `steps` (1 à 10) | `volume`, `steps` | `run tv_volume direction=down steps=2` |
+| `tv_volume` | N1 | `direction` (`up`/`down`), `steps` (1 à 5) | `volume`, `steps` | `run tv_volume direction=down steps=2` |
 | `tv_mute` | N1 | `muted` (bool) | `muted` | `run tv_mute muted=true` |
-| `tv_key` | N1 | `button` : `home back up down left right ok play_pause` | `button` | `run tv_key button=back` |
-| `tv_open_app` | N1 | `app` : `youtube netflix "prime video" disney+` (liste blanche de paquets Android) | `app` | `run tv_open_app app=youtube` |
+| `tv_key` | N1, `taint_blocked` | `button` : `home back up down left right ok play_pause` | `button` | `run tv_key button=back` |
+| `tv_open_app` | N1, `taint_blocked` (un achat peut se valider avec `ok`) | `app` : `youtube netflix "prime video" disney+` (liste blanche de paquets Android) | `app` | `run tv_open_app app=youtube` |

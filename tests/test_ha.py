@@ -90,6 +90,14 @@ class TestHA(unittest.TestCase):
         with self.assertRaises(ha.HAError):
             ha._request("GET", "/redir")
 
+    def test_identifiants_dans_l_url_et_coffre_indisponible(self):
+        with mock.patch.object(ha, "URL", "http://user:pw@127.0.0.1"):
+            with self.assertRaises(ha.HAError):
+                ha.version()
+        with mock.patch.object(ha, "get_secret", side_effect=ha.keyring.errors.KeyringError("verrouillé")):
+            with self.assertRaises(ha.HAError):
+                ha.version()
+
     def test_schema_refuse(self):
         with mock.patch.object(ha, "URL", "file:///etc/passwd"):
             with self.assertRaises(ha.HAError):

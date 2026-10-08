@@ -9,6 +9,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import keyring.errors
+
 from jarvis.core.secrets import get_secret
 
 URL = os.environ.get("JARVIS_HA_URL") or "http://homeassistant.local:8123"
@@ -27,13 +29,17 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-_opener = urllib.request.build_opener(_NoRedirect)
+_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)  # ni proxy ni redirection : le token ne part que vers JARVIS_HA_URL
 
 
 def _request(method: str, path: str, body: dict | None = None):
-    if urllib.parse.urlsplit(URL).scheme not in ("http", "https"):
-        raise HAError("JARVIS_HA_URL doit commencer par http:// ou https://")
-    token = get_secret("ha_token")
+    parts = urllib.parse.urlsplit(URL)
+    if parts.scheme not in ("http", "https") or parts.username or parts.password:
+        raise HAError("JARVIS_HA_URL doit être http(s)://hôte, sans identifiants")
+    try:
+        token = get_secret("ha_token")
+    except keyring.errors.KeyringError:
+        raise HAError("coffre Windows indisponible") from None
     if not token:
         raise HAError("token absent : python -m jarvis secret set ha_token")
     req = urllib.request.Request(

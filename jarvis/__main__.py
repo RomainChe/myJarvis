@@ -12,6 +12,8 @@ import os
 import sys
 from pathlib import Path
 
+import keyring.errors
+
 from jarvis.core import ha
 from jarvis.core.audit import Audit
 from jarvis.core.llm import LLMUnavailable, ask
@@ -67,6 +69,9 @@ def main(argv: list[str]) -> int:
         except ValueError as e:
             print(e)
             return 2
+        except keyring.errors.KeyringError:
+            print("coffre Windows indisponible")
+            return 1
         return 0
     if argv == ["ha", "check"]:
         try:

@@ -72,6 +72,7 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 - C'est la méthode officiellement supportée sous Windows (Docker Desktop sous Windows ne gère pas le réseau `host` qu'exige la découverte des appareils).
 - La VM est en réseau ponté, donc HA a sa propre IP sur le réseau local.
 - Jarvis parle à HA uniquement via son API REST et WebSocket, avec un token longue durée rangé dans le keyring Windows.
+- **Risque accepté (revue Sécurité, constat 1) :** le token HA circule en HTTP clair vers `homeassistant.local` (mDNS), sur le LAN. Un appareil du réseau qui usurperait ce nom pourrait le capter ; limites : utilisateur `jarvis` non administrateur et token révocable à tout moment dans HA. À durcir en Phase 3/5 (IP fixe réservée dans la Bbox, HTTPS ou Tailscale). Le client refuse déjà proxy, redirections et identifiants dans l'URL.
 - **Risque accepté :** PC éteint = plus de domotique pilotée par Jarvis. Les plannings de chauffage restent donc **dans les clims** (minuterie ou appli MELCloud), jamais seulement dans HA.
 
 | Appareil | Intégration HA | Local ? | Matériel en plus |
