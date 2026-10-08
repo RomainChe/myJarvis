@@ -440,11 +440,10 @@ function paintMic(on, state) {
   b.title = label;
   b.setAttribute('aria-label', `Micro de Jarvis : ${label}. ${on ? 'Appuyer pour couper.' : 'Appuyer pour réactiver.'}`);
 }
-let micStrong = false;
 async function loadMic() {
   try {
     const r = await api('/api/mic');
-    if (r.ok && r.data && r.data.available) { micStrong = r.data.strong === true; paintMic(r.data.on === true, r.data.state); }
+    if (r.ok && r.data && r.data.available) { paintMic(r.data.on === true, r.data.state); }
     else $('mic').hidden = true;
   } catch { /* hors ligne : le bouton garde son dernier état */ }
 }
@@ -454,7 +453,7 @@ $('mic').addEventListener('click', async () => {
   b.disabled = true;
   try {
     const body = { on };
-    if (on && micStrong) { // réarmer avec une clé d'accès enregistrée : défi signé
+    if (on) { // réarmer : toujours un défi signé (sans clé d'accès, le serveur refuse)
       const ch = await api('/api/mic/challenge', { method: 'POST', body: {} });
       body.assertion = ch.ok ? await getAssertion(ch.data) : null;
       if (!body.assertion) { toast('Clé d’accès non validée : micro inchangé.'); return; }

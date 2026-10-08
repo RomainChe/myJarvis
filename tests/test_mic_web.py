@@ -29,17 +29,18 @@ class MicWebTest(ServerBase):
 
     def test_actif_par_defaut_puis_coupe_et_journal(self):
         state = self.call("GET", "/api/mic", token=self.token)[1]
-        self.assertEqual((state["on"], state["strong"]), (True, False))
+        self.assertEqual((state["on"], "strong" in state), (True, False))
         status, body, _ = self.call("POST", "/api/mic", {"on": False}, token=self.token)
         self.assertEqual((status, body), (200, {"on": False}))
         self.assertTrue(self.flag.exists())
         self.assertEqual(self.call("GET", "/api/mic", token=self.token)[1]["on"], False)
         self.assertEqual(self.rows()[0][5], "auto")
 
-    def test_rearmer_sans_cle_d_acces_est_libre(self):
+    def test_rearmer_sans_cle_d_acces_est_refuse(self):  # token volé sur un appareil sans clé : le micro reste coupé
         self.mic.disable()
-        self.assertEqual(self.call("POST", "/api/mic", {"on": True}, token=self.token)[0], 200)
-        self.assertFalse(self.flag.exists())
+        self.assertEqual(self.call("POST", "/api/mic", {"on": True}, token=self.token)[0], 403)
+        self.assertTrue(self.flag.exists())
+        self.assertEqual(self.rows()[0][5], "refusé")
 
     def test_rearmer_avec_cle_d_acces_exige_la_signature(self):
         self.mic.disable()
@@ -49,10 +50,30 @@ class MicWebTest(ServerBase):
         self.assertTrue(self.flag.exists())  # toujours coupé
         self.assertEqual(self.rows()[0][5], "refusé")
 
-    def test_journal_en_echec_ne_rearme_pas(self):
+    ASSERTION = {"id": "abc", "clientDataJSON": "AAAA", "authenticatorData": "AAAA", "signature": "AAAA"}
+
+    def rearm(self, **patches):
         self.mic.disable()
+        with mock.patch("jarvis.server.Passkeys.has", return_value=True), mock.patch("jarvis.server.Passkeys.verify", **patches):
+            return self.call("POST", "/api/mic", {"on": True, "assertion": self.ASSERTION}, token=self.token)[0]
+
+    def test_rearmer_avec_signature_valide(self):
+        self.assertEqual(self.rearm(return_value=True), 200)
+        self.assertFalse(self.flag.exists())
+
+    def test_signature_invalide_ne_rearme_pas(self):
+        self.assertEqual(self.rearm(return_value=False), 403)
+        self.assertTrue(self.flag.exists())
+
+    def test_assertion_sans_cle_enregistree_ne_rearme_pas(self):
+        self.mic.disable()
+        with mock.patch("jarvis.server.Passkeys.verify", return_value=True):
+            self.assertEqual(self.call("POST", "/api/mic", {"on": True, "assertion": self.ASSERTION}, token=self.token)[0], 403)
+        self.assertTrue(self.flag.exists())
+
+    def test_journal_en_echec_ne_rearme_pas(self):
         with mock.patch.object(type(self.audit), "log", side_effect=OSError):
-            self.assertEqual(self.call("POST", "/api/mic", {"on": True}, token=self.token)[0], 500)
+            self.assertEqual(self.rearm(return_value=True), 500)
         self.assertTrue(self.flag.exists())
 
     def test_entree_invalide_et_sans_authentification(self):

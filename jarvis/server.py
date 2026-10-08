@@ -348,8 +348,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return {"available": mic is not None, "on": mic is not None and not mic.disabled(), "state": mic.state if mic else None,
-                "strong": passkeys.has(auth[0])}  # une clé d'accès existe : réarmer exige sa signature
+        return {"available": mic is not None, "on": mic is not None and not mic.disabled(), "state": mic.state if mic else None}
 
     @app.post("/api/mic/challenge")
     def mic_challenge(request: Request):
@@ -371,8 +370,9 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             mic.disable()
             audit.log(source, "mic_switch", {"état": "off"}, None, "auto", "micro coupé")
             return {"on": False}
-        # Réarmer : avec une clé d'accès enregistrée, sa signature est exigée (un token volé ne rallume pas le micro).
-        if passkeys.has(auth[0]) and not (body.assertion and passkeys.verify(auth[0], "mic:on", body.assertion.model_dump())):
+        # Réarmer = N3 : la signature d'une clé d'accès est toujours exigée, sans clé enregistrée on refuse (un token volé
+        # ne rallume jamais le micro ; repli : `python -m jarvis mic on` au terminal).
+        if not (passkeys.has(auth[0]) and body.assertion and passkeys.verify(auth[0], "mic:on", body.assertion.model_dump())):
             audit.log(source, "mic_switch", {"état": "on"}, None, "refusé", "clé d'accès requise")
             return reply(403, "authentification forte requise")
         audit.log(source, "mic_switch", {"état": "on"}, None, "auto", "micro autorisé")  # trace d'abord : journal en échec = pas d'écoute
