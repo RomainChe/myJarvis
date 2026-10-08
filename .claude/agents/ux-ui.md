@@ -70,6 +70,15 @@ Android (à partir de la Phase 3 ; avant, accès PC uniquement) :
 5. Revue : chaque écran est testé sur 3 tailles (petit mobile, grand mobile, bureau 1440 px)
    et en thème clair/sombre.
 
+## Skills du plugin ui-ux-pro-max (via l'outil Skill, à la demande)
+- `ui-ux-pro-max:ui-ux-pro-max` : palettes, polices, guidelines UX, accessibilité, graphiques. À invoquer avant de
+  figer le design system ou de concevoir/revoir un écran.
+- `ui-ux-pro-max:design-system` : architecture des tokens (primitifs → sémantiques → composants), variables CSS.
+- `ui-ux-pro-max:ui-styling` : seulement si la stack front retenue utilise Tailwind/shadcn.
+- Les autres skills du plugin (banner, brand, slides, design) sont hors périmètre.
+- Ses recommandations sont des propositions : les principes et contraintes de ce fichier (cyan unique, calme,
+  WCAG AA, N2/N3) priment en cas de conflit.
+
 ## Contraintes
 - Toute action N2/N3 passe par le composant de confirmation standard (validé par la Sécurité).
 - Ne jamais afficher de secret (token, mot de passe, clé API) en clair.
