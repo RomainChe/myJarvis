@@ -19,8 +19,15 @@ N3_MSG = "À faire sur le téléphone."
 
 
 class Voice:
-    def __init__(self, chat: Chat):
+    def __init__(self, chat: Chat, speaker=None):
         self.chat = chat
+        self.speaker = speaker  # désactivé par défaut
+        self.muted = False
+
+    def say(self, answer: str) -> None:
+        """Lit une réponse issue de `handle` (déjà bornée, résultats privés déjà masqués). Rien si muet ou sans voix."""
+        if self.speaker is not None and not self.muted:
+            self.speaker.say(answer)
 
     def handle(self, text: str) -> str:
         """Texte reconnu -> réponse à lire. Lève ValueError si le texte est vide ou trop long.

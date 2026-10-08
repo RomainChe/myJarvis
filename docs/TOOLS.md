@@ -239,3 +239,10 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 - **Retour** : `tv` (`allumée` / `non confirmée`), `app` (nom / `non confirmée` / `null`), `erreur` (présent seulement si HA a échoué : 401, 403, injoignable), `non_traité` : ce que la scène ne fait pas encore (volets, lumière du salon, volume préréglé : matériel absent ou volume absolu indisponible).
 - **Exemples** : « mets le mode cinéma », « lance le mode cinéma sur Netflix » (motifs exacts du routeur) ; `python -m jarvis run scene_cinema app=netflix`.
 - **Notes** : écart au plan (script HA) : l'utilisateur `jarvis` n'est pas administrateur et ne peut pas créer de script HA ; à migrer quand les volets (Shelly) seront posés.
+
+## Commande `say` (voix, Phase 4 étape 3)
+
+- **Commande** : `python -m jarvis say "texte"` (pas un outil du registre, aucune route HTTP). Lit le texte avec Piper (`fr_FR-tom-medium`, `length_scale` 1,05), source `voix`, texte tronqué à `ANSWER_MAX`.
+- **Garde** : voix chargée seulement si son SHA-256 correspond à `models/MANIFEST.json` ; synthèse en mémoire par phrase, aucun fichier ni cache ; sortie : `JARVIS_AUDIO_OUT` (nom ou index, vide = défaut).
+- **Journal** : une ligne `voix` / `tts` avec `{"len": n}` et le résultat (`ok`, `interrompu`, `erreur`), jamais le texte. Erreur : « Synthèse vocale indisponible. ».
+- **Anti-écho** : `Speaker.is_speaking()`, `Speaker.ignore_until()` (`time.monotonic`, infini pendant la lecture, fin + 0,4 s ensuite), `Speaker.stop()`.

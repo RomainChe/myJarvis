@@ -9,6 +9,7 @@
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
+    python -m jarvis say "<texte>"                     (lit le texte à voix haute, source `voix`)
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
 import getpass
@@ -189,6 +190,19 @@ def main(argv: list[str]) -> int:
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
     levels.load(audit)
+    if argv[0] == "say":
+        if len(argv) < 2:
+            print(__doc__)
+            return 2
+        from jarvis.core.chat import Chat
+        from jarvis.core.tts import Speaker
+        from jarvis.core.voice import Voice
+        voice = Voice(Chat(audit), Speaker(audit))
+        voice.say(" ".join(argv[1:]))
+        if voice.speaker.error:
+            print(voice.speaker.error)
+            return 1
+        return 0
     if argv[0] == "passkey":
         return passkey_cmd(argv, audit)
     if argv[0] == "push":
