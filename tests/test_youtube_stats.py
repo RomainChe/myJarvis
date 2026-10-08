@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+import urllib.error
 from datetime import date
 from pathlib import Path
 
@@ -26,7 +27,7 @@ def fake_api(calls):
         calls.append((url, access))
         if "channels" in url:
             return {"items": [{"statistics": {"subscriberCount": "120", "viewCount": "5000", "videoCount": "9"}}]}
-        return {"items": [{"id": "abc", "statistics": {"viewCount": "42"}}]}
+        return {"items": [{"id": "abcdefghijk", "statistics": {"viewCount": "42"}}]}
     return post, get
 
 
@@ -41,8 +42,8 @@ class FetchTest(unittest.TestCase):
     def test_nominal_et_identifiants_vers_l_url_fixe(self):
         calls = []
         post, get = fake_api(calls)
-        channel, vids = y.fetch(token_file(), ["abc", "x;y"], post, get)
-        self.assertEqual((channel, vids), ({"subs": 120, "views": 5000, "videos": 9}, {"abc": 42}))
+        channel, vids = y.fetch(token_file(), ["abcdefghijk", "x;y"], post, get)
+        self.assertEqual((channel, vids), ({"subs": 120, "views": 5000, "videos": 9}, {"abcdefghijk": 42}))
         self.assertEqual(calls[0][0], y.TOKEN_URI)
         self.assertNotIn("x;y", calls[2][0])  # identifiant invalide jamais envoyé
 
@@ -53,8 +54,14 @@ class FetchTest(unittest.TestCase):
         self.assertEqual(calls[0][0], y.TOKEN_URI)
 
     def test_droit_manquant(self):
-        with self.assertRaises(PermissionError):
+        with self.assertRaises(y.Reconnect):
             y.fetch(token_file({**TOKEN, "scopes": ["autre"]}), (), *fake_api([]))
+
+    def test_jeton_revoque(self):
+        def revoked(url, form):
+            raise urllib.error.HTTPError(url, 400, "invalid_grant", {}, None)
+        with self.assertRaises(y.Reconnect):
+            y.fetch(token_file(), (), revoked, None)
 
     def test_compteur_hors_bornes(self):
         with self.assertRaises(ValueError):
@@ -69,6 +76,8 @@ class RecordTest(unittest.TestCase):
         self.assertEqual(out, {"d7": {"subs": 10, "views": 500}, "d30": None})
         out = y.record(db, date(2026, 10, 9), {"subs": 112, "views": 1600, "videos": 6})  # même jour : remplacé
         self.assertEqual(out["d7"], {"subs": 12, "views": 600})
+        old = y.record(db, date(2026, 12, 1), {"subs": 200, "views": 1, "videos": 6})  # relevés trop anciens : pas d'écart
+        self.assertEqual(old, {"d7": None, "d30": None})
 
 
 class ServiceTest(unittest.TestCase):
@@ -95,12 +104,12 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(self.make(boom).snapshot(), {"error": "indisponible"})
 
         def denied(p, ids):
-            raise PermissionError
+            raise y.Reconnect
         self.assertEqual(self.make(denied).snapshot(), {"error": "reconnexion"})
 
     def test_with_youtube_ajoute_les_vues(self):
-        s = self.make(lambda p, ids: ({"subs": 1, "views": 2, "videos": 3}, {"abc": 42}))
-        snap = {"published": [{"platform": "youtube", "url": "https://youtu.be/abc"}, {"platform": "tiktok", "url": None}]}
+        s = self.make(lambda p, ids: ({"subs": 1, "views": 2, "videos": 3}, {"abcdefghijk": 42}))
+        snap = {"published": [{"platform": "youtube", "url": "https://youtu.be/abcdefghijk"}, {"platform": "tiktok", "url": None}]}
         out = with_youtube(snap, s)
         self.assertEqual(out["published"][0]["views"], 42)
         self.assertNotIn("video_views", out["youtube"])

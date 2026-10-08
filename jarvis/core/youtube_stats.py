@@ -6,10 +6,13 @@ Seuls des entiers en sortent. Droit requis : `youtube.readonly` (relancer `stats
 Historique : un relevé par jour dans `~/.jarvis/social.db` (SQLite), d'où l'évolution sur 7 et 30 jours.
 """
 import json
+import re
 import sqlite3
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import closing
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -19,7 +22,12 @@ TOKEN_URI = "https://oauth2.googleapis.com/token"  # fixe : le jeton ne peut pas
 API = "https://www.googleapis.com/youtube/v3/"
 SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
 TTL_S, FAIL_TTL_S = 900, 60
+ID = re.compile(r"[A-Za-z0-9_-]{11}")
 Counts = dict[str, int]
+
+
+class Reconnect(Exception):
+    """Droit absent ou jeton refusé : le propriétaire doit reconnecter lol-clipper (pas une simple panne)."""
 
 
 def token_path(path: Path = CONFIG) -> Path | None:
@@ -50,12 +58,18 @@ def _count(v) -> int:
 def fetch(token_file: Path, video_ids=(), post=_post, get=_get) -> tuple[Counts, dict[str, int]]:
     tok = json.loads(Path(token_file).read_text(encoding="utf-8"))
     if SCOPE not in (tok.get("scopes") or []):
-        raise PermissionError("droit youtube.readonly absent : reconnexion de lol-clipper à faire")
-    access = post(TOKEN_URI, {"client_id": tok["client_id"], "client_secret": tok["client_secret"],
-                              "refresh_token": tok["refresh_token"], "grant_type": "refresh_token"})["access_token"]
+        raise Reconnect("droit youtube.readonly absent : reconnexion de lol-clipper à faire")
+    try:
+        access = post(TOKEN_URI, {"client_id": tok["client_id"], "client_secret": tok["client_secret"],
+                                  "refresh_token": tok["refresh_token"], "grant_type": "refresh_token",
+                                  "scope": SCOPE})["access_token"]  # jeton d'accès limité à la lecture
+    except urllib.error.HTTPError as e:  # jeton révoqué (invalid_grant) : action du propriétaire
+        if e.code in (400, 401):
+            raise Reconnect("jeton refusé") from None
+        raise
     st = get(API + "channels?part=statistics&mine=true", access)["items"][0]["statistics"]
     channel = {"subs": _count(st["subscriberCount"]), "views": _count(st["viewCount"]), "videos": _count(st["videoCount"])}
-    ids = [i for i in video_ids if isinstance(i, str) and i.replace("-", "").replace("_", "").isalnum()][:20]
+    ids = [i for i in video_ids if isinstance(i, str) and ID.fullmatch(i)][:20]
     per_video = {}
     if ids:
         for it in get(API + "videos?part=statistics&id=" + ",".join(ids), access)["items"]:
@@ -66,13 +80,13 @@ def fetch(token_file: Path, video_ids=(), post=_post, get=_get) -> tuple[Counts,
 def record(db: Path, today: date, c: Counts) -> dict:
     """Un relevé par jour (le dernier du jour gagne) ; renvoie l'évolution sur 7 et 30 jours (None sans relevé assez ancien)."""
     Path(db).parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db) as cx:
+    with closing(sqlite3.connect(db)) as cx, cx:
         cx.execute("CREATE TABLE IF NOT EXISTS yt (day TEXT PRIMARY KEY, subs INT, views INT, videos INT)")
         cx.execute("INSERT OR REPLACE INTO yt VALUES (?,?,?,?)", (today.isoformat(), c["subs"], c["views"], c["videos"]))
         out = {}
         for n in (7, 30):
-            row = cx.execute("SELECT subs, views FROM yt WHERE day <= ? ORDER BY day DESC LIMIT 1",
-                             ((today - timedelta(days=n)).isoformat(),)).fetchone()
+            row = cx.execute("SELECT subs, views FROM yt WHERE day <= ? AND day >= ? ORDER BY day DESC LIMIT 1",
+                             ((today - timedelta(days=n)).isoformat(), (today - timedelta(days=n + 2)).isoformat())).fetchone()
             out[f"d{n}"] = {"subs": c["subs"] - row[0], "views": c["views"] - row[1]} if row else None
     return out
 
@@ -93,7 +107,7 @@ class YouTubeStats:
             channel, per_video = self._fetch(path, video_ids)
             value = {**channel, "delta": record(self._db, self._today(), channel), "video_views": per_video}
             keep = TTL_S
-        except PermissionError:
+        except Reconnect:
             value, keep = {"error": "reconnexion"}, FAIL_TTL_S
         except Exception:  # réseau, JSON, jeton illisible : un message générique, aucun détail relayé
             value, keep = {"error": "indisponible"}, FAIL_TTL_S

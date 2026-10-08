@@ -39,3 +39,9 @@
 - `mail_recent` est N2 + `external` : après lui le LLM ne peut plus lancer de N2/N3 ni d'outil `taint_blocked`. Restent permis `lock_session`, `screen_off`, `set_volume`, `mute`, `media_control`, `open_app` (liste blanche), `power_cancel` : un mail piégé pourrait verrouiller la session ou couper l'écran, sans exfiltration ni destruction.
 - **Risque accepté en attendant la décision du propriétaire** : passer `taint_blocked` sur `lock_session`, `screen_off` et `power_cancel` si ce n'est pas souhaité.
 - Le `Date:` d'un mail est contrôlé par l'expéditeur : l'ordre de la liste n'est pas une preuve de fraîcheur.
+
+## 2026-10-08 — Onglet Réseaux : appel sortant vers Google et jeton de lol-clipper (revue Sécurité étape 2)
+- Premier flux sortant de Core vers un compte personnel : `oauth2.googleapis.com` (renouvellement) et `googleapis.com/youtube/v3` (abonnés, vues), N0, non audité comme le reste de l'onglet. L'adresse de renouvellement est fixe : le `token_uri` du fichier est ignoré.
+- Le renouvellement demande `scope=youtube.readonly` : le jeton d'accès en mémoire ne peut pas publier.
+- **Risque accepté** : Jarvis lit `youtube_token.json` de lol-clipper, dont le `refresh_token` porte aussi le droit d'envoi de vidéos. Idéal à terme : un jeton `youtube.readonly` séparé.
+- Constat 2 (redirections HTTP) laissé : hôtes Google seulement. Constat 6 (cache sans les ids récents) cosmétique.
