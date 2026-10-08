@@ -41,6 +41,7 @@ from jarvis.core.webauthn import Passkeys
 from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
+import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")

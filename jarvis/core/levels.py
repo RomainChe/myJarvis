@@ -81,6 +81,8 @@ LABELS = {
     "power": ("Veille, redémarrage, arrêt", "Alimentation du PC, avec délai d'annulation."),
     "power_cancel": ("Annuler l'arrêt", "Annule un redémarrage ou un arrêt en attente."),
     "mail_recent": ("Résumer les mails", "Lit expéditeur, objet et début des mails récents, en lecture seule."),
+    "social_schedule": ("Planning des publications", "Liste les vidéos programmées de lol-clipper."),
+    "social_reschedule": ("Décaler une publication", "Change l'heure de mise en ligne d'une vidéo programmée de lol-clipper."),
     "tv_status": ("État de la TV", "Allumée, appli en cours, volume."),
     "tv_on": ("Allumer la TV", "TV du salon."),
     "tv_off": ("Éteindre la TV", "La barre de son suit."),

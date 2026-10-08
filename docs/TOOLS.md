@@ -200,6 +200,24 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : `python -m jarvis run mail_recent hours=24`.
 - **Notes** : IMAP/SSL en lecture seule (`BODY.PEEK`, rien n'est marqué lu, aucun envoi ni suppression). Compte dans `~/.jarvis/mail.json` (`{"host": "imap.gmail.com", "user": "..."}`), mot de passe d'application dans le coffre : `python -m jarvis secret set mail_password`.
 
+## social_schedule
+
+- **Description** : liste les publications programmées de lol-clipper (fichiers `<vidéo>.publish.todo`), les plus proches d'abord.
+- **Niveau** : N0 (lecture).
+- **Paramètres** : aucun.
+- **Retour** : `scheduled` (10 au plus : `title`, `platform` = `youtube` / `tiktok` / `all`, `at` heure locale `AAAA-MM-JJTHH:MM`).
+- **Exemple** : `python -m jarvis run social_schedule`.
+- **Notes** : dossier de lol-clipper dans `~/.jarvis/social.json` (`{"clips_dir": "..."}`), sinon `~/Videos/LoL Clips`.
+
+## social_reschedule
+
+- **Description** : décale une publication programmée : change seulement `publish_at` du `.publish.todo` désigné par son titre exact.
+- **Niveau** : N2 (confirmation avec aperçu « ancienne → nouvelle heure »), `taint_blocked` (refusé au LLM après du contenu externe). Refusé à la voix (plafond N0/N1).
+- **Paramètres** : `title` (titre exact de `social_schedule`), `at` (`AAAA-MM-JJTHH:MM`, heure locale, futur, 30 jours au plus, créneau libre dans le même dossier, au moins 10 minutes d'avance).
+- **Retour** : `title`, `from`, `to`.
+- **Exemple** : `python -m jarvis run social_reschedule title=ma_video at=2026-10-12T18:00`.
+- **Notes** : ni création, ni suppression, ni publication immédiate (restent à lol-clipper, qui met en ligne à la nouvelle heure). Refusé si l'ancien créneau est échu ou dans les 2 minutes (lol-clipper est peut-être en train de publier) ou si la vidéo est déjà en ligne (`<titre>.youtube.json` / `.tiktok.json`). Écriture atomique avec relecture avant remplacement, liens symboliques ignorés, titre absent ou ambigu refusé. `social_schedule` n'est pas marqué `external` (noms de fichiers de lol-clipper, enveloppés dans `<data>`) : sinon le LLM ne pourrait plus enchaîner lister puis décaler. Dépend du format `publish_at` ISO naïf de lol-clipper (`upload.py`).
+
 ## screenshot
 
 - **Description** : capture tous les écrans dans un PNG de `~/Pictures/Jarvis` et renvoie le chemin.
