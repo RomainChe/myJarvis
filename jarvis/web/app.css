@@ -67,7 +67,7 @@ h1.title { font-size: var(--j-text-lg); font-weight: 600; }
   display: flex; flex-direction: column; gap: var(--j-space-2);
 }
 label { font-size: var(--j-text-sm); color: var(--j-color-muted); margin-top: var(--j-space-2); }
-input, textarea {
+input, textarea, select {
   font: inherit; font-size: var(--j-text-md); color: var(--j-color-text);
   background: var(--j-color-raised); border: 1px solid var(--j-color-border-strong);
   border-radius: var(--j-radius-sm); padding: var(--j-space-3);

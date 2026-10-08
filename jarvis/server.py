@@ -16,9 +16,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, StrictBool
 
+from jarvis.core import levels
 from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.devices import Devices
+from jarvis.core.webauthn import Passkeys
 
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192
@@ -78,8 +80,30 @@ class ChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=TEXT_MAX)
 
 
+B64 = Field(max_length=1400, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class Assertion(BaseModel):
+    id: str = Field(max_length=1400, pattern=r"^[A-Za-z0-9_-]+$")
+    clientDataJSON: str = B64
+    authenticatorData: str = B64
+    signature: str = B64
+
+
 class Confirm(BaseModel):
     approve: StrictBool  # « oui » ou 1 ne confirment rien : seul `true` confirme
+    assertion: Assertion | None = None  # N3 : signature WebAuthn du défi de cette demande
+
+
+class Attestation(BaseModel):
+    clientDataJSON: str = B64
+    attestationObject: str = Field(max_length=4000, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class LevelIn(BaseModel):
+    tool: str = Field(max_length=64, pattern=r"^[A-Za-z0-9_]+$")
+    level: int = Field(ge=0, le=3, strict=True)
+    assertion: Assertion | None = None  # abaisser un niveau = N3 : signature WebAuthn de (outil, niveau)
 
 
 def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
@@ -91,7 +115,10 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     if ts_host:
         hosts[ts_host] = f"https://{ts_host}"
     failures: deque[float] = deque()
-    chat = chat or Chat(audit)
+    passkeys = Passkeys(devices, ts_host)  # sans nom Tailscale (HTTPS), WebAuthn est désactivé : N3 reste refusé
+    chat = chat or Chat(audit, passkeys)
+    if chat.passkeys is None:  # Chat fourni sans clés (tests) : mêmes clés que les routes
+        chat.passkeys = passkeys
 
     def reply(status: int, detail: str, **extra) -> JSONResponse:
         return JSONResponse({"detail": detail}, status_code=status, headers={**HEADERS, **extra})
@@ -176,7 +203,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        if not (ID.fullmatch(confirmation_id) and chat.approve(auth[0], confirmation_id, body.approve)):
+        assertion = body.assertion.model_dump() if body.assertion else None
+        if not (ID.fullmatch(confirmation_id) and chat.approve(auth[0], confirmation_id, body.approve, assertion)):
             return reply(404, "introuvable")  # inconnue, expirée, déjà servie ou d'un autre appareil : même réponse
         return {"ok": True}
 
@@ -198,6 +226,63 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         return {"devices": [{"id": r[0], "name": r[1], "created": r[2], "last_used": r[3], "revoked": bool(r[4])}
                             for r in devices.list()], "current": auth[0]}
+
+    @app.get("/api/passkey")
+    def passkey_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return {"enabled": bool(ts_host), "registered": passkeys.has(auth[0])}
+
+    @app.post("/api/passkey/options")
+    def passkey_options(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        options = passkeys.creation_options(auth[0], auth[1])
+        if options is None:  # WebAuthn désactivé, ou aucune fenêtre ouverte depuis le PC pour cet appareil
+            return reply(403, "enregistrement non autorisé : lance « python -m jarvis passkey add <id> » sur le PC")
+        return options
+
+    @app.post("/api/passkey")
+    def passkey_register(body: Attestation, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        ok = passkeys.register(auth[0], body.clientDataJSON, body.attestationObject)
+        audit.log(f"pwa:{auth[0]}", "passkey_register", {}, 3, "confirmé" if ok else "refusé",
+                  "clé d'accès enregistrée" if ok else "enregistrement refusé")
+        return {"ok": True} if ok else reply(403, "enregistrement refusé")
+
+    @app.get("/api/levels")
+    def level_list(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return {"levels": [{"tool": n, "registry": b, "floor": f, "level": e} for n, b, f, e in levels.table()]}
+
+    @app.post("/api/levels/challenge")
+    def level_challenge(body: LevelIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        options = passkeys.request_options(auth[0], f"level:{body.tool}:{body.level}")
+        return reply(403, "aucune clé d'accès pour cet appareil") if options is None else options
+
+    @app.post("/api/levels")
+    def level_set(body: LevelIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        strong = bool(body.assertion) and passkeys.verify(auth[0], f"level:{body.tool}:{body.level}", body.assertion.model_dump())
+        if body.assertion and not strong:
+            audit.log(f"pwa:{auth[0]}", "webauthn", {"tool": body.tool, "level": body.level}, 3, "refusé", "assertion invalide")
+        try:
+            return {"result": levels.set_level(body.tool, body.level, strong_auth=strong)}
+        except PermissionError:  # déjà journalisé par set_level
+            return reply(403, "authentification forte requise")
+        except ValueError:
+            return reply(422, "requête invalide")
 
     @app.post("/api/enroll")
     def enroll(body: Enroll):

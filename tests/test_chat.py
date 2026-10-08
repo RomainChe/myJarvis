@@ -263,7 +263,7 @@ class N2SurLeWebTest(ChatBase):
             job = self.start()[1]["job"]
             result = self.done(job)
         self.assertEqual((result["answer"], result["pending"]), ("False", None))  # aucune demande n'a été affichée
-        self.assertIn("N3 refusé (web)", str(self.audit.last(10)))
+        self.assertIn("N3 refusé : aucune clé d'accès pour cet appareil", str(self.audit.last(10)))
 
     def test_apres_un_refus_le_job_ne_redemande_plus(self):
         calls = []

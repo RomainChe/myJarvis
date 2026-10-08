@@ -54,16 +54,27 @@
     <ul id="devices-list" class="plain"></ul>
   </section>
 
+  <section id="view-settings" class="view" aria-labelledby="t-settings" hidden>
+    <h1 id="t-settings" class="title">Réglages</h1>
+    <h2>Clé d'accès</h2>
+    <p id="passkey-state" class="muted"></p>
+    <button id="passkey-add" class="btn" type="button" hidden>Enregistrer une clé d'accès</button>
+    <h2>Niveaux des outils</h2>
+    <p class="muted">Relever un niveau est immédiat. L'abaisser exige votre clé d'accès (empreinte, visage ou code).</p>
+    <div id="levels-list"></div>
+  </section>
+
   <nav class="tabs" aria-label="Navigation principale">
     <button class="tab" type="button" data-view="chat" aria-current="page">Chat</button>
     <button class="tab" type="button" data-view="audit">Journal</button>
     <button class="tab" type="button" data-view="devices">Appareils</button>
+    <button class="tab" type="button" data-view="settings">Réglages</button>
   </nav>
 </div>
 
 <div id="overlay" class="overlay" hidden>
   <div id="dialog" class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-body">
-    <p class="badge n2">Action sensible · N2</p>
+    <p id="dlg-badge" class="badge n2">Action sensible · N2</p>
     <h2 id="dlg-title">Confirmer l'action</h2>
     <div id="dlg-body">
       <p class="muted">Ce qui va se passer :</p>

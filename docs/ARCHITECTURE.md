@@ -114,6 +114,9 @@ L'icône de la zone de notification Windows et le raccourci clavier global sont 
 2. N0/N1 : exécution automatique. N2 : confirmation explicite du propriétaire sur un canal authentifié (PWA, CLI, voix). N3 : confirmation + WebAuthn (biométrie) ou PIN.
 3. **Contenu externe = donnée.** Les résultats d'outils (pages web, fichiers, noms d'appareils HA) sont injectés dans le contexte entre balises `<data>`, marqués non fiables. Toute action N2/N3 proposée dans un tour où du contenu externe a été lu exige une confirmation, quel que soit le réglage.
 4. Les niveaux sont réglables par outil, mais **baisser un niveau est lui-même une action N3**.
+   - N3 = clé d'accès WebAuthn (`jarvis/core/webauthn.py`) : ES256, attestation « none », vérification utilisateur obligatoire, défi de 60 s à usage unique lié à (appareil, action). RP ID = nom Tailscale du PC ; sans lui (127.0.0.1), N3 reste refusé.
+   - Enregistrer une clé exige une fenêtre de 120 s ouverte depuis le PC (`python -m jarvis passkey add <id>`). Risque accepté : un voleur du token de CET appareil qui agit pendant la fenêtre pourrait enregistrer sa clé ; la CLI demande d'ouvrir la fenêtre pour l'appareil en main seulement.
+   - Clés synchronisées (compteur à 0) : pas de détection de clonage, conforme à la spec ; un compteur non nul qui ne progresse pas est refusé.
 5. Authentification : un token par appareil (stocké dans le keyring côté PC, enrôlement par QR code), révocable, en plus de l'identité Tailscale.
 6. Secrets : keyring Windows (`keyring`), `.env` pour la config non secrète, `.env.example` versionné. Rien de sensible dans ce dépôt **public**.
 7. Pas de shell arbitraire en N1/N2 : `run_script` n'exécute que les scripts d'un dossier en liste blanche (N2) ; une commande libre est N3.

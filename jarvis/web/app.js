@@ -87,6 +87,7 @@ async function signOut() {
   $('log-empty').hidden = false;
   $('audit-list').replaceChildren();
   $('devices-list').replaceChildren();
+  $('levels-list').replaceChildren();
   $('overlay').hidden = true;
   $('app').inert = false;
   setBusy(false);
@@ -135,7 +136,7 @@ $('enroll-form').addEventListener('submit', (e) => {
 });
 
 // ---- Navigation ------------------------------------------------------------------------------
-const views = { chat: $('view-chat'), audit: $('view-audit'), devices: $('view-devices') };
+const views = { chat: $('view-chat'), audit: $('view-audit'), devices: $('view-devices'), settings: $('view-settings') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
@@ -143,6 +144,7 @@ function show(name) {
   });
   if (name === 'audit') loadAudit();
   if (name === 'devices') loadDevices();
+  if (name === 'settings') loadSettings();
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
@@ -205,8 +207,13 @@ async function pollJob(job) {
 async function handlePending(p) {
   const choice = await confirmDialog(p);
   if (choice === 'expired') { addMsg('note', 'Demande expirée, rien n\'a été fait.'); return; }
-  const approve = choice === 'approve';
-  const r = await api(`/api/confirm/${encodeURIComponent(p.id)}`, { method: 'POST', body: { approve } });
+  let approve = choice === 'approve';
+  let assertion;
+  if (approve && p.webauthn) { // N3 : la clé d'accès signe le défi de CETTE demande
+    assertion = await getAssertion(p.webauthn);
+    if (!assertion) { approve = false; toast('Clé d\'accès non validée : action annulée.'); }
+  }
+  const r = await api(`/api/confirm/${encodeURIComponent(p.id)}`, { method: 'POST', body: { approve, assertion } });
   if (r.status === 404) addMsg('note', 'Demande expirée, rien n\'a été fait.');
   else if (!approve) addMsg('note', 'Annulé, rien n\'a été fait.');
 }
@@ -230,6 +237,9 @@ function confirmDialog(p) {
     const origin = document.activeElement;
     let left = Math.max(1, Math.floor(Number(p.expires_in) || 60));
     let done = false;
+    const n3 = p.level === 3;
+    $('dlg-badge').textContent = n3 ? 'Action critique · N3' : 'Action sensible · N2';
+    $('dlg-badge').className = `badge ${n3 ? 'n3' : 'n2'}`;
     $('dlg-tool').textContent = String(p.tool ?? '');
     $('dlg-preview').textContent = String(p.preview ?? '');
     const tick = () => {
@@ -341,6 +351,99 @@ async function loadDevices() {
     }));
   } catch {
     ul.replaceChildren(el('li', 'error', 'Liste indisponible : PC injoignable.'));
+  }
+}
+
+// ---- Clés d'accès (WebAuthn) -----------------------------------------------------------------
+const b64uToBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+const bytesToB64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const credRef = (c) => ({ type: c.type, id: b64uToBytes(c.id) });
+
+// Options du serveur -> signature de la clé d'accès ; null si l'utilisateur annule ou si l'appareil ne sait pas.
+async function getAssertion(o) {
+  try {
+    const cred = await navigator.credentials.get({ publicKey: {
+      challenge: b64uToBytes(o.challenge), rpId: o.rpId, timeout: o.timeout, userVerification: 'required',
+      allowCredentials: o.allowCredentials.map(credRef),
+    } });
+    const r = cred.response;
+    return { id: bytesToB64u(cred.rawId), clientDataJSON: bytesToB64u(r.clientDataJSON),
+             authenticatorData: bytesToB64u(r.authenticatorData), signature: bytesToB64u(r.signature) };
+  } catch {
+    return null;
+  }
+}
+async function registerPasskey() {
+  const opts = await api('/api/passkey/options', { method: 'POST', body: {} });
+  if (!opts.ok) { toast('Sur le PC, lancez « python -m jarvis passkey add » avec l\'identifiant de cet appareil (onglet Appareils).'); return; }
+  const o = opts.data;
+  let cred;
+  try {
+    cred = await navigator.credentials.create({ publicKey: {
+      challenge: b64uToBytes(o.challenge), rp: o.rp, timeout: o.timeout, attestation: 'none',
+      user: { ...o.user, id: b64uToBytes(o.user.id) }, pubKeyCredParams: o.pubKeyCredParams,
+      authenticatorSelection: o.authenticatorSelection, excludeCredentials: o.excludeCredentials.map(credRef),
+    } });
+  } catch {
+    toast('Enregistrement annulé.');
+    return;
+  }
+  const r = await api('/api/passkey', { method: 'POST', body: {
+    clientDataJSON: bytesToB64u(cred.response.clientDataJSON), attestationObject: bytesToB64u(cred.response.attestationObject),
+  } });
+  toast(r.ok ? 'Clé d\'accès enregistrée.' : 'Enregistrement refusé.');
+  loadSettings();
+}
+$('passkey-add').addEventListener('click', registerPasskey);
+
+// ---- Réglages : niveaux des outils -------------------------------------------------------------
+async function applyLevel(row, level) {
+  const body = { tool: row.tool, level };
+  if (level < row.level) { // abaisser = N3 : défi lié à (outil, niveau), signé par la clé d'accès
+    const ch = await api('/api/levels/challenge', { method: 'POST', body });
+    if (!ch.ok) { toast('Enregistrez d\'abord une clé d\'accès pour abaisser un niveau.'); return; }
+    body.assertion = await getAssertion(ch.data);
+    if (!body.assertion) { toast('Clé d\'accès non validée : niveau inchangé.'); return; }
+  }
+  const r = await api('/api/levels', { method: 'POST', body });
+  toast(r.ok ? `${row.tool} : N${level}` : 'Changement refusé.');
+  loadSettings();
+}
+async function loadSettings() {
+  const box = $('levels-list');
+  box.replaceChildren(el('p', 'muted', 'Chargement…'));
+  try {
+    const [pk, lv] = await Promise.all([api('/api/passkey'), api('/api/levels')]);
+    const enabled = pk.ok && pk.data && pk.data.enabled === true;
+    const registered = pk.ok && pk.data && pk.data.registered === true;
+    $('passkey-state').textContent = !pk.ok ? 'État indisponible.' : !enabled
+      ? 'Indisponible ici : les clés d\'accès exigent l\'adresse HTTPS Tailscale du PC.'
+      : registered ? 'Une clé d\'accès protège cet appareil.' : 'Aucune clé d\'accès : les actions critiques (N3) et l\'abaissement des niveaux sont refusés.';
+    $('passkey-add').hidden = !enabled || !window.PublicKeyCredential;
+    const rows = lv.ok && lv.data && Array.isArray(lv.data.levels) ? lv.data.levels : null;
+    if (!rows) { box.replaceChildren(el('p', 'error', 'Niveaux indisponibles pour le moment.')); return; }
+    box.replaceChildren(...rows.map((row) => {
+      const item = el('article', 'row');
+      item.appendChild(el('div', 'tool', String(row.tool)));
+      const meta = el('div', 'meta');
+      meta.appendChild(el('span', `badge n${row.level}`, `N${row.level}`));
+      const select = el('select');
+      select.setAttribute('aria-label', `Niveau de ${row.tool}`);
+      for (let n = row.floor; n <= 3; n += 1) {
+        const o = el('option', '', `N${n}`);
+        o.value = String(n);
+        o.selected = n === row.level;
+        select.appendChild(o);
+      }
+      const apply = el('button', 'btn', 'Appliquer');
+      apply.type = 'button';
+      apply.addEventListener('click', () => { if (Number(select.value) !== row.level) applyLevel(row, Number(select.value)); });
+      meta.append(select, apply);
+      item.appendChild(meta);
+      return item;
+    }));
+  } catch {
+    box.replaceChildren(el('p', 'error', 'Réglages indisponibles : PC injoignable.'));
   }
 }
 

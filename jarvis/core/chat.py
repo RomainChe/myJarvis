@@ -2,7 +2,7 @@
 
 - Le serveur crée la demande de confirmation (id aléatoire, aperçu calculé ICI, jamais le texte du LLM) ; elle sert une
   seule fois, expire après 60 s, et seul l'appareil qui a posé la question peut l'approuver. Approuver = `True` strict.
-- N3 : toujours refusé tant que WebAuthn n'existe pas (étape 5), comme la CLI.
+- N3 : l'appareil doit signer le défi de CETTE demande avec sa clé d'accès (WebAuthn) ; sans clé, ou sans WebAuthn, refusé.
 - Le journal garde la longueur et le SHA-256 de la demande, jamais son texte (l'audit est en ajout seul, non purgeable).
 """
 import hashlib
@@ -20,6 +20,7 @@ from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
 from jarvis.core.tools import REGISTRY, Level, Tool
+from jarvis.core.webauthn import Passkeys
 
 _now = time.monotonic  # remplacé dans les tests
 CONFIRM_TTL_S = 60
@@ -36,6 +37,9 @@ class Pending:
     tool: str
     preview: str
     deadline: float
+    level: int = 2
+    webauthn: dict | None = None  # N3 : options de navigator.credentials.get, défi lié à cette demande
+    verified: bool = False
     event: threading.Event = field(default_factory=threading.Event)
     approved: bool = False
 
@@ -48,12 +52,14 @@ class Job:
     answer: str | None = None
     pending: Pending | None = None
     deadline: float = field(default_factory=lambda: _now() + JOB_MAX_S)
+    strong: bool = False  # posé par _confirm quand l'assertion N3 est vérifiée, consommé une fois par strong_auth
     aborted: bool = False  # un refus ou une expiration : le LLM ne peut pas harceler de nouvelles confirmations
 
 
 class Chat:
-    def __init__(self, audit: Audit):
+    def __init__(self, audit: Audit, passkeys: Passkeys | None = None):
         self.audit = audit
+        self.passkeys = passkeys
         levels.load(audit)  # le serveur applique toujours les niveaux réglés par le propriétaire
         self.busy = threading.Lock()  # un seul appel à la fois (un seul LLM local) : le reste reçoit « occupé »
         self.lock = threading.Lock()
@@ -87,11 +93,15 @@ class Chat:
                 return None
             p = job.pending
             pending = None if p is None else {"id": p.id, "tool": p.tool, "preview": p.preview,
+                                              "level": p.level, "webauthn": p.webauthn,
                                               "expires_in": max(0, round(p.deadline - _now()))}
             return {"status": "done" if job.done else "running", "answer": job.answer, "pending": pending}
 
-    def approve(self, device: int, confirmation_id: str, approve: bool) -> bool:
-        """Vrai si la demande existait, appartenait à cet appareil et n'avait ni expiré ni déjà servi."""
+    def approve(self, device: int, confirmation_id: str, approve: bool, assertion: dict | None = None) -> bool:
+        """Vrai si la demande existait, appartenait à cet appareil et n'avait ni expiré ni déjà servi.
+
+        N3 : sans assertion valide pour CETTE demande, « oui » vaut refus (et interrompt le job).
+        """
         with self.lock:
             for job in self.jobs.values():
                 p = job.pending
@@ -99,14 +109,21 @@ class Chat:
                     if p.event.is_set() or _now() > p.deadline:
                         return False
                     p.approved = approve is True
+                    if p.approved and p.level >= Level.N3:
+                        p.verified = p.approved = (assertion is not None and self.passkeys is not None
+                                                   and self.passkeys.verify(device, f"confirm:{p.id}", assertion))
+                        if not p.verified:
+                            self.audit.log(f"pwa:{device}", "webauthn", {"tool": p.tool}, 3, "refusé", "assertion absente ou invalide")
                     p.event.set()
                     return True
         return False
 
     def _confirm(self, job: Job, tool: Tool, args: dict) -> bool:
         level = effective(tool)
-        if level >= Level.N3:  # inutile de demander : WebAuthn n'existe pas encore (étape 5), N3 est refusé
-            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé", "N3 refusé (web)")
+        job.strong = False
+        if level >= Level.N3 and not (self.passkeys and self.passkeys.has(job.device)):  # inutile de demander
+            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé",
+                           "N3 refusé : aucune clé d'accès pour cet appareil")
             return False
         if job.aborted or _now() > job.deadline:
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé",
@@ -115,7 +132,9 @@ class Chat:
         preview = tool.preview(args)
         if len(preview) > PREVIEW_MAX:
             preview = preview[:PREVIEW_MAX] + "… (aperçu tronqué : refuse si tu ne reconnais pas la cible)"
-        p = Pending(secrets.token_urlsafe(16), tool.name, preview, _now() + CONFIRM_TTL_S)
+        p = Pending(secrets.token_urlsafe(16), tool.name, preview, _now() + CONFIRM_TTL_S, int(level))
+        if level >= Level.N3:
+            p.webauthn = self.passkeys.request_options(job.device, f"confirm:{p.id}")
         with self.lock:
             job.pending = p
         answered = p.event.wait(CONFIRM_TTL_S)
@@ -124,21 +143,26 @@ class Chat:
         if not answered:
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, None, "refusé", "expirée")
         ok = answered and p.approved is True
+        job.strong = ok and p.verified
         job.aborted = job.aborted or not ok
+        return ok
+
+    def _strong(self, job: Job) -> bool:
+        ok, job.strong = job.strong, False  # une assertion ne sert qu'à la confirmation qui vient de la vérifier
         return ok
 
     def _run(self, job: Job, text: str) -> None:
         source = f"pwa:{job.device}"
         confirm = lambda tool, args: self._confirm(job, tool, args)  # noqa: E731
-        no_strong = lambda tool, args: False  # noqa: E731  (N3 : WebAuthn en étape 5)
+        strong = lambda tool, args: self._strong(job)  # noqa: E731
         answer = "Erreur interne"
         try:
             routed = self.router.route(text)
             if routed is None:
-                answer = ask(text, audit=self.audit, confirm=confirm, strong_auth=no_strong, source=f"{source}/llm")
+                answer = ask(text, audit=self.audit, confirm=confirm, strong_auth=strong, source=f"{source}/llm")
             else:
                 name, args = routed
-                result = execute(name, args, source=source, audit=self.audit, confirm=confirm, strong_auth=no_strong)
+                result = execute(name, args, source=source, audit=self.audit, confirm=confirm, strong_auth=strong)
                 # Outil privé (presse-papiers, capture, script) : le résultat n'est jamais renvoyé, comme au journal.
                 answer = f"<{type(result).__name__}, {len(str(result))} car.>" if REGISTRY[name].private else str(result)
         except Refused:

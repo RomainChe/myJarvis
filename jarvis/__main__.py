@@ -6,6 +6,7 @@
     python -m jarvis secret set|check <nom>
     python -m jarvis ha check
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
+    python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
@@ -26,6 +27,7 @@ from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
 from jarvis.core.secrets import get_secret, set_secret
 from jarvis.core.tools import Tool
+from jarvis.core.webauthn import Passkeys
 from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
@@ -54,7 +56,7 @@ def confirm(tool: Tool, args: dict) -> bool:
 
 
 def no_strong_auth(tool: Tool, args: dict) -> bool:
-    print("Action N3 refusée : la CLI n'a pas d'authentification forte (WebAuthn en Phase 3).")
+    print("Action N3 refusée : la CLI n'a pas d'authentification forte (WebAuthn existe seulement dans la PWA).")
     return False
 
 
@@ -96,6 +98,20 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         return 0 if ok else 1
     print("Usage : device add | device list | device revoke <id> | serve")
     return 2
+
+
+def passkey_cmd(argv: list[str], audit: Audit) -> int:
+    if len(argv) != 3 or argv[1] != "add" or not argv[2].isdigit():
+        print("Usage : passkey add <id appareil>")
+        return 2
+    if not sys.stdin.isatty():
+        print("Refusé : cette commande exige un terminal interactif.")
+        return 1
+    ok = Passkeys(Devices(str(DB_PATH)), None).open_window(int(argv[2]))
+    audit.log("cli", "passkey_add", {"id": int(argv[2])}, 3, "confirmé" if ok else "refusé",
+              "fenêtre d'enregistrement ouverte" if ok else "appareil introuvable ou révoqué")
+    print("Sur l'appareil que tu as en main (et lui seul), ouvre Réglages > Clé d'accès dans les 2 minutes." if ok else "Appareil introuvable ou révoqué.")
+    return 0 if ok else 1
 
 
 def level_cmd(argv: list[str]) -> int:
@@ -158,6 +174,8 @@ def main(argv: list[str]) -> int:
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
     levels.load(audit)
+    if argv[0] == "passkey":
+        return passkey_cmd(argv, audit)
     if argv[0] == "level":
         return level_cmd(argv)
     if argv[0] == "device" or argv == ["serve"]:
