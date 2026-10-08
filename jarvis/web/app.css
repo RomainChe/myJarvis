@@ -46,7 +46,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --j-motion-fast: 0ms; --j-motion-base: 0ms; }
-  .orb, .orb::after, .orb.big::before { animation: none; }
+  .orb, .orb::after { animation: none; }
 }
 
 * { box-sizing: border-box; }
@@ -184,7 +184,6 @@ input[aria-invalid="true"] { border-color: var(--j-color-danger); }
 
 /* ---- Chat ---- */
 .log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--j-space-3); padding: var(--j-space-2) var(--j-space-1); }
-.hero-name { margin: var(--j-space-6) 0 0; font: 700 1.5rem/1 var(--j-font-tech); letter-spacing: .3em; text-shadow: var(--j-glow-text); }
 .msg { max-width: min(85%, 640px); margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; padding: var(--j-space-3) var(--j-space-4); animation: fade var(--j-motion-base) ease-out; }
 .msg.user {
   align-self: flex-end; background: var(--j-color-accent-soft); border: 1px solid var(--j-color-border-strong);
@@ -234,21 +233,8 @@ input[aria-invalid="true"] { border-color: var(--j-color-danger); }
 }
 .orb.small { width: 12px; height: 12px; box-shadow: 0 0 8px var(--j-color-accent); }
 .orb.small::after { inset: -3px; }
-.orb.big {
-  width: 88px; height: 88px; animation-duration: 3.2s;
-  background: radial-gradient(circle, rgb(56 207 239 / .55) 0, rgb(56 207 239 / .15) 55%, transparent 72%), var(--j-color-surface-solid);
-  box-shadow: 0 0 0 1px var(--j-color-border-strong), 0 0 0 16px rgb(56 207 239 / .04), 0 0 0 17px var(--j-color-border-strong),
-              0 0 0 38px rgb(56 207 239 / .025), 0 0 0 39px var(--j-color-border), 0 0 60px rgb(56 207 239 / .35);
-}
-.orb.big::before {
-  content: ""; position: absolute; inset: -28px; border-radius: 50%;
-  border: 2px solid transparent; border-top-color: var(--j-color-accent); border-bottom-color: var(--j-color-accent);
-  opacity: .6; animation: spin 9s linear infinite;
-}
-.orb.big::after { inset: -6px; animation-duration: 3.2s; }
 @keyframes pulse { 50% { opacity: .7; transform: scale(.95); } }
 @keyframes ring { from { transform: scale(.9); opacity: .6; } to { transform: scale(1.6); opacity: 0; } }
-@keyframes spin { to { transform: rotate(1turn); } }
 
 /* ---- Listes : journal, appareils, niveaux (lignes séparées dans un panneau) ---- */
 .section, .group h2, .lv-group h3, .setting h2 {
@@ -367,11 +353,22 @@ h2.section { margin-top: var(--j-space-4); }
 #view-chat .side h2 { margin-bottom: var(--j-space-1); }
 .side .big { font-size: var(--j-text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #view-chat .side .panel > .muted { padding: 0; font-size: var(--j-text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.core { grid-area: 1 / 1 / -1 / -1; display: grid; place-content: center; justify-items: center; gap: var(--j-space-3); pointer-events: none; opacity: .5; }
-.hero-name { display: none; }
+.core { grid-area: 1 / 1 / -1 / -1; display: grid; place-content: center; justify-items: center; gap: var(--j-space-3); pointer-events: none; opacity: .7; }
+.eye { display: block; width: min(86vw, 48vh, 360px); aspect-ratio: 1; color: var(--j-color-accent); }
 .convo { grid-area: convo; min-height: 0; display: flex; flex-direction: column; gap: var(--j-space-3); position: relative; z-index: 1; }
 .log > :first-child { margin-top: auto; } /* messages collés en bas, défilement intact */
-.digest, .wave { display: none; }
+.digest { display: none; }
+/* Saisie en capsule lumineuse avec ondes (téléphone et PC). */
+.composer {
+  align-self: center; width: min(100%, 620px); align-items: center; gap: var(--j-space-2); padding: var(--j-space-1) var(--j-space-1) var(--j-space-1) var(--j-space-3);
+  border: 2px solid var(--j-color-accent); border-radius: 999px;
+  box-shadow: 0 0 0 4px var(--j-color-accent-soft), 0 0 24px rgb(56 207 239 / .35), inset 0 0 18px rgb(56 207 239 / .18);
+}
+.composer:focus-within { border-color: var(--j-color-accent); box-shadow: 0 0 0 4px var(--j-color-accent-soft), 0 0 32px rgb(56 207 239 / .55), inset 0 0 18px rgb(56 207 239 / .25); }
+.composer textarea { text-align: center; font-family: var(--j-font-tech); }
+.composer textarea::placeholder { color: var(--j-color-accent); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; font-size: var(--j-text-sm); }
+.wave { display: block; flex: none; width: 28px; height: 24px; color: var(--j-color-accent); stroke-width: 2; filter: drop-shadow(0 0 4px var(--j-color-accent)); }
+.send { border-radius: 50%; }
 .gauges { --g: 52px; display: flex; justify-content: space-between; gap: var(--j-space-2); }
 .gauge { position: relative; flex: none; width: var(--g); height: calc(var(--g) + 16px); }
 .gauge svg { display: block; width: var(--g); height: var(--g); transform: rotate(-90deg); fill: none; stroke-width: 7; stroke-linecap: round; }
@@ -390,28 +387,28 @@ h2.section { margin-top: var(--j-space-4); }
   #view-chat .side .panel > .muted { font-size: var(--j-text-sm); white-space: normal; }
   .gauges { --g: 64px; display: grid; grid-template-columns: repeat(3, var(--g)); justify-content: space-between; row-gap: var(--j-space-2); }
   .gauge .pct { font-size: var(--j-text-sm); }
-  .core { grid-area: convo; opacity: .75; }
-  .core .orb.big { width: 120px; height: 120px; }
-  .hero-name { display: block; }
-  .composer {
-    align-self: center; width: min(100%, 620px); align-items: center; gap: var(--j-space-3); padding: var(--j-space-2) var(--j-space-2) var(--j-space-2) var(--j-space-5);
-    border: 2px solid var(--j-color-accent); border-radius: 999px;
-    box-shadow: 0 0 0 4px var(--j-color-accent-soft), 0 0 24px rgb(56 207 239 / .35), inset 0 0 18px rgb(56 207 239 / .18);
-  }
-  .composer:focus-within { border-color: var(--j-color-accent); box-shadow: 0 0 0 4px var(--j-color-accent-soft), 0 0 32px rgb(56 207 239 / .55), inset 0 0 18px rgb(56 207 239 / .25); }
-  .composer textarea { text-align: center; font-family: var(--j-font-tech); }
-  .composer textarea::placeholder { color: var(--j-color-accent); text-transform: uppercase; letter-spacing: .14em; font-weight: 600; }
-  .wave { display: block; flex: none; width: 64px; height: 24px; color: var(--j-color-accent); stroke-width: 2; filter: drop-shadow(0 0 4px var(--j-color-accent)); }
-  .send { border-radius: 50%; }
+  .core { grid-area: convo; opacity: .9; }
+  .eye { width: min(36vw, 62vh, 600px); }
+  .wave { width: 64px; }
+  .composer { gap: var(--j-space-3); padding: var(--j-space-2) var(--j-space-2) var(--j-space-2) var(--j-space-5); }
+  .composer textarea::placeholder { letter-spacing: .14em; font-size: var(--j-text-md); }
 }
 @media (min-width: 1200px) {
-  #app { max-width: 1560px; }
-  .console { grid-template: "side convo digest" minmax(0, 1fr) / 260px minmax(0, 1fr) 300px; }
-  .digest { grid-area: digest; display: flex; flex-direction: column; gap: var(--j-space-3); overflow: hidden auto; }
+  /* Pleine largeur : colonnes collées aux bords, encarts agrandis de ~30 % (demande du propriétaire). */
+  #app { max-width: none; }
+  .console { grid-template: "side convo digest" minmax(0, 1fr) / 340px minmax(0, 1fr) 390px; }
+  .side { gap: var(--j-space-4); }
+  .digest { grid-area: digest; display: flex; flex-direction: column; gap: var(--j-space-4); overflow: hidden auto; }
+  #view-chat .side .panel, #view-chat .digest .panel { padding: var(--j-space-4) var(--j-space-5); }
+  #view-chat .side h2, #view-chat .digest h2 { font-size: var(--j-text-sm); }
+  .gauges { --g: 84px; }
+  .gauge .pct { font-size: var(--j-text-md); }
+  .side .big, .digest .big { font-size: 1.625rem; }
+  #view-chat .side .panel > .muted, #view-chat .digest .panel > .muted { font-size: var(--j-text-md); }
   #view-chat .digest .panel > .muted { padding: var(--j-space-1) 0 0; }
   #dg-fin-show { margin-top: var(--j-space-2); min-height: 32px; }
   .digest-links { display: grid; gap: var(--j-space-2); margin-top: var(--j-space-2); }
-  .digest-links li { display: flex; flex-direction: column; overflow-wrap: anywhere; font-size: var(--j-text-sm); }
+  .digest-links li { display: flex; flex-direction: column; overflow-wrap: anywhere; font-size: var(--j-text-md); }
   .digest-links a { color: var(--j-color-accent); }
 }
 
