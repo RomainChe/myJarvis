@@ -534,16 +534,30 @@ async function loadVeille() {
       const d = el('details', 'panel hud');
       d.open = i === 0;
       d.append(el('summary', '', `${VEILLE[it.kind] ?? it.kind} · semaine ${it.week} · ${it.year}`));
-      for (const b of it.blocks) d.append(el('p', 'veille-block', b));
+      const safe = (l) => l && typeof l.url === 'string' && URL.canParse(l.url) && new URL(l.url).protocol === 'https:';
+      const anchor = (l) => {
+        const a = el('a', '', l.label);
+        a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        return [a, el('span', 'muted', ` · ${new URL(l.url).hostname}`)]; // destination réelle, pas le champ du serveur
+      };
+      const items = it.items ?? [], used = new Set();
+      if (items.length) {
+        for (const x of items) {
+          const c = el('article', 'veille-item');
+          c.append(el('h3', 'veille-title', x.lines[0]));
+          for (const t of x.lines.slice(1)) c.append(el('p', 'veille-block', t));
+          if (safe(x.link)) { used.add(x.link.url); c.append(el('p', 'veille-block', '')); c.lastChild.append(...anchor(x.link)); }
+          d.append(c);
+        }
+      } else for (const b of it.blocks) d.append(el('p', 'veille-block', b));
       const links = el('ul', 'plain veille-links');
       for (const l of it.links) {
-        if (typeof l.url !== 'string' || !URL.canParse(l.url) || new URL(l.url).protocol !== 'https:') continue;
-        const li = el('li'), a = el('a', '', l.label);
-        a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        li.append(a, el('span', 'muted', ` · ${new URL(l.url).hostname}`)); // destination réelle, pas le champ du serveur
+        if (!safe(l) || used.has(l.url)) continue;
+        const li = el('li');
+        li.append(...anchor(l));
         links.append(li);
       }
-      if (links.children.length) d.append(el('h3', 'veille-src', 'Sources'), links);
+      if (links.children.length) d.append(el('h3', 'veille-src', items.length ? 'Rapport complet' : 'Sources'), links);
       return d;
     }));
   } catch (e) {

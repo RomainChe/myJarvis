@@ -36,6 +36,16 @@ class VeilleTest(unittest.TestCase):
         self.assertNotIn("p{color:red}", " ".join(first["blocks"]))  # style et title ignorés
         self.assertEqual(first["links"], [{"url": "https://www.anthropic.com/news", "host": "www.anthropic.com", "label": "Anthropic News"}])
 
+    def test_actus_en_cartes(self):
+        body = ("<ol><li><b>✅ Titre A</b> (note 90)<br>Detail un.<br>Detail deux.<br><a href='https://a.example/x'>Source</a></li>"
+                "<li><b>Titre B</b><br><a href='http://clair.example/'>mal</a></li><li></li></ol>")
+        items = veille.snapshot(folder({"a.eml": issue(body=body)}))["issues"][0]["items"]
+        a, b = items[1], items[2]
+        self.assertEqual(a["lines"], ["✅ Titre A (note 90)", "Detail un.", "Detail deux.", "Source"])
+        self.assertEqual(a["link"]["host"], "a.example")
+        self.assertEqual((b["lines"], b["link"]), (["Titre B", "mal"], None))  # lien http refusé, <li> vide ignoré
+        self.assertEqual(len(items), 3)
+
     def test_liens_dangereux_et_limites(self):
         body = ("<a href='javascript:alert(1)'>x</a><a href='http://clair.example/'>y</a><a href='https://u:p@evil.example/'>z</a>"
                 "<a href='data:text/html,x'>d</a><a href='//evil.example/'>r</a>"

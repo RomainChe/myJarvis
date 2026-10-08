@@ -4,7 +4,7 @@ Lit les envois du projet veille-ia (« [Veille IA] Semaine NN », « [Veille Plu
 `~/.jarvis/veille/` par `python -m jarvis veille fetch` (ou le dossier de `~/.jarvis/veille.json` : `{"dir": "..."}`).
 Le contenu a été écrit par un agent qui lit le web : c'est une DONNÉE non fiable. Il n'est jamais montré au LLM, n'est
 affiché qu'en texte (jamais en HTML), et seuls les liens https sortent, avec leur domaine. Le format du mail n'étant pas
-garanti, l'extraction est générique : titre, blocs de texte, sources.
+garanti, l'extraction est générique : titre, blocs de texte, sources ; chaque <li> devient une actu (`items` : lignes + lien).
 """
 import email
 import json
@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 CONFIG = Path.home() / ".jarvis" / "veille.json"
 DEFAULT_DIR = Path.home() / ".jarvis" / "veille"
 MAX_BYTES, MAX_FILES, MAX_ISSUES, MAX_BLOCKS, MAX_LINKS, BLOCK, LABEL = 200_000, 24, 12, 14, 12, 260, 80
+MAX_ITEMS, ITEM_LINES = 10, 4
 KINDS = {"IA": "actus", "Plugins": "plugins"}
 SUBJECT = re.compile(r"^\[Veille (IA|Plugins)\]\s*Semaine\s+(\d{1,2})\b")
 SKIP = {"style", "script", "title", "head"}
@@ -40,12 +41,15 @@ class _Page(HTMLParser):
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.blocks, self.links, self._buf, self._skip, self._href, self._label = [], [], [], 0, None, []
+        self.blocks, self.links, self.items, self._buf, self._skip, self._href, self._label = [], [], [], [], 0, None, []
+        self._item = None
 
     def _flush(self):
         text = _clean("".join(self._buf), BLOCK)
         if len(text) > 2 and len(self.blocks) < MAX_BLOCKS:
             self.blocks.append(text)
+        if len(text) > 2 and self._item is not None and len(self._item["lines"]) < ITEM_LINES:
+            self._item["lines"].append(text)
         self._buf = []
 
     def handle_starttag(self, tag, attrs):
@@ -53,6 +57,8 @@ class _Page(HTMLParser):
             self._skip += 1
         if tag in BLOCK_TAGS:
             self._flush()
+        if tag == "li" and not self._skip:
+            self._item = {"lines": [], "link": None}
         if tag == "a" and self._href is None:
             self._href, self._label = dict(attrs).get("href"), []
 
@@ -61,8 +67,14 @@ class _Page(HTMLParser):
             self._skip -= 1
         if tag in BLOCK_TAGS:
             self._flush()
+        if tag == "li" and self._item is not None:
+            if self._item["lines"] and len(self.items) < MAX_ITEMS:
+                self.items.append(self._item)
+            self._item = None
         if tag == "a" and self._href is not None:
-            self._add_link(self._href, "".join(self._label))
+            link = self._add_link(self._href, "".join(self._label))
+            if link and self._item is not None and not self._item["link"]:
+                self._item["link"] = link
             self._href = None
 
     def handle_data(self, data):
@@ -76,14 +88,19 @@ class _Page(HTMLParser):
             parts = urlsplit(href.strip()[:500])
             host = parts.hostname
         except ValueError:
-            return
-        if parts.scheme != "https" or not host or parts.username or parts.password or len(self.links) >= MAX_LINKS:
-            return
+            return None
+        if parts.scheme != "https" or not host or parts.username or parts.password:
+            return None
         url = href.strip()[:500]
+        if len(self.links) >= MAX_LINKS and all(url != l["url"] for l in self.links):
+            return None
         if not (url.isascii() and url.isprintable() and not {"\\", " "} & set(url) and re.fullmatch(r"[a-z0-9.-]+", host)):
-            return  # « https://evil.com\.bon.com » : le navigateur ne va pas où le domaine affiché le laisse croire
-        if all(url != l["url"] for l in self.links):
-            self.links.append({"url": url, "host": host[:80], "label": _clean(label, LABEL) or host[:LABEL]})
+            return None  # « https://evil.com\.bon.com » : le navigateur ne va pas où le domaine affiché le laisse croire
+        for l in self.links:
+            if l["url"] == url:
+                return l
+        self.links.append({"url": url, "host": host[:80], "label": _clean(label, LABEL) or host[:LABEL]})
+        return self.links[-1]
 
 
 def parse(raw: bytes) -> dict | None:
@@ -100,7 +117,8 @@ def parse(raw: bytes) -> dict | None:
     if not m or not 1 <= int(m.group(2)) <= 53:
         return None
     page._flush()
-    return {"kind": KINDS[m.group(1)], "week": int(m.group(2)), "year": year, "blocks": page.blocks, "links": page.links}
+    return {"kind": KINDS[m.group(1)], "week": int(m.group(2)), "year": year, "blocks": page.blocks, "links": page.links,
+            "items": page.items}
 
 
 def name(issue: dict) -> str:
