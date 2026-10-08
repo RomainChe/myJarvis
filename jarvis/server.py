@@ -31,6 +31,8 @@ HEADERS = {
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
     "Cache-Control": "no-store",
+    "X-Frame-Options": "DENY",  # redondant avec frame-ancestors, pour les vieux navigateurs
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
 }
 _now = time.monotonic  # remplacé dans les tests
 WEB_DIR = Path(__file__).parent / "web"
@@ -40,6 +42,7 @@ WEB_TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf
              ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
              ".webmanifest": "application/manifest+json"}
 AUDIT_ROWS = 50
+RESULT_MAX = 120  # minimisation : le journal en garde 500, l'écran n'en a pas besoin
 ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
@@ -161,7 +164,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         with audit.lock:  # la connexion du journal est partagée avec les écritures des autres threads
             rows = audit.last(AUDIT_ROWS)
         # Ni la colonne `hash`, ni les arguments : l'écran n'en a pas besoin.
-        return {"rows": [{"ts": r[0], "source": r[1], "tool": r[2], "level": r[4], "decision": r[5], "result": r[6]}
+        return {"rows": [{"ts": r[0], "source": r[1], "tool": r[2], "level": r[4], "decision": r[5], "result": (r[6] or "")[:RESULT_MAX]}
                          for r in rows]}
 
     @app.get("/api/devices")

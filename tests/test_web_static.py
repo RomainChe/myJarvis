@@ -48,6 +48,8 @@ class WebStaticTest(unittest.TestCase):
 
     def test_motifs_interdits_partout(self):
         for p in files():
+            if p.suffix == ".png":
+                continue
             text = p.read_text(encoding="utf-8")
             for label, pattern in FORBIDDEN_ANYWHERE.items():
                 self.assertIsNone(pattern.search(text), f"{p.name} : {label}")
@@ -66,6 +68,37 @@ class WebStaticTest(unittest.TestCase):
         sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
         self.assertIn("/api/", sw)  # un contournement explicite des routes d'API existe
         self.assertNotRegex(sw, r"addAll\([^)]*api")
+
+    def test_icones_png_valides_et_declarees(self):
+        import struct
+        manifest = json.loads((WEB_DIR / "manifest.webmanifest").read_text(encoding="utf-8"))
+        for size in (192, 512):
+            data = (WEB_DIR / f"icon-{size}.png").read_bytes()
+            self.assertEqual(data[:8], bytes([0x89]) + b"PNG" + bytes([13, 10, 26, 10]))
+            self.assertEqual(struct.unpack(">II", data[16:24]), (size, size))
+        declared = {(i["src"], i["sizes"], i["purpose"]) for i in manifest["icons"]}
+        self.assertIn(("/icon-192.png", "192x192", "any"), declared)
+        self.assertIn(("/icon-512.png", "512x512", "any"), declared)
+        self.assertIn(("/icon-512.png", "512x512", "maskable"), declared)
+        for icon in manifest["icons"]:  # chaque icône déclarée est un fichier servi
+            self.assertTrue((WEB_DIR / icon["src"].lstrip("/")).is_file(), icon["src"])
+        sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
+        self.assertIn("/icon-192.png", sw)
+
+    def test_correctifs_de_la_revue_du_front_en_place(self):  # garde-fous de structure (pas de test JS dans le dépôt)
+        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        self.assertIn("Number.isInteger(row.level)", js)  # le niveau du serveur est un entier : jamais « N? » pour N2
+        self.assertRegex(js, r"ok\.disabled = true;\s*const arm = setTimeout\(.*500\)")  # Confirmer armé après 500 ms
+        sign_out = js[js.index("async function signOut"):js.index("// ---- Enrôlement")]
+        for cleared in ("$('log').replaceChildren", "$('audit-list').replaceChildren", "$('devices-list').replaceChildren",
+                        "$('overlay').hidden = true"):
+            self.assertIn(cleared, sign_out)
+        start = js[js.index("(async function start"):]
+        self.assertLess(start.index("history.replaceState"), start.index("await getToken()"))  # fragment effacé d'abord
+        sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
+        self.assertIn("res.type === 'basic' && !res.redirected", sw)
+        css = (WEB_DIR / "app.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"\.preview \{[^}]*max-height: 40vh; overflow: auto")
 
     def test_manifest_valide(self):
         manifest = json.loads((WEB_DIR / "manifest.webmanifest").read_text(encoding="utf-8"))

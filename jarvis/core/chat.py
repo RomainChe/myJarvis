@@ -24,6 +24,7 @@ CONFIRM_TTL_S = 60
 JOB_MAX_S = 300  # au-delà, les confirmations suivantes d'un même job sont refusées d'office (constat 4)
 JOBS_MAX = 20
 ANSWER_MAX = 4000
+PREVIEW_MAX = 300  # un aperçu long cacherait la cible réelle ; la coupe est explicite (…)
 TEXT_MAX = 1000
 
 
@@ -107,7 +108,10 @@ class Chat:
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(tool.level), "refusé",
                            "job interrompu après un refus ou trop long")
             return False
-        p = Pending(secrets.token_urlsafe(16), tool.name, tool.preview(args), _now() + CONFIRM_TTL_S)
+        preview = tool.preview(args)
+        if len(preview) > PREVIEW_MAX:
+            preview = preview[:PREVIEW_MAX] + "… (aperçu tronqué : refuse si tu ne reconnais pas la cible)"
+        p = Pending(secrets.token_urlsafe(16), tool.name, preview, _now() + CONFIRM_TTL_S)
         with self.lock:
             job.pending = p
         answered = p.event.wait(CONFIRM_TTL_S)

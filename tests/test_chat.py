@@ -246,6 +246,16 @@ class N2SurLeWebTest(ChatBase):
             ask.assert_not_called()  # le routeur n'a pas appelé le LLM, mais la garde a demandé
             self.assertEqual(run.call_count, calls)
 
+    def test_apercu_long_tronque_explicitement(self):
+        long_path = "a" * 2000
+        with self.fake_ask("move_file", {"src": long_path, "dst": "b"}):
+            job = self.start()[1]["job"]
+            preview = self.pending(job)["preview"]
+            self.assertLessEqual(len(preview), chat_mod.PREVIEW_MAX + 100)
+            self.assertIn("aperçu tronqué", preview)
+            self.decide(self.pending(job)["id"], False)
+            self.done(job)
+
     def test_n3_refuse_sans_demander_de_confirmation(self):
         n3 = mock.Mock(level=Level.N3, preview=lambda args: "x")
         n3.name = "serrure"

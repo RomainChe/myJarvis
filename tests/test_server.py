@@ -169,6 +169,11 @@ class GuardTest(ServerBase):
             self.assertIsNone(r.getheader("Server"))
             self.assertIsNone(r.getheader("Access-Control-Allow-Origin"))  # pas de CORS
 
+    def test_en_tetes_supplementaires(self):
+        _, _, r = self.call("GET", "/api/ping")
+        self.assertEqual(r.getheader("X-Frame-Options"), "DENY")
+        self.assertIn("camera=()", r.getheader("Permissions-Policy"))
+
     def test_pas_de_documentation_publique(self):
         for path in ("/docs", "/redoc", "/openapi.json"):
             self.assertEqual(self.call("GET", path)[0], 404, path)
@@ -257,6 +262,13 @@ class ReadRoutesTest(ServerBase):
         self.assertEqual((row["source"], row["tool"], row["decision"]), ("pwa:1/llm", "kill_process", "refusé"))
         self.assertNotIn("SECRET", json.dumps(body))
         self.assertLessEqual(len(body["rows"]), server.AUDIT_ROWS)
+
+    def test_journal_niveau_entier_et_resultat_coupe(self):
+        _, token = self.enroll("tel")
+        self.audit.log("pwa:1", "kill_process", {}, 2, "confirmé", "x" * 500)
+        row = self.call("GET", "/api/audit", token=token)[1]["rows"][0]
+        self.assertEqual(row["level"], 2)  # un entier : l'écran en fait « N2 »
+        self.assertEqual(len(row["result"]), server.RESULT_MAX)
 
     def test_appareils_sans_hash_avec_l_appareil_courant(self):
         first, token = self.enroll("tel")

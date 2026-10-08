@@ -79,8 +79,17 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
 }
 async function signOut() {
   token = null;
+  currentDevice = null;
   await clearToken();
   if (self.caches) { for (const k of await caches.keys()) await caches.delete(k); }
+  // Rien de l'ancienne session ne reste dans le DOM masqué (réponses, journal, appareils).
+  $('log').replaceChildren();
+  $('log-empty').hidden = false;
+  $('audit-list').replaceChildren();
+  $('devices-list').replaceChildren();
+  $('overlay').hidden = true;
+  $('app').inert = false;
+  setBusy(false);
   setStatus('Non autorisé : associez de nouveau cet appareil.');
   showEnroll();
 }
@@ -231,6 +240,7 @@ function confirmDialog(p) {
       if (done) return;
       done = true;
       clearInterval(timer);
+      clearTimeout(arm);
       deny.disabled = true; ok.disabled = true;
       overlay.removeEventListener('keydown', onKey);
       overlay.hidden = true;
@@ -248,6 +258,9 @@ function confirmDialog(p) {
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     const timer = setInterval(() => { left -= 1; if (left <= 0) finish('expired'); else tick(); }, 1000);
+    // Confirmer ne s'active qu'après 500 ms : un tap lancé avant l'apparition du dialogue n'approuve rien.
+    ok.disabled = true;
+    const arm = setTimeout(() => { ok.disabled = false; }, 500);
     deny.onclick = () => finish('deny');
     ok.onclick = () => finish('approve');
     overlay.addEventListener('keydown', onKey);
@@ -285,7 +298,8 @@ async function loadAudit() {
       const g = el('section', 'group');
       g.appendChild(el('h2', '', src));
       for (const row of list) {
-        const lvl = /^N[0-3]$/.test(String(row.level)) ? String(row.level) : 'N?';
+        // Le serveur envoie le niveau comme un entier (0 à 3, ou null) : « N2 », jamais « N? » pour un vrai niveau.
+        const lvl = Number.isInteger(row.level) && row.level >= 0 && row.level <= 3 ? `N${row.level}` : 'N?';
         const item = el('article', 'row');
         item.appendChild(el('div', 'tool', String(row.tool ?? '')));
         const meta = el('div', 'meta');
@@ -336,11 +350,13 @@ window.addEventListener('online', () => setStatus(''));
 
 (async function start() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+  // Le fragment est lu puis effacé AVANT tout le reste : même avec un token déjà présent, le code ne reste pas
+  // dans la barre d'adresse ni dans l'historique.
+  const code = new URLSearchParams(location.hash.slice(1)).get('code');
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   token = await getToken();
   if (token) { showApp(); return; }
-  const code = new URLSearchParams(location.hash.slice(1)).get('code');
   if (code) {
-    history.replaceState(null, '', location.pathname + location.search); // efface le fragment
     showEnroll();
     await enroll(code.trim(), $('enroll-name').value.trim() || guessName());
     return;

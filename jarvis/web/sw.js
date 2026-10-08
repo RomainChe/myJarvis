@@ -1,6 +1,7 @@
 // Service worker : cache du shell statique uniquement. Jamais /api/*, jamais une requête avec Authorization.
-const CACHE = 'jarvis-shell-v1';
-const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'jarvis-shell-v2';
+const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png',
+               '/icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -32,7 +33,8 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        // Seulement une réponse directe de notre origine : ni redirection, ni erreur, ni réponse opaque.
+        if (res.ok && res.type === 'basic' && !res.redirected) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
         return res;
       })
       .catch(() => caches.match(req).then((hit) => hit || caches.match('/'))),

@@ -139,13 +139,14 @@ textarea { resize: none; max-height: 8rem; }
   border-radius: var(--j-radius-lg) var(--j-radius-lg) 0 0; padding: var(--j-space-6);
   padding-bottom: calc(var(--j-space-6) + env(safe-area-inset-bottom));
   animation: rise var(--j-motion-base) cubic-bezier(.2, 0, 0, 1);
+  max-height: 90vh; overflow: auto;
 }
 @media (min-width: 600px) {
   .overlay { align-items: center; }
   .dialog { border-radius: var(--j-radius-lg); }
 }
 @keyframes rise { from { transform: translateY(24px); opacity: 0; } }
-.preview { background: var(--j-color-raised); border-radius: var(--j-radius-sm); padding: var(--j-space-3); margin: 0 0 var(--j-space-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview { background: var(--j-color-raised); border-radius: var(--j-radius-sm); padding: var(--j-space-3); margin: 0 0 var(--j-space-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow: auto; }
 .actions { display: flex; gap: var(--j-space-3); margin-top: var(--j-space-4); }
 .actions .btn { flex: 1; min-height: 48px; }
 

@@ -68,7 +68,7 @@ Feu vert Sécurité sous conditions et feu vert propriétaire le 2026-10-08. Cha
 1. [x] (codé le 2026-10-08, revue Sécurité à faire) Serveur local minimal + authentification : FastAPI sur 127.0.0.1, table `devices` (hash SHA-256 du token), `python -m jarvis device add|revoke` (CLI interactive, code à usage unique 2 min), audit `pwa:<id>`, `GET /api/ping`, limites de débit et de taille. Aucune route d'outil. Dépendances à faire approuver (fastapi, uvicorn).
 2. [ ] Enrôlement par QR (code dans le fragment `#`) + Tailscale (`serve` seulement, jamais `funnel`, ACL `tag:jarvis`). Porte : test depuis un appareil hors ACL.
 3. [x] (codé le 2026-10-08, revue Sécurité à faire) Chat + confirmations N2 (demandes en attente à usage unique, 60 s, aperçu côté serveur). **Avant : S8 minimal** (`kill_process` refuse tailscaled, ollama, vmms, vmwp, le Core) et **décision RGPD** sur la journalisation du texte des demandes (constat 5 de l'étape 5).
-4. [ ] Design system + PWA minimale (chat, journal, appareils, service worker du shell uniquement). Grep XSS en CI.
+4. [x] (codée et revue le 2026-10-08, feu vert sous conditions, constats 1–8 corrigés ; jamais ouverte dans un navigateur) Design system + PWA minimale (chat, journal, appareils, service worker du shell uniquement). Grep XSS en CI.
 5. [ ] Réglages des niveaux (surcharges hors registre, baisser = N3, planchers) + N3 WebAuthn (challenge lié à l'action).
 6. [ ] Notifications Web Push (VAPID dans le keyring).
 Clôture : QA puis feu vert Sécurité sur l'ensemble.
