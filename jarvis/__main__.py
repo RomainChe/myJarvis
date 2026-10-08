@@ -92,7 +92,10 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             print(f"Code d'enrôlement (à usage unique, valable {CODE_TTL_S // 60} min) : {code}")
             url = f"https://{ts_host}/#code={code}" if ts_host else f"http://{HOST}:{port}/#code={code}"
             print(f"Sur le téléphone, ouvre : {url}")  # le code est dans le fragment (#) : jamais envoyé au serveur
-            segno.make(url, error="m").terminal(compact=True)
+            try:
+                segno.make(url, error="m").terminal(compact=True)
+            except UnicodeEncodeError:  # console non UTF-8 (cp1252) : le lien ci-dessus suffit
+                print("(QR non affichable dans cette console : utilise le lien.)")
             return 0
         ok = devices.revoke(int(argv[2]))
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
