@@ -5,6 +5,7 @@ Garde-fous : Host et Origin vérifiés (DNS rebinding, CSRF), pas de CORS, corps
 erreurs génériques, échecs d'authentification comptés globalement (toutes les requêtes viennent de 127.0.0.1).
 """
 import os
+import re
 import time
 from collections import deque
 
@@ -12,9 +13,10 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 from jarvis.core.audit import Audit
+from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.devices import Devices
 
 HOST = "127.0.0.1"  # volontairement non configurable
@@ -30,6 +32,7 @@ HEADERS = {
     "Cache-Control": "no-store",
 }
 _now = time.monotonic  # remplacé dans les tests
+ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 def port_from_env() -> int:
@@ -44,10 +47,19 @@ class Enroll(BaseModel):
     name: str = Field(max_length=40)
 
 
-def create_app(devices: Devices, audit: Audit, port: int) -> FastAPI:
+class ChatIn(BaseModel):
+    text: str = Field(min_length=1, max_length=TEXT_MAX)
+
+
+class Confirm(BaseModel):
+    approve: StrictBool  # « oui » ou 1 ne confirment rien : seul `true` confirme
+
+
+def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
     host, origin = f"{HOST}:{port}", f"http://{HOST}:{port}"
     failures: deque[float] = deque()
+    chat = chat or Chat(audit)
 
     def reply(status: int, detail: str, **extra) -> JSONResponse:
         return JSONResponse({"detail": detail}, status_code=status, headers={**HEADERS, **extra})
@@ -107,6 +119,31 @@ def create_app(devices: Devices, audit: Audit, port: int) -> FastAPI:
             return auth
         return {"ok": True, "device": auth[1]}
 
+    @app.post("/api/chat", status_code=202)
+    def chat_start(body: ChatIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        job = chat.start(auth[0], body.text)
+        return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
+
+    @app.get("/api/chat/{job_id}")
+    def chat_status(job_id: str, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        status = chat.status(auth[0], job_id) if ID.fullmatch(job_id) else None
+        return reply(404, "introuvable") if status is None else status
+
+    @app.post("/api/confirm/{confirmation_id}")
+    def chat_confirm(confirmation_id: str, body: Confirm, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if not (ID.fullmatch(confirmation_id) and chat.approve(auth[0], confirmation_id, body.approve)):
+            return reply(404, "introuvable")  # inconnue, expirée, déjà servie ou d'un autre appareil : même réponse
+        return {"ok": True}
+
     @app.post("/api/enroll")
     def enroll(body: Enroll):
         locked = devices.locked()
@@ -124,7 +161,7 @@ def create_app(devices: Devices, audit: Audit, port: int) -> FastAPI:
     return app
 
 
-def make_server(devices: Devices, audit: Audit, port: int) -> uvicorn.Server:
-    config = uvicorn.Config(create_app(devices, audit, port), host=HOST, port=port, access_log=False,
+def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port, chat), host=HOST, port=port, access_log=False,
                             server_header=False, proxy_headers=False, log_level="warning")
     return uvicorn.Server(config)

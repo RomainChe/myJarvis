@@ -188,3 +188,15 @@ Les scripts passent par `run_script` (N2, confirmation, dossier `scripts\` seule
 - `python -m jarvis device add` : terminal interactif obligatoire, crée un code d'enrôlement à usage unique valable 2 minutes. Le client l'envoie à `POST /api/enroll` et reçoit un token, affiché une seule fois.
 - `python -m jarvis device list` / `device revoke <id>` : liste et révocation, effective immédiatement.
 - Le token d'un appareil ne se stocke jamais dans le dépôt ni dans un journal ; le serveur ne garde que son SHA-256.
+
+### Chat et confirmations (étape 3)
+
+Toutes ces routes exigent `Authorization: Bearer <token>`, `Origin` et `Content-Type: application/json` pour les écritures.
+
+| Route | Rôle |
+|---|---|
+| `POST /api/chat` `{"text"}` | Lance une demande (1 à 1 000 caractères) : 202 `{"job"}`, ou 429 si une autre est en cours (un seul appel à la fois). |
+| `GET /api/chat/<job>` | `status` (`running`/`done`), `answer`, et `pending` (`id`, `tool`, `preview`, `expires_in`) quand une confirmation N2 attend. Réservé à l'appareil demandeur. |
+| `POST /api/confirm/<id>` `{"approve": true\|false}` | Répond à une confirmation : usage unique, 60 s, appareil demandeur seulement ; seul le booléen `true` confirme. 404 si inconnue, expirée, déjà servie ou d'un autre appareil. |
+
+Les actions N3 sont toujours refusées par le web (WebAuthn : étape 5). Le journal d'audit garde, pour chaque demande, sa longueur et son SHA-256 (jamais le texte) et l'appareil à l'origine de chaque action (`pwa:<id>`, `pwa:<id>/llm`). Le texte renvoyé est à afficher en texte brut (`textContent`).

@@ -81,6 +81,7 @@ def ask(
     text: str, *, audit: Audit,
     confirm: Callable[[Tool, dict], bool], strong_auth: Callable[[Tool, dict], bool],
     send: Callable[[str, dict], dict] = post, gaming: Callable[[], bool] = games.detect,
+    source: str = "llm",  # PWA : « pwa:<appareil>/llm », pour que le journal dise quel appareil a déclenché l'action
 ) -> str:
     if gaming():
         try:
@@ -106,11 +107,11 @@ def ask(
             if i >= MAX_CALLS:
                 result = "refusé : trop d'appels dans un même message."
             elif tainted and tool and (tool.level >= Level.N2 or tool.taint_blocked):
-                audit.log("llm", name, masked(args, tool.hidden), tool.level, "refusé", "contenu externe lu dans ce tour")
+                audit.log(source, name, masked(args, tool.hidden), tool.level, "refusé", "contenu externe lu dans ce tour")
                 result = "refusé : une action sensible ne peut pas suivre la lecture de contenu externe ; redemande-la."
             else:
                 try:
-                    result = execute(name, args, source="llm", audit=audit, confirm=confirm, strong_auth=strong_auth)
+                    result = execute(name, args, source=source, audit=audit, confirm=confirm, strong_auth=strong_auth)
                 except (ValueError, Refused) as e:
                     result = f"erreur : {e}"
                 except Exception as e:  # le détail peut contenir des données d'un outil privé
