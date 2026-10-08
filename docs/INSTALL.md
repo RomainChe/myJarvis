@@ -179,3 +179,12 @@ Règle impérative pour `apps.json` : **aucun interpréteur ni lanceur** (`cmd.e
 exécuteur de commandes. Seules des applications finales (navigateur, lecteur, éditeur) ont leur place ici.
 Les scripts passent par `run_script` (N2, confirmation, dossier `scripts\` seulement).
 `move_file` et `delete_file` ne touchent jamais à ce dossier.
+
+## 10. Serveur local de la PWA (Phase 3, étape 1)
+
+`pip install -r` n'existe pas encore : les dépendances sont dans `pyproject.toml` (`fastapi==0.142.4`, `uvicorn==0.54.0`).
+
+- `python -m jarvis serve` : écoute sur `127.0.0.1:8765` uniquement (port modifiable avec `JARVIS_PORT`, 1024–65535 ; l'adresse ne l'est pas).
+- `python -m jarvis device add` : terminal interactif obligatoire, crée un code d'enrôlement à usage unique valable 2 minutes. Le client l'envoie à `POST /api/enroll` et reçoit un token, affiché une seule fois.
+- `python -m jarvis device list` / `device revoke <id>` : liste et révocation, effective immédiatement.
+- Le token d'un appareil ne se stocke jamais dans le dépôt ni dans un journal ; le serveur ne garde que son SHA-256.

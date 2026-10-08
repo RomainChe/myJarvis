@@ -1,0 +1,123 @@
+"""Serveur local de la PWA (étape 1 : authentification seulement, aucune route d'outil).
+
+Écoute sur 127.0.0.1 en dur (aucune option) ; l'exposition viendra de `tailscale serve`, jamais d'un port ouvert.
+Garde-fous : Host et Origin vérifiés (DNS rebinding, CSRF), pas de CORS, corps borné, en-têtes de sécurité,
+erreurs génériques, échecs d'authentification comptés globalement (toutes les requêtes viennent de 127.0.0.1).
+"""
+import os
+import time
+from collections import deque
+
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from jarvis.core.audit import Audit
+from jarvis.core.devices import Devices
+
+HOST = "127.0.0.1"  # volontairement non configurable
+BODY_MAX = 8192
+AUTH_FAIL_MAX, AUTH_FAIL_WINDOW_S = 10, 60
+HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+                               "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Cache-Control": "no-store",
+}
+_now = time.monotonic  # remplacé dans les tests
+
+
+def port_from_env() -> int:
+    port = int(os.environ.get("JARVIS_PORT") or 8765)
+    if not 1024 <= port <= 65535:
+        raise ValueError("JARVIS_PORT doit être entre 1024 et 65535")
+    return port
+
+
+class Enroll(BaseModel):
+    code: str = Field(max_length=64)
+    name: str = Field(max_length=40)
+
+
+def create_app(devices: Devices, audit: Audit, port: int) -> FastAPI:
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
+    host, origin = f"{HOST}:{port}", f"http://{HOST}:{port}"
+    failures: deque[float] = deque()
+
+    def reply(status: int, detail: str, **extra) -> JSONResponse:
+        return JSONResponse({"detail": detail}, status_code=status, headers={**HEADERS, **extra})
+
+    def limited() -> bool:
+        while failures and _now() - failures[0] > AUTH_FAIL_WINDOW_S:
+            failures.popleft()
+        return len(failures) >= AUTH_FAIL_MAX
+
+    def authenticate(request: Request) -> tuple[int, str] | JSONResponse:
+        if limited():
+            return reply(429, "trop d'échecs", **{"Retry-After": str(AUTH_FAIL_WINDOW_S)})
+        scheme, _, token = request.headers.get("authorization", "").partition(" ")
+        found = devices.check(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
+        if found is None:
+            failures.append(_now())
+            audit.log("pwa:?", "auth", {}, None, "refusé", "token invalide ou révoqué")  # jamais le token
+            return reply(401, "non autorisé")
+        return found
+
+    @app.middleware("http")
+    async def guard(request: Request, call_next):
+        if request.headers.get("host") != host:  # DNS rebinding : une page web ne peut pas viser 127.0.0.1
+            return reply(400, "requête invalide")
+        if request.method != "GET":
+            if request.headers.get("origin") != origin:  # absent ou différent : refus (CSRF)
+                return reply(403, "origine refusée")
+            if request.headers.get("content-type", "").split(";")[0].strip() != "application/json":
+                return reply(415, "JSON attendu")
+            length = request.headers.get("content-length", "")
+            if not length.isdigit():
+                return reply(411, "longueur requise")
+            if int(length) > BODY_MAX:
+                return reply(413, "corps trop gros")
+        response = await call_next(request)
+        for key, value in HEADERS.items():
+            response.headers[key] = value
+        return response
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid(request: Request, exc: RequestValidationError):
+        return reply(422, "requête invalide")  # le 422 par défaut renvoie les valeurs reçues
+
+    @app.exception_handler(Exception)
+    async def failed(request: Request, exc: Exception):
+        return reply(500, "erreur interne")
+
+    @app.get("/api/ping")
+    def ping(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return {"ok": True, "device": auth[1]}
+
+    @app.post("/api/enroll")
+    def enroll(body: Enroll):
+        try:
+            result = devices.enroll(body.code, body.name)
+        except ValueError:
+            return reply(422, "requête invalide")
+        if result is None:  # même réponse pour un code faux, expiré, déjà utilisé ou verrouillé
+            audit.log("pwa:?", "enroll", {}, None, "refusé", "code invalide")
+            return reply(401, "code invalide")
+        audit.log(f"pwa:{result[0]}", "enroll", {"name": body.name.strip()}, None, "auto", "appareil enrôlé")
+        return {"id": result[0], "token": result[1]}
+
+    return app
+
+
+def make_server(devices: Devices, audit: Audit, port: int) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port), host=HOST, port=port, access_log=False,
+                            server_header=False, proxy_headers=False, log_level="warning")
+    return uvicorn.Server(config)

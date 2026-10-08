@@ -5,6 +5,8 @@
     python -m jarvis audit [n]
     python -m jarvis secret set|check <nom>
     python -m jarvis ha check
+    python -m jarvis device add | list | revoke <id>   (terminal interactif)
+    python -m jarvis serve                             (127.0.0.1 seulement)
 """
 import getpass
 import json
@@ -16,11 +18,13 @@ import keyring.errors
 
 from jarvis.core import ha
 from jarvis.core.audit import Audit
+from jarvis.core.devices import CODE_TTL_S, Devices
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
 from jarvis.core.secrets import get_secret, set_secret
 from jarvis.core.tools import Tool
+from jarvis.server import HOST, make_server, port_from_env
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 
@@ -50,6 +54,36 @@ def confirm(tool: Tool, args: dict) -> bool:
 def no_strong_auth(tool: Tool, args: dict) -> bool:
     print("Action N3 refusée : la CLI n'a pas d'authentification forte (WebAuthn en Phase 3).")
     return False
+
+
+def device_or_serve(argv: list[str], audit: Audit) -> int:
+    """Gestion des appareils de la PWA et lancement du serveur local : uniquement depuis le PC, jamais par HTTP."""
+    devices = Devices(str(DB_PATH))
+    if argv == ["serve"]:
+        server = make_server(devices, audit, port_from_env())
+        print(f"Serveur local sur http://{HOST}:{server.config.port} (Ctrl+C pour arrêter)", file=sys.stderr)
+        server.run()
+        return 0
+    sub = argv[1] if len(argv) > 1 else ""
+    if sub == "list" and len(argv) == 2:
+        for row in devices.list():
+            print(" | ".join("" if v is None else str(v) for v in row))
+        return 0
+    if sub == "add" and len(argv) == 2 or sub == "revoke" and len(argv) == 3 and argv[2].isdigit():
+        if not sys.stdin.isatty():  # action d'un humain devant le PC, comme une confirmation N3
+            print("Refusé : cette commande exige un terminal interactif.")
+            return 1
+        if sub == "add":
+            code = devices.new_code()
+            audit.log("cli", "device_add", {}, 3, "confirmé", "code d'enrôlement créé")
+            print(f"Code d'enrôlement (à usage unique, valable {CODE_TTL_S // 60} min) : {code}")
+            return 0
+        ok = devices.revoke(int(argv[2]))
+        audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
+        print("Appareil révoqué." if ok else "Appareil introuvable ou déjà révoqué.")
+        return 0 if ok else 1
+    print("Usage : device add | device list | device revoke <id> | serve")
+    return 2
 
 
 def main(argv: list[str]) -> int:
@@ -92,6 +126,8 @@ def main(argv: list[str]) -> int:
         for row in audit.last(int(argv[1]) if len(argv) > 1 else 20):
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
+    if argv[0] == "device" or argv == ["serve"]:
+        return device_or_serve(argv, audit)
     if argv[0] == "run":
         if len(argv) < 2:
             print(__doc__)
