@@ -40,6 +40,9 @@ class TvTest(PcBase):
         self.call.assert_called_with("media_player", "volume_mute", "media_player.salon_tv", is_volume_muted=True)
         self.run_tool("tv_key", {"button": "back"})
         self.call.assert_called_with("remote", "send_command", "remote.salon_tv", command="BACK")
+        for app, link in (("twitch", "twitch://home"), ("Spotify", "spotify://"), ("netflix", "nflx://www.netflix.com")):
+            self.run_tool("tv_open_app", {"app": app})
+            self.call.assert_called_with("remote", "turn_on", "remote.salon_tv", activity=link)
         self.run_tool("tv_open_app", {"app": " YouTube "})
         self.call.assert_called_with("remote", "turn_on", "remote.salon_tv",
                                      activity="vnd.youtube://")

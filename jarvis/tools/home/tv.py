@@ -13,7 +13,8 @@ STEPS_MAX = 5
 # Une appli absente de la liste n'est pas lançable (nom = donnée, pas commande).
 APPS = {"youtube": ("com.google.android.youtube.tv", "vnd.youtube://"),
         "netflix": ("com.netflix.ninja", "nflx://www.netflix.com"),
-        "twitch": ("tv.twitch.android.app", "twitch://home")}
+        "twitch": ("tv.twitch.android.app", "twitch://home"),
+        "spotify": ("com.spotify.tv.android", "spotify://")}
 LAUNCHER = "com.google.android.apps.tv.launcherx"
 KEYS = {"home": "HOME", "back": "BACK", "up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT",
         "right": "DPAD_RIGHT", "ok": "DPAD_CENTER", "play_pause": "MEDIA_PLAY_PAUSE"}
