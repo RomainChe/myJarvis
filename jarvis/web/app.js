@@ -94,8 +94,7 @@ async function signOut() {
   await clearToken();
   if (self.caches) { for (const k of await caches.keys()) await caches.delete(k); }
   // Rien de l'ancienne session ne reste dans le DOM masqué (réponses, journal, appareils).
-  $('log').replaceChildren($('log-empty'));
-  $('log-empty').hidden = false;
+  $('log').replaceChildren();
   $('audit-list').replaceChildren();
   $('devices-list').replaceChildren();
   $('sys-list').replaceChildren();
@@ -151,20 +150,20 @@ $('enroll-form').addEventListener('submit', (e) => {
 });
 
 // ---- Navigation ------------------------------------------------------------------------------
-const wide = window.matchMedia('(min-width: 1200px)');
-const views = { chat: $('view-chat'), home: $('view-home'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social'), finance: $('view-finance') };
+const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social'), finance: $('view-finance'), veille: $('view-veille') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
     if (t.dataset.view === name) { t.setAttribute('aria-current', 'page'); t.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } else t.removeAttribute('aria-current');
   });
-  if (name === 'audit' || (name === 'chat' && wide.matches)) loadAudit(); // bureau : le journal est affiché à côté du chat
+  if (name === 'audit') loadAudit();
   if (name === 'devices') loadDevices();
-  if (name === 'home') loadHome();
+  if (name === 'chat') loadHome();
   else clearTimeout(homeTimer);
   if (name === 'settings') loadSettings();
   if (name === 'social') loadSocial();
   if (name === 'finance') loadFinance(); else clearFinance();
+  if (name === 'veille') loadVeille();
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
@@ -188,7 +187,6 @@ function showApp() {
 
 // ---- Chat ------------------------------------------------------------------------------------
 function addMsg(kind, text) {
-  $('log-empty').hidden = true;
   const m = el('p', `msg ${kind}`, text);
   $('log').appendChild(m);
   m.scrollIntoView({ block: 'end' });
@@ -377,6 +375,33 @@ function meter(label, value, text, hot = value >= 90) {
   li.append(head, bar);
   return li;
 }
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svg(tag, attrs) {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  return n;
+}
+// Jauge en anneau (pathLength 100 : le remplissage vaut directement le pourcentage). Texte lisible par les lecteurs d'écran.
+function gauge(label, value, detail, hot = value >= 90) {
+  const v = Math.max(0, Math.min(100, Math.round(value)));
+  const li = el('li', 'gauge');
+  li.setAttribute('role', 'img');
+  li.setAttribute('aria-label', `${label} : ${v} %${detail ? `, ${detail}` : ''}`);
+  const ring = svg('svg', { viewBox: '0 0 80 80', 'aria-hidden': 'true' });
+  ring.append(svg('circle', { class: 'track', cx: 40, cy: 40, r: 33, pathLength: 100 }));
+  ring.append(svg('circle', { class: `fill${hot ? ' hot' : ''}`, cx: 40, cy: 40, r: 33, pathLength: 100, 'stroke-dasharray': `${v} 100` }));
+  const pct = el('span', 'pct', `${v}%`);
+  pct.setAttribute('aria-hidden', 'true');
+  const cap = el('span', 'cap', label);
+  cap.setAttribute('aria-hidden', 'true');
+  li.append(ring, pct, cap);
+  return li;
+}
+function fmtUptime(s) {
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  const hm = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return d ? `${d} j ${hm}` : hm;
+}
 async function loadHome() {
   clearTimeout(homeTimer);
   try {
@@ -386,18 +411,18 @@ async function loadHome() {
     $('st-loc').textContent = d.location ?? 'Non configurée';
     $('st-weather').textContent = d.weather ? `${d.weather.temp_c} °C` : '—';
     $('st-sky').textContent = d.weather ? String(d.weather.sky) : d.location ? 'Météo indisponible' : '';
-    $('st-net').textContent = String(d.network?.quality ?? '—');
-    $('st-ms').textContent = d.network?.ms != null ? `${d.network.ms} ms` : '';
+    $('st-net').textContent = d.network?.ms != null ? `Réseau : ${d.network.quality} · ${d.network.ms} ms` : 'Réseau : hors ligne';
+    $('st-up').textContent = Number.isInteger(d.uptime_s) ? fmtUptime(d.uptime_s) : '—';
     const s = d.system;
     const rows = [];
     if (s) {
-      rows.push(meter('CPU', s.cpu_percent, `${s.cpu_percent} %`));
-      rows.push(meter('RAM', s.ram.percent, `${s.ram.used_gb} / ${s.ram.total_gb} Go`));
+      rows.push(gauge('CPU', s.cpu_percent, ''));
+      rows.push(gauge('RAM', s.ram.percent, `${s.ram.used_gb} sur ${s.ram.total_gb} Go`));
+      rows.push(gauge('Disque', s.disk.percent, `${s.disk.free_gb} Go libres`));
       if (s.gpu) {
-        rows.push(meter('GPU', s.gpu.percent, `${s.gpu.percent} % · ${s.gpu.temperature_c} °C`));
-        rows.push(meter('VRAM', 100 * s.gpu.vram_used_mb / s.gpu.vram_total_mb, `${(s.gpu.vram_used_mb / 1024).toFixed(1)} / ${(s.gpu.vram_total_mb / 1024).toFixed(1)} Go`));
+        rows.push(gauge('GPU', s.gpu.percent, `${s.gpu.temperature_c} °C`));
+        rows.push(gauge('VRAM', 100 * s.gpu.vram_used_mb / s.gpu.vram_total_mb, `${(s.gpu.vram_used_mb / 1024).toFixed(1)} sur ${(s.gpu.vram_total_mb / 1024).toFixed(1)} Go`));
       }
-      rows.push(meter('Disque', s.disk.percent, `${s.disk.free_gb} Go libres`));
     }
     $('sys-list').replaceChildren(...rows);
     $('sys-error').hidden = rows.length > 0;
@@ -406,7 +431,7 @@ async function loadHome() {
     $('sys-error').hidden = false;
     $('sys-error').textContent = unavailable('Tableau de bord indisponible', e);
   }
-  homeTimer = setTimeout(() => { if (!views.home.hidden && !document.hidden) loadHome(); else if (!views.home.hidden) homeTimer = setTimeout(loadHome, 5000); }, 5000);
+  homeTimer = setTimeout(() => { if (!views.chat.hidden && !document.hidden) loadHome(); else if (!views.chat.hidden) homeTimer = setTimeout(loadHome, 5000); }, 5000);
 }
 
 // ---- Réseaux : publications et planning de lol-clipper (lecture seule) -----------------------------------------------
@@ -478,6 +503,39 @@ async function loadFinance() {
   } catch (e) {
     state.hidden = true; err.hidden = false;
     err.textContent = unavailable('Finances indisponibles', e);
+  }
+}
+
+// ---- Veille IA : envois hebdo du projet veille-ia (contenu écrit par un agent qui lit le web : texte seul, liens https) ----
+const VEILLE = { actus: 'Actus IA', plugins: 'Plugins' };
+async function loadVeille() {
+  const err = $('veille-error'), state = $('veille-state'), list = $('veille-list');
+  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren();
+  try {
+    const r = await api('/api/veille');
+    if (!r.ok || !r.data) throw new Error('bad');
+    if (views.veille.hidden) return; // vue quittée pendant le chargement
+    if (!r.data.issues.length) { state.textContent = r.data.configured ? 'Aucun envoi reconnu.' : 'Dossier de la veille introuvable.'; return; }
+    state.hidden = true;
+    list.replaceChildren(...r.data.issues.map((it, i) => {
+      const d = el('details', 'panel hud');
+      d.open = i === 0;
+      d.append(el('summary', '', `${VEILLE[it.kind] ?? it.kind} · semaine ${it.week} · ${it.year}`));
+      for (const b of it.blocks) d.append(el('p', 'veille-block', b));
+      const links = el('ul', 'plain veille-links');
+      for (const l of it.links) {
+        if (typeof l.url !== 'string' || !URL.canParse(l.url) || new URL(l.url).protocol !== 'https:') continue;
+        const li = el('li'), a = el('a', '', l.label);
+        a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        li.append(a, el('span', 'muted', ` · ${new URL(l.url).hostname}`)); // destination réelle, pas le champ du serveur
+        links.append(li);
+      }
+      if (links.children.length) d.append(el('h3', 'veille-src', 'Sources'), links);
+      return d;
+    }));
+  } catch (e) {
+    state.hidden = true; err.hidden = false;
+    err.textContent = unavailable('Veille indisponible', e);
   }
 }
 

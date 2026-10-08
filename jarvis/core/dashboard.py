@@ -53,6 +53,17 @@ def ping_ms() -> int | None:
     return round((time.monotonic() - start) * 1000)
 
 
+def uptime_s() -> int | None:
+    """Temps écoulé depuis le démarrage de Windows (GetTickCount64), None si indisponible."""
+    try:
+        import ctypes
+        fn = ctypes.windll.kernel32.GetTickCount64
+        fn.restype = ctypes.c_ulonglong
+        return int(fn() // 1000)
+    except (AttributeError, OSError):
+        return None
+
+
 def quality(ms: int | None) -> str:
     return "Hors ligne" if ms is None else "Excellente" if ms < 40 else "Bonne" if ms < 100 else "Moyenne" if ms < 250 else "Faible"
 
@@ -83,4 +94,5 @@ class Dashboard:
             "weather": self._cached("weather", WEATHER_TTL_S, lambda: self._weather(cfg["lat"], cfg["lon"])) if cfg else None,
             "network": {"ms": ms, "quality": quality(ms)},
             "system": self._cached("system", SYSTEM_TTL_S, self._system),
+            "uptime_s": uptime_s(),
         }

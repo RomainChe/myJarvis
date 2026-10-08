@@ -26,6 +26,10 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual((snap["location"], snap["weather"]["temp_c"], snap["network"]["quality"]), ("Lille", 12.0, "Excellente"))
         self.assertEqual(snap["system"], {"cpu_percent": 5})
 
+    def test_uptime_entier_positif_ou_absent(self):
+        up = make(None).snapshot()["uptime_s"]
+        self.assertTrue(up is None or (isinstance(up, int) and up >= 0))
+
     def test_sans_config_pas_de_meteo_ni_d_appel(self):
         calls = []
         snap = make(None, weather=lambda *a: calls.append(a)).snapshot()
@@ -91,7 +95,7 @@ class DashboardRouteTest(ServerBase):
         _, token = self.enroll()
         status, body, _ = self.call("GET", "/api/dashboard", token=token)
         self.assertEqual(status, 200)
-        self.assertEqual(set(body), {"location", "weather", "network", "system"})
+        self.assertEqual(set(body), {"location", "weather", "network", "system", "uptime_s"})
 
 
 if __name__ == "__main__":
