@@ -25,6 +25,8 @@ def free_port() -> int:
 
 
 class ServerBase(unittest.TestCase):
+    mic = None  # remplacé par les tests du bouton micro
+
     def setUp(self):
         self.port = free_port()
         self.devices, self.audit = Devices(":memory:"), Audit(":memory:")
@@ -35,7 +37,7 @@ class ServerBase(unittest.TestCase):
             (self.web / name).write_text(text)
         (self.web / "sub").mkdir()
         (self.web / "sub" / "x.js").write_text("export {}")
-        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat, self.web)
+        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat, self.web, mic=self.mic)
         threading.Thread(target=self.srv.run, daemon=True).start()
         for _ in range(100):
             if self.srv.started:

@@ -17,6 +17,7 @@ import getpass
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 
 os.environ["HF_HUB_OFFLINE"] = "1"  # (9) avant tout import voix : aucun accès réseau des bibliothèques de modèles
@@ -66,6 +67,23 @@ def no_strong_auth(tool: Tool, args: dict) -> bool:
     return False
 
 
+def start_mic(audit: Audit):
+    """Micro toujours à l'écoute tant que `~/.jarvis/mic_off` n'existe pas ; échec = serveur sans micro, jamais bloquant."""
+    try:
+        from jarvis.core.chat import Chat
+        from jarvis.core.mic import Mic, threshold_from_env
+        from jarvis.core.stt import Transcriber
+        from jarvis.core.tts import Speaker
+        from jarvis.core.voice import Listener, Voice
+        voice = Voice(Chat(audit), Speaker(audit))
+        mic = Mic(Listener(voice, Transcriber(), lambda text, answer: None), audit, voice.speaker, threshold=threshold_from_env())
+        threading.Thread(target=mic.run, daemon=True).start()
+        return mic
+    except Exception:
+        print("Micro indisponible : le serveur démarre sans écoute vocale.", file=sys.stderr)
+        return None
+
+
 def device_or_serve(argv: list[str], audit: Audit) -> int:
     """Gestion des appareils de la PWA et lancement du serveur local : uniquement depuis le PC, jamais par HTTP."""
     devices = Devices(str(DB_PATH))
@@ -77,7 +95,8 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             print(e if "TS_HOST" in str(e) else "JARVIS_PORT doit être un entier entre 1024 et 65535.")
             return 2
     if argv == ["serve"]:
-        server = make_server(devices, audit, port, ts_host=ts_host)
+        mic = start_mic(audit)
+        server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
               + " (Ctrl+C pour arrêter)", file=sys.stderr)
         server.run()

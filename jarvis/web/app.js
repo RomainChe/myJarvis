@@ -96,8 +96,11 @@ async function signOut() {
   $('log-empty').hidden = false;
   $('audit-list').replaceChildren();
   $('devices-list').replaceChildren();
+  $('sys-list').replaceChildren();
+  clearTimeout(homeTimer);
   $('levels-list').replaceChildren();
   $('push-state').textContent = '';
+  $('mic').hidden = true;
   $('overlay').hidden = true;
   $('app').inert = false;
   setBusy(false);
@@ -147,7 +150,7 @@ $('enroll-form').addEventListener('submit', (e) => {
 
 // ---- Navigation ------------------------------------------------------------------------------
 const wide = window.matchMedia('(min-width: 1200px)');
-const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit') };
+const views = { chat: $('view-chat'), home: $('view-home'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
@@ -155,14 +158,16 @@ function show(name) {
   });
   if (name === 'audit' || (name === 'chat' && wide.matches)) loadAudit(); // bureau : le journal est affiché à côté du chat
   if (name === 'devices') loadDevices();
+  if (name === 'home') loadHome();
+  else clearTimeout(homeTimer);
   if (name === 'settings') loadSettings();
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
-// Raccourcis clavier (bureau) : Alt+1..4 change de vue, « / » met le focus sur la saisie du chat.
+// Raccourcis clavier (bureau) : Alt+1..5 change de vue, « / » met le focus sur la saisie du chat.
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
-  if (e.altKey && /^[1-4]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
+  if (e.altKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); show(Object.keys(views)[Number(e.key) - 1]); return; }
   if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
     e.preventDefault(); show('chat'); $('chat-input').focus();
   }
@@ -173,6 +178,7 @@ function showApp() {
   $('app').hidden = false;
   $('enroll-submit').disabled = false;
   show('chat');
+  loadMic();
   api('/api/ping').then((r) => { if (r.ok && r.data) currentDevice = r.data.device ?? null; }).catch(() => {});
 }
 
@@ -349,6 +355,56 @@ async function loadAudit() {
   }
 }
 
+// ---- Tableau de bord : bandeau d'état et système, rafraîchi toutes les 5 s tant que la vue est ouverte --------------
+let homeTimer = 0;
+function meter(label, value, text) {
+  const li = el('li');
+  const head = el('div', 'meter-head');
+  head.append(el('span', '', label), el('span', '', text));
+  const bar = el('div', `meter-bar${value >= 90 ? ' hot' : ''}`);
+  bar.setAttribute('role', 'progressbar');
+  bar.setAttribute('aria-label', label);
+  bar.setAttribute('aria-valuenow', String(Math.round(value)));
+  bar.setAttribute('aria-valuemin', '0');
+  bar.setAttribute('aria-valuemax', '100');
+  const fill = el('span');
+  fill.style.width = `${Math.max(0, Math.min(100, value))}%`; // pilotage par l'API DOM : compatible CSP sans inline
+  bar.append(fill);
+  li.append(head, bar);
+  return li;
+}
+async function loadHome() {
+  clearTimeout(homeTimer);
+  try {
+    const r = await api('/api/dashboard');
+    if (!r.ok || !r.data) throw new Error('bad');
+    const d = r.data;
+    $('st-loc').textContent = d.location ?? 'Non configurée';
+    $('st-weather').textContent = d.weather ? `${d.weather.temp_c} °C` : '—';
+    $('st-sky').textContent = d.weather ? String(d.weather.sky) : d.location ? 'Météo indisponible' : '';
+    $('st-net').textContent = String(d.network?.quality ?? '—');
+    $('st-ms').textContent = d.network?.ms != null ? `${d.network.ms} ms` : '';
+    const s = d.system;
+    const rows = [];
+    if (s) {
+      rows.push(meter('CPU', s.cpu_percent, `${s.cpu_percent} %`));
+      rows.push(meter('RAM', s.ram.percent, `${s.ram.used_gb} / ${s.ram.total_gb} Go`));
+      if (s.gpu) {
+        rows.push(meter('GPU', s.gpu.percent, `${s.gpu.percent} % · ${s.gpu.temperature_c} °C`));
+        rows.push(meter('VRAM', 100 * s.gpu.vram_used_mb / s.gpu.vram_total_mb, `${(s.gpu.vram_used_mb / 1024).toFixed(1)} / ${(s.gpu.vram_total_mb / 1024).toFixed(1)} Go`));
+      }
+      rows.push(meter('Disque', s.disk.percent, `${s.disk.free_gb} Go libres`));
+    }
+    $('sys-list').replaceChildren(...rows);
+    $('sys-error').hidden = rows.length > 0;
+    $('sys-error').textContent = 'État du système indisponible.';
+  } catch {
+    $('sys-error').hidden = false;
+    $('sys-error').textContent = 'Tableau de bord indisponible : PC injoignable.';
+  }
+  homeTimer = setTimeout(() => { if (!views.home.hidden && !document.hidden) loadHome(); else if (!views.home.hidden) homeTimer = setTimeout(loadHome, 5000); }, 5000);
+}
+
 // ---- Appareils -------------------------------------------------------------------------------
 async function loadDevices() {
   const ul = $('devices-list');
@@ -374,6 +430,42 @@ async function loadDevices() {
     ul.replaceChildren(el('li', 'error', 'Liste indisponible : PC injoignable.'));
   }
 }
+
+// ---- Micro de Jarvis : actif par défaut, coupable ici ; réarmer exige la clé d'accès si l'appareil en a une ----------
+function paintMic(on, state) {
+  const b = $('mic');
+  b.hidden = false;
+  b.setAttribute('aria-pressed', String(on));
+  const label = on ? `Micro actif${state === 'écoute' ? ' (écoute)' : ''}` : 'Micro coupé';
+  b.title = label;
+  b.setAttribute('aria-label', `Micro de Jarvis : ${label}. ${on ? 'Appuyer pour couper.' : 'Appuyer pour réactiver.'}`);
+}
+let micStrong = false;
+async function loadMic() {
+  try {
+    const r = await api('/api/mic');
+    if (r.ok && r.data && r.data.available) { micStrong = r.data.strong === true; paintMic(r.data.on === true, r.data.state); }
+    else $('mic').hidden = true;
+  } catch { /* hors ligne : le bouton garde son dernier état */ }
+}
+$('mic').addEventListener('click', async () => {
+  const b = $('mic');
+  const on = b.getAttribute('aria-pressed') !== 'true'; // état voulu
+  b.disabled = true;
+  try {
+    const body = { on };
+    if (on && micStrong) { // réarmer avec une clé d'accès enregistrée : défi signé
+      const ch = await api('/api/mic/challenge', { method: 'POST', body: {} });
+      body.assertion = ch.ok ? await getAssertion(ch.data) : null;
+      if (!body.assertion) { toast('Clé d’accès non validée : micro inchangé.'); return; }
+    }
+    const r = await api('/api/mic', { method: 'POST', body });
+    toast(r.ok ? (on ? 'Micro réactivé.' : 'Micro coupé.') : 'Changement refusé.');
+  } catch { /* api() a déjà prévenu */ } finally {
+    b.disabled = false;
+    loadMic();
+  }
+});
 
 // ---- Clés d'accès (WebAuthn) -----------------------------------------------------------------
 const b64uToBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
@@ -407,7 +499,7 @@ async function registerPasskey() {
     } });
   } catch (e) { // InvalidStateError : le téléphone a déjà une clé pour ce PC (excludeCredentials) ; NotAllowedError : annulé
     toast(e && e.name === 'InvalidStateError' ? 'Une clé d\'accès existe déjà sur cet appareil : rien à faire.'
-      : e && e.name === 'NotAllowedError' ? 'Enregistrement annulé ou délai dépassé.' : 'Enregistrement impossible sur cet appareil.');
+      : e && e.name === 'NotAllowedError' ? 'Enregistrement annulé ou délai dépassé.' : `Enregistrement impossible sur cet appareil (${e && e.name || 'erreur inconnue'}).`);
     return;
   }
   const r = await api('/api/passkey', { method: 'POST', body: {
@@ -527,6 +619,7 @@ window.addEventListener('offline', () => { setStatus('Hors ligne.'); setLink(fal
 window.addEventListener('online', () => { setStatus(''); setLink(true); });
 tickClock();
 setInterval(tickClock, 10000);
+setInterval(() => { if (!$('app').hidden && !document.hidden) loadMic(); }, 15000); // coupé depuis le PC : le bouton suit
 
 (async function start() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});

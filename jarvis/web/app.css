@@ -151,6 +151,17 @@ input[aria-invalid="true"] { border-color: var(--j-color-danger); }
 }
 .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
 .pill.off { color: var(--j-color-danger); }
+.mic {
+  margin-left: auto; width: var(--j-target); height: var(--j-target); display: grid; place-items: center; cursor: pointer;
+  border-radius: 50%; border: 1px solid var(--j-color-border-strong); background: var(--j-color-accent-soft); color: var(--j-color-success);
+}
+.mic[hidden] { display: none; }
+.mic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mic .slash { display: none; }
+.mic[aria-pressed="false"] { color: var(--j-color-danger); }
+.mic[aria-pressed="false"] .slash { display: block; }
+.mic:hover:not(:disabled) { box-shadow: var(--j-glow); }
+.mic:disabled { opacity: .5; cursor: not-allowed; }
 
 .view {
   grid-area: main; min-height: 0; overflow-y: auto; padding: var(--j-space-4);
@@ -360,3 +371,16 @@ h2.section { margin-top: var(--j-space-4); }
   }
   #app:has(#view-chat:not([hidden])) #view-audit > .muted { display: none; }
 }
+
+/* ---- Tableau de bord (Phase 6) ---- */
+.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--j-space-3); }
+.stat { padding: var(--j-space-4); }
+.stat h2, #view-home .panel > h2 { font: 500 var(--j-text-xs)/1.2 var(--j-font-tech); letter-spacing: .12em; text-transform: uppercase; color: var(--j-color-muted); margin: 0 0 var(--j-space-2); }
+.stat .big { margin: 0; font: 600 var(--j-text-lg)/1.2 var(--j-font-tech); color: var(--j-color-accent); }
+.stat .muted { margin: var(--j-space-1) 0 0; }
+#view-home > .panel { padding: var(--j-space-4); }
+.meters { display: grid; gap: var(--j-space-3); margin: 0; padding: 0; list-style: none; }
+.meter-head { display: flex; justify-content: space-between; font: 500 var(--j-text-sm)/1.2 var(--j-font-tech); }
+.meter-bar { height: 6px; margin-top: var(--j-space-1); border-radius: 3px; background: var(--j-color-border); overflow: hidden; }
+.meter-bar > span { display: block; height: 100%; background: var(--j-color-accent); transition: width var(--j-motion-base) ease-out; }
+.meter-bar.hot > span { background: var(--j-color-danger); }

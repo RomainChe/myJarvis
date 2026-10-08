@@ -22,9 +22,11 @@ from pydantic import BaseModel, Field, StrictBool
 from jarvis.core import levels
 from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
+from jarvis.core.dashboard import Dashboard
 from jarvis.core.devices import Devices
 from jarvis.core.push import Push, subject_from_env
 from jarvis.core.webauthn import Passkeys
+from jarvis.tools.pc.system import system_status
 
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192
@@ -110,6 +112,11 @@ class Attestation(BaseModel):
     attestationObject: str = Field(max_length=4000, pattern=r"^[A-Za-z0-9_-]+$")
 
 
+class MicIn(BaseModel):
+    on: StrictBool
+    assertion: Assertion | None = None  # réarmer avec une clé d'accès enregistrée : signature du défi « mic:on »
+
+
 class LevelIn(BaseModel):
     tool: str = Field(max_length=64, pattern=r"^[A-Za-z0-9_]+$")
     level: int = Field(ge=0, le=3, strict=True)
@@ -117,7 +124,7 @@ class LevelIn(BaseModel):
 
 
 def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-               web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None) -> FastAPI:
+               web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
     # Host accepté -> Origin attendu pour ce Host. Liste fermée : jamais de joker, jamais de confiance dans l'IP source
     # ni dans les en-têtes Tailscale (derrière `tailscale serve`, tout arrive de 127.0.0.1).
@@ -127,6 +134,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     failures: deque[float] = deque()
     passkeys = Passkeys(devices, ts_host)  # sans nom Tailscale (HTTPS), WebAuthn est désactivé : N3 reste refusé
     push = push or Push(devices, subject_from_env())
+    dashboard = Dashboard(system_status)
     chat = chat or Chat(audit, passkeys, push)
     if chat.push is None:
         chat.push = push
@@ -328,6 +336,49 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         except ValueError:
             return reply(422, "requête invalide")
 
+    @app.get("/api/dashboard")
+    def dashboard_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return dashboard.snapshot()
+
+    @app.get("/api/mic")
+    def mic_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return {"available": mic is not None, "on": mic is not None and not mic.disabled(), "state": mic.state if mic else None,
+                "strong": passkeys.has(auth[0])}  # une clé d'accès existe : réarmer exige sa signature
+
+    @app.post("/api/mic/challenge")
+    def mic_challenge(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        options = passkeys.request_options(auth[0], "mic:on")
+        return reply(403, "aucune clé d'accès pour cet appareil") if options is None else options
+
+    @app.post("/api/mic")
+    def mic_set(body: MicIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if mic is None:
+            return reply(404, "introuvable")
+        source = f"pwa:{auth[0]}"
+        if not body.on:  # couper est toujours libre
+            mic.disable()
+            audit.log(source, "mic_switch", {"état": "off"}, None, "auto", "micro coupé")
+            return {"on": False}
+        # Réarmer : avec une clé d'accès enregistrée, sa signature est exigée (un token volé ne rallume pas le micro).
+        if passkeys.has(auth[0]) and not (body.assertion and passkeys.verify(auth[0], "mic:on", body.assertion.model_dump())):
+            audit.log(source, "mic_switch", {"état": "on"}, None, "refusé", "clé d'accès requise")
+            return reply(403, "authentification forte requise")
+        audit.log(source, "mic_switch", {"état": "on"}, None, "auto", "micro autorisé")  # trace d'abord : journal en échec = pas d'écoute
+        mic.enable()
+        return {"on": True}
+
     @app.post("/api/enroll")
     def enroll(body: Enroll):
         locked = devices.locked()
@@ -356,7 +407,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
 
 def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-                web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None) -> uvicorn.Server:
-    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host, push), host=HOST, port=port, access_log=False,
+                web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host, push, mic), host=HOST, port=port, access_log=False,
                             server_header=False, proxy_headers=False, log_level="warning")
     return uvicorn.Server(config)

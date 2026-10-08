@@ -24,3 +24,8 @@
 - Constat 10 (étape 4) consigné, risque accepté : TOCTOU des modèles (vérifiés puis chargés, `models/` inscriptible par l'utilisateur seul, même confiance que le code) ; le modèle Silero VAD est embarqué dans le paquet `faster-whisper` et n'est pas au manifeste (protégé par le pin de version et `pip-audit`).
 - `stt.py` : tous les fichiers `whisper-large-v3-turbo/*` du manifeste vérifiés avant chargement ; hors ligne ; l'audio reste en mémoire (tableau float32), jamais de fichier temporaire. Le texte reconnu n'est pas journalisé (seul `Voice.handle` écrit longueur + SHA-256). La commande `mic listen` l'affiche dans le terminal du propriétaire seulement.
 - La voix reste plafonnée à N0/N1 : une phrase reconnue ne peut pas confirmer un N2 (pas d'empreinte vocale).
+
+## 2026-10-08 — Phase 6 : bouton micro, tableau de bord
+- **Micro** : `serve` lance l'écoute ; la PWA coupe librement (journalisé `pwa:<id>`). Réarmer depuis la PWA est libre si l'appareil n'a pas de clé d'accès, signature « mic:on » exigée sinon. Sans `JARVIS_TS_HOST`, `passkeys.has()` est faux : réarmer ne demande alors que le token (risque accepté : écoute d'ambiance à distance, l'audio reste en mémoire, la voix ne valide jamais N2/N3). Journal écrit AVANT le réarmement.
+- **Tableau de bord** (`/api/dashboard`, N0) : non journalisé (rafraîchi toutes les 5 s, lecture seule, données fixes) ; jamais exposé comme outil au LLM.
+- **Sorties réseau** : Open-Meteo (HTTPS, coordonnées arrondies à ~1 km, toutes les 15 min, avec l'IP du foyer ; échec mis en cache 60 s) et ping TCP vers 1.1.1.1:443. Coordonnées dans `~/.jarvis/dashboard.json`, hors dépôt.
