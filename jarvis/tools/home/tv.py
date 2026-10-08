@@ -8,9 +8,11 @@ from jarvis.core.tools import Level, tool
 PLAYER = "media_player.salon_tv"
 REMOTE = "remote.salon_tv"
 STEPS_MAX = 5
-# Paquets Android des applis lançables ; une appli absente de la liste n'est pas lançable (nom = donnée, pas commande).
-APPS = {"youtube": "com.google.android.youtube.tv", "netflix": "com.netflix.ninja",
-        "prime video": "com.amazon.amazonvideo.livingroom", "disney+": "com.disney.disneyplus"}
+# Applis lançables : nom -> (paquet Android, lien propre à l'appli). Liens vérifiés sur la TV du salon le 2026-10-08 :
+# un lien web ouvre un sélecteur « Ouvrir avec », et `market://` ou le nom de paquet ne lancent rien.
+# Une appli absente de la liste n'est pas lançable (nom = donnée, pas commande).
+APPS = {"youtube": ("com.google.android.youtube.tv", "vnd.youtube://"),
+        "netflix": ("com.netflix.ninja", "nflx://www.netflix.com")}
 LAUNCHER = "com.google.android.apps.tv.launcherx"
 KEYS = {"home": "HOME", "back": "BACK", "up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT",
         "right": "DPAD_RIGHT", "ok": "DPAD_CENTER", "play_pause": "MEDIA_PLAY_PAUSE"}
@@ -23,7 +25,7 @@ def tv_status() -> dict:
     volume = a.get("volume_level")
     # Le nom d'appli vient d'un tiers : on ne renvoie qu'un nom connu (constat S3).
     raw = a.get("app_id") or a.get("app_name")
-    app = next((n for n, pkg in APPS.items() if pkg == raw), "accueil" if raw == LAUNCHER else None if raw is None else "autre")
+    app = next((n for n, pkg in APPS.items() if pkg[0] == raw), "accueil" if raw == LAUNCHER else None if raw is None else "autre")
     return {"state": s["state"], "app": app, "muted": a.get("is_volume_muted"),
             "volume_percent": None if volume is None else round(volume * 100)}
 
@@ -68,8 +70,8 @@ def tv_key(button: str) -> dict:
 
 @tool("tv_open_app", f"Lance une appli sur la TV du salon : {', '.join(APPS)}.", Level.N1, taint_blocked=True, app=str)
 def tv_open_app(app: str) -> dict:
-    package = APPS.get(app.casefold().strip())
-    if package is None:
+    entry = APPS.get(app.casefold().strip())
+    if entry is None:
         raise ValueError(f"appli inconnue (attendu : {', '.join(APPS)})")
-    ha.call_service("remote", "turn_on", REMOTE, activity=f"market://launch?id={package}")
+    ha.call_service("remote", "turn_on", REMOTE, activity=entry[1])
     return {"app": app}

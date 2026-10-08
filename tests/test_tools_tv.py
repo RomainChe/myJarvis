@@ -42,7 +42,7 @@ class TvTest(PcBase):
         self.call.assert_called_with("remote", "send_command", "remote.salon_tv", command="BACK")
         self.run_tool("tv_open_app", {"app": " YouTube "})
         self.call.assert_called_with("remote", "turn_on", "remote.salon_tv",
-                                     activity="market://launch?id=com.google.android.youtube.tv")
+                                     activity="vnd.youtube://")
 
     def test_volume_par_pas(self):
         self.run_tool("tv_volume", {"direction": "down", "steps": 3})
