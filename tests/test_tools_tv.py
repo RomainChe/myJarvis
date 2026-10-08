@@ -68,6 +68,12 @@ class TvTest(PcBase):
         with mock.patch.object(ha, "state", return_value={"state": "on"}):  # réponse sans attributs
             self.assertIsNone(self.run_tool("tv_status")["app"])
 
+    def test_muet_non_booleen_et_nom_normalise(self):
+        hostile = {"state": "on", "attributes": {"is_volume_muted": "x" * 500}}
+        with mock.patch.object(ha, "state", return_value=hostile):
+            self.assertIsNone(self.run_tool("tv_status")["muted"])
+        self.assertEqual(self.run_tool("tv_open_app", {"app": " YouTube "}), {"app": "youtube"})
+
     def test_touches_et_applis_refusees_apres_contenu_externe(self):
         for name in ("tv_key", "tv_open_app"):
             self.assertTrue(REGISTRY[name].taint_blocked, name)

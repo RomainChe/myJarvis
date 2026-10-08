@@ -31,7 +31,8 @@ def tv_status() -> dict:
     # Le nom d'appli vient d'un tiers : on ne renvoie qu'un nom connu (constat S3).
     raw = a.get("app_id") or a.get("app_name")
     app = next((n for n, pkg in APPS.items() if pkg[0] == raw), "accueil" if raw == LAUNCHER else None if raw is None else "autre")
-    return {"state": s["state"], "app": app, "muted": a.get("is_volume_muted"),
+    muted = a.get("is_volume_muted")
+    return {"state": s["state"], "app": app, "muted": muted if isinstance(muted, bool) else None,
             "volume_percent": None if volume is None else round(volume * 100)}
 
 
@@ -79,4 +80,4 @@ def tv_open_app(app: str) -> dict:
     if entry is None:
         raise ValueError(f"appli inconnue (attendu : {', '.join(APPS)})")
     ha.call_service("remote", "turn_on", REMOTE, activity=entry[1])
-    return {"app": app}
+    return {"app": app.casefold().strip()}
