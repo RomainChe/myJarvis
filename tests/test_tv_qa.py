@@ -47,7 +47,9 @@ class Fake(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    do_POST = do_GET
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))  # comme HA : le corps est lu avant de répondre
+        self.do_GET()
 
 
 class MemoryKeyring(KeyringBackend):
