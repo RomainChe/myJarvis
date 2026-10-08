@@ -1,0 +1,25 @@
+model_name: jarvis_fr
+target_phrase: ["jarvis"]
+custom_negative_phrases: ["jardin", "j'arrive", "Travis", "Marvin", "service", "javel", "jarret", "Chavis", "par avis", "j'avais", "Gervais", "Harvey", "Jervis", "Davis", "Arvis", "j'ai vu", "Mavis", "Elvis", "avis", "jadis", "Charlie", "Jarnac", "jarre", "garvis", "tarif", "Paris", "arrivage", "chavirer", "ça va", "jarvi"]
+n_samples: 30000
+n_samples_val: 3000
+tts_batch_size: 50
+augmentation_batch_size: 16
+augmentation_rounds: 1
+piper_sample_generator_path: "C:/Users/<utilisateur>/AppData/Local/jarvis-wakeword/gen"
+output_dir: "C:/Users/<utilisateur>/AppData/Local/jarvis-wakeword/out"
+rir_paths: ["C:/Users/<utilisateur>/AppData/Local/jarvis-wakeword/data/rir"]
+background_paths: ["C:/Users/<utilisateur>/AppData/Local/jarvis-wakeword/data/background"]
+background_paths_duplication_rate: [1]
+false_positive_validation_data_path: "C:/Users/<utilisateur>/AppData/Local/jarvis-wakeword/data/validation_set_features.npy"
+feature_data_files:
+  ACAV100M_sample: "C:/Users/<utilisateur>/AppData/Local/jarvis-wakeword/data/openwakeword_features_ACAV100M_2000_hrs_16bit.npy"
+batch_n_per_class:
+  ACAV100M_sample: 1024
+  adversarial_negative: 50
+  positive: 50
+model_type: dnn
+layer_size: 32
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.2
