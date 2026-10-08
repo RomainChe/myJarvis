@@ -46,8 +46,9 @@ def models_dir(good=True):
 
 class TestTranscriber(unittest.TestCase):
     def make(self, loader, **kw):
+        gaming = kw.pop("gaming", lambda: False)
         tmp = models_dir(**kw)
-        return Transcriber(models=tmp, manifest=tmp / "m.json", loader=loader)
+        return Transcriber(models=tmp, manifest=tmp / "m.json", loader=loader, gaming=gaming)
 
     def test_nominal_francais_et_float32(self):
         m = FakeModel()
@@ -87,6 +88,22 @@ class TestTranscriber(unittest.TestCase):
         self.assertEqual(t.transcribe(AUDIO), "allume le salon")
         self.assertEqual(t.device, "cpu")
 
+    def test_mode_jeu_decharge_le_gpu_puis_le_recharge(self):
+        state, calls = {"jeu": False}, []
+
+        def loader(path, dev, compute):
+            calls.append(dev)
+            return FakeModel()
+        t = self.make(loader, gaming=lambda: state["jeu"])
+        t.transcribe(AUDIO)
+        state["jeu"] = True
+        self.assertEqual(t.transcribe(AUDIO), "allume le salon")  # la phrase passe quand même, sur le CPU
+        self.assertEqual(t.device, "cpu")
+        t.transcribe(AUDIO)
+        state["jeu"] = False
+        t.transcribe(AUDIO)
+        self.assertEqual(calls, ["cuda", "cpu", "cuda"])
+
     def test_modele_modifie_refuse(self):
         t = self.make(lambda *a: FakeModel(), good=False)
         with self.assertRaises(STTError) as cm:
@@ -97,7 +114,7 @@ class TestTranscriber(unittest.TestCase):
         tmp = models_dir()
         (tmp / "m.json").write_text(json.dumps({"files": []}), encoding="utf-8")
         with self.assertRaises(STTError):
-            Transcriber(models=tmp, manifest=tmp / "m.json", loader=lambda *a: FakeModel()).transcribe(AUDIO)
+            Transcriber(models=tmp, manifest=tmp / "m.json", loader=lambda *a: FakeModel(), gaming=lambda: False).transcribe(AUDIO)
 
     def test_erreur_message_fixe_sans_texte(self):
         t = self.make(lambda *a: FakeModel(text="phrasesecrete42", fail=True))

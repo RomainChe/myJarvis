@@ -3,6 +3,8 @@
 Modèle chargé seulement si tous ses fichiers du manifeste correspondent au SHA-256 (comme la voix et le réveil), hors
 ligne (`local_files_only`). L'audio reste en mémoire (tableau float32) : ni fichier temporaire ni journal du texte (14, 20).
 GPU d'abord (int8_float16) ; si CUDA manque (cublas absente, voir docs/VOIX.md §2bis) : repli CPU int8, plus lent.
+Mode jeu (`games.detect`, vérifié à chaque phrase) : le modèle GPU est déchargé et la phrase passe sur le CPU, pour ne pas
+prendre la VRAM du jeu ; la phrase suivante hors jeu recharge le GPU.
 """
 import json
 import os
@@ -10,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from jarvis.core import games
 from jarvis.core.chat import TEXT_MAX
 from jarvis.core.modelcheck import is_good
 from jarvis.core.tts import ROOT
@@ -24,9 +27,10 @@ class STTError(Exception):
 
 
 class Transcriber:
-    def __init__(self, *, models=ROOT / "models", manifest=ROOT / "models" / "MANIFEST.json", loader=None):
-        self.models, self.manifest, self._loader = Path(models), Path(manifest), loader
-        self._model, self.device, self._verified = None, None, False
+    def __init__(self, *, models=ROOT / "models", manifest=ROOT / "models" / "MANIFEST.json", loader=None,
+                 gaming=games.detect):
+        self.models, self.manifest, self._loader, self.gaming = Path(models), Path(manifest), loader, gaming
+        self._model, self.device, self._verified, self._cuda_failed = None, None, False, False
 
     def _load(self, device):
         os.environ["HF_HUB_OFFLINE"] = "1"
@@ -53,7 +57,10 @@ class Transcriber:
         """int16 mono 16 kHz -> texte (vide si rien d'intelligible). Toute erreur -> STTError au message fixe."""
         pcm = audio.astype(np.float32) / 32768.0
         try:
-            for device in ("cpu",) if self.device == "cpu" else ("cuda", "cpu"):
+            cpu_only = self._cuda_failed or self.gaming()
+            if self._model is not None and self.device != ("cpu" if cpu_only else "cuda"):
+                self._model, self.device = None, None  # décharge (entrée ou sortie du mode jeu)
+            for device in ("cpu",) if cpu_only else ("cuda", "cpu"):
                 try:
                     if self._model is None:
                         self._load(device)
@@ -63,7 +70,7 @@ class Transcriber:
                 except Exception:  # CUDA absente ou GPU occupé : une seule retombée sur le CPU
                     if device == "cpu":
                         raise
-                    self._model, self.device = None, "cpu"  # CUDA ne sera plus réessayé
+                    self._model, self._cuda_failed = None, True  # CUDA ne sera plus réessayé
         except STTError:
             raise
         except Exception:
