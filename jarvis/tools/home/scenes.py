@@ -8,6 +8,7 @@ script HA. La scène vit dans Jarvis ; à migrer vers un script HA quand les vol
 import time
 
 from jarvis.core import ha
+from jarvis.core.levels import effective
 from jarvis.core.tools import REGISTRY, Level, tool
 from jarvis.tools.home import tv
 
@@ -38,7 +39,7 @@ def scene_cinema(app: str) -> dict:
     # Les sous-outils sont appelés sans repasser par la garde : si le propriétaire en relève un au-dessus de N1,
     # toute la scène est refusée avant la première action (revue Sécurité, constat 1).
     needed = ["tv_on"] + (["tv_open_app"] if name else [])
-    if over := [t for t in needed if REGISTRY[t].level > Level.N1]:
+    if over := [t for t in needed if effective(REGISTRY[t]) > Level.N1]:
         raise ValueError(f"scène refusée : {', '.join(over)} dépasse N1, à exécuter séparément avec confirmation")
     result = {"tv": "allumée" if tv.tv_status()["state"] == "on" else None, "app": None, "non_traité": list(NOT_EQUIPPED)}
     if result["tv"] is None:

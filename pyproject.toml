@@ -3,4 +3,4 @@ name = "jarvis"
 version = "0.1.0"
 description = "Assistant personnel pour PC et maison connectée"
 requires-python = ">=3.12"
-dependencies = ["keyring>=25", "fastapi==0.142.4", "uvicorn==0.54.0"]
+dependencies = ["keyring>=25", "fastapi==0.142.4", "uvicorn==0.54.0", "segno==1.6.6"]

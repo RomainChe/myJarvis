@@ -7,6 +7,7 @@ from typing import Callable
 
 from . import games
 from .audit import Audit
+from .levels import effective
 from .permissions import Refused, as_data, execute
 from .tools import REGISTRY, Level, Tool, masked
 
@@ -106,8 +107,8 @@ def ask(
             tool = REGISTRY.get(name)
             if i >= MAX_CALLS:
                 result = "refusé : trop d'appels dans un même message."
-            elif tainted and tool and (tool.level >= Level.N2 or tool.taint_blocked):
-                audit.log(source, name, masked(args, tool.hidden), tool.level, "refusé", "contenu externe lu dans ce tour")
+            elif tainted and tool and (effective(tool) >= Level.N2 or tool.taint_blocked):
+                audit.log(source, name, masked(args, tool.hidden), effective(tool), "refusé", "contenu externe lu dans ce tour")
                 result = "refusé : une action sensible ne peut pas suivre la lecture de contenu externe ; redemande-la."
             else:
                 try:

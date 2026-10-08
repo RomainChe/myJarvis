@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 from jarvis.core.audit import Audit
+from jarvis.core import levels
+from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
@@ -52,6 +54,7 @@ class Job:
 class Chat:
     def __init__(self, audit: Audit):
         self.audit = audit
+        levels.load(audit)  # le serveur applique toujours les niveaux réglés par le propriétaire
         self.busy = threading.Lock()  # un seul appel à la fois (un seul LLM local) : le reste reçoit « occupé »
         self.lock = threading.Lock()
         self.jobs: dict[str, Job] = {}
@@ -101,11 +104,12 @@ class Chat:
         return False
 
     def _confirm(self, job: Job, tool: Tool, args: dict) -> bool:
-        if tool.level >= Level.N3:  # inutile de demander : WebAuthn n'existe pas encore (étape 5), N3 est refusé
-            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(tool.level), "refusé", "N3 refusé (web)")
+        level = effective(tool)
+        if level >= Level.N3:  # inutile de demander : WebAuthn n'existe pas encore (étape 5), N3 est refusé
+            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé", "N3 refusé (web)")
             return False
         if job.aborted or _now() > job.deadline:
-            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(tool.level), "refusé",
+            self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé",
                            "job interrompu après un refus ou trop long")
             return False
         preview = tool.preview(args)

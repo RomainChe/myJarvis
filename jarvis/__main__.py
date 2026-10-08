@@ -6,6 +6,7 @@
     python -m jarvis secret set|check <nom>
     python -m jarvis ha check
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
+    python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
 import getpass
@@ -15,8 +16,9 @@ import sys
 from pathlib import Path
 
 import keyring.errors
+import segno
 
-from jarvis.core import ha
+from jarvis.core import ha, levels
 from jarvis.core.audit import Audit
 from jarvis.core.devices import CODE_TTL_S, Devices
 from jarvis.core.llm import LLMUnavailable, ask
@@ -86,17 +88,32 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             print(f"Code d'enrôlement (à usage unique, valable {CODE_TTL_S // 60} min) : {code}")
             url = f"https://{ts_host}/#code={code}" if ts_host else f"http://{HOST}:{port}/#code={code}"
             print(f"Sur le téléphone, ouvre : {url}")  # le code est dans le fragment (#) : jamais envoyé au serveur
-            try:
-                import segno  # QR optionnel : `pip install segno`
-                segno.make(url, error="m").terminal(compact=True)
-            except ImportError:
-                print("(Pour un QR code à scanner : pip install segno)")
+            segno.make(url, error="m").terminal(compact=True)
             return 0
         ok = devices.revoke(int(argv[2]))
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
         print("Appareil révoqué." if ok else "Appareil introuvable ou déjà révoqué.")
         return 0 if ok else 1
     print("Usage : device add | device list | device revoke <id> | serve")
+    return 2
+
+
+def level_cmd(argv: list[str]) -> int:
+    if argv == ["level", "list"]:
+        for name, base, floor, now in levels.table():
+            print(f"{name} | registre N{base} | plancher N{floor} | effectif N{now}")
+        return 0
+    if len(argv) == 4 and argv[1] == "set" and argv[3] in ("0", "1", "2", "3"):
+        if not sys.stdin.isatty():
+            print("Refusé : cette commande exige un terminal interactif.")
+            return 1
+        try:
+            print(levels.set_level(argv[2], int(argv[3]), strong_auth=False))  # CLI sans WebAuthn : abaisser est refusé
+        except (ValueError, PermissionError) as e:
+            print(e)
+            return 1
+        return 0
+    print("Usage : level list | level set <outil> <0-3>")
     return 2
 
 
@@ -140,6 +157,9 @@ def main(argv: list[str]) -> int:
         for row in audit.last(int(argv[1]) if len(argv) > 1 else 20):
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
+    levels.load(audit)
+    if argv[0] == "level":
+        return level_cmd(argv)
     if argv[0] == "device" or argv == ["serve"]:
         return device_or_serve(argv, audit)
     if argv[0] == "run":

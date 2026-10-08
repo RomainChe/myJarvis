@@ -7,6 +7,7 @@ import re
 from typing import Any, Callable
 
 from .audit import Audit
+from .levels import effective
 from .tools import REGISTRY, Level, Tool, masked
 
 ERROR_MAX = 200
@@ -44,36 +45,37 @@ def execute(
     if tool is None:
         audit.log(source, str(name), masked(args), None, "inconnu", None)
         raise ValueError(f"outil inconnu : {name}")
+    level = effective(tool)  # niveau du registre, relevé par le propriétaire, jamais sous le plancher
     # Copie avant validation : on valide, fait confirmer et exécute le même objet, que l'appelant ne tient plus.
     if type(args) is dict:
         args = dict(args)
     try:
         tool.check_args(args)
     except ValueError as e:
-        audit.log(source, name, masked(args, tool.hidden), tool.level, "invalide", e)
+        audit.log(source, name, masked(args, tool.hidden), level, "invalide", e)
         raise
     logged = masked(args, tool.hidden)
 
     decision = "auto"
-    if tool.level >= Level.N2:
+    if level >= Level.N2:
         try:
-            ok = confirm(tool, dict(args)) is True and (tool.level < Level.N3 or strong_auth(tool, dict(args)) is True)
+            ok = confirm(tool, dict(args)) is True and (level < Level.N3 or strong_auth(tool, dict(args)) is True)
         except BaseException as e:  # Ctrl+C ou canal coupé : refus journalisé, puis l'exception remonte
-            audit.log(source, name, logged, tool.level, "refusé", f"confirmation impossible : {type(e).__name__}")
+            audit.log(source, name, logged, level, "refusé", f"confirmation impossible : {type(e).__name__}")
             raise
         decision = "confirmé" if ok else "refusé"
     if decision == "refusé":
-        audit.log(source, name, logged, tool.level, decision, None)
+        audit.log(source, name, logged, level, decision, None)
         raise Refused(f"{name} refusé")
 
-    start = audit.log(source, name, logged, tool.level, decision, "en cours")
+    start = audit.log(source, name, logged, level, decision, "en cours")
     try:
         result = tool.run(**args)
     except Exception as e:
         # Le message d'un outil privé peut contenir ses données (octets du fichier, URL avec token).
         detail = "" if tool.private else f": {str(e)[:ERROR_MAX]}"
-        audit.log(source, name, logged, tool.level, decision, f"erreur : {type(e).__name__}{detail}", ref=start)
+        audit.log(source, name, logged, level, decision, f"erreur : {type(e).__name__}{detail}", ref=start)
         raise
     shown = f"<{type(result).__name__}, {len(str(result))} car.>" if tool.private else result
-    audit.log(source, name, logged, tool.level, decision, shown, ref=start)
+    audit.log(source, name, logged, level, decision, shown, ref=start)
     return result
