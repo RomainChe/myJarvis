@@ -52,6 +52,11 @@ notification + PWA) pendant l'écoute.
   faire écouter au propriétaire : `upmc-medium` (locuteur masculin « pierre »), `gilles-low`.
   Le choix se fait à l'oreille, dans les réglages.
 - Réglages utiles : `length_scale` ~1,05 (un peu plus posé), volume réduit la nuit.
+- **Codé le 2026-10-08** : `JARVIS_VOICE` = `tom` | `gilles` | `pierre` (noms fixes, fichiers au manifeste vérifiés au
+  SHA-256 ; `gilles` est en qualité basse et saute les voyelles nasales), `JARVIS_VOICE_RATE` (borné 0,8–1,6),
+  `JARVIS_VOICE_FX` : effet « IA » à la façon du film, écho de 7 ms mélangé à 60 % (filtre en peigne, numpy), actif
+  par défaut, `0` le coupe. Pas d'imitation de la voix d'un acteur : ambiance seulement.
+  Le prompt système du LLM est désormais celui de `docs/PERSONNALITE.md` §5.
 - Ne lire que des réponses courtes (cf. `docs/PERSONNALITE.md` §3) ; découper par phrase pour
   commencer à parler avant la fin de la synthèse.
 

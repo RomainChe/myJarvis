@@ -11,12 +11,18 @@ import threading
 import time
 from pathlib import Path
 
+import numpy as np
+
 from jarvis.core.chat import ANSWER_MAX
 from jarvis.core.modelcheck import is_good
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-VOICE = "piper/fr_FR-tom-medium.onnx"
-LENGTH_SCALE = 1.05
+# JARVIS_VOICE choisit la voix (nom -> fichier, locuteur) ; jamais un chemin libre.
+VOICES = {"tom": ("piper/fr_FR-tom-medium.onnx", None), "gilles": ("piper/fr_FR-gilles-low.onnx", None),
+          "pierre": ("piper/fr_FR-upmc-medium.onnx", 1)}
+DEFAULT_VOICE = "tom"
+LENGTH_SCALE, RATE_MIN, RATE_MAX = 1.05, 0.8, 1.6  # JARVIS_VOICE_RATE : > 1 = plus lent
+FX_DELAY_S, FX_MIX = 0.007, 0.6  # effet « IA » (JARVIS_VOICE_FX=0 le coupe) : écho court qui donne le timbre métallique
 MARGIN_S = 0.4
 SOURCE = "voix"
 ERR_MSG = "Synthèse vocale indisponible."
@@ -32,12 +38,32 @@ def audio_device(var="JARVIS_AUDIO_OUT"):
     return int(raw) if raw.isascii() and raw.isdigit() else (raw or None)
 
 
+def rate_from_env():
+    try:
+        r = float(os.environ.get("JARVIS_VOICE_RATE", LENGTH_SCALE))
+    except ValueError:
+        return LENGTH_SCALE
+    return min(max(r, RATE_MIN), RATE_MAX) if r == r else LENGTH_SCALE  # r != r : NaN
+
+
+def robot(pcm: bytes, rate: int) -> bytes:
+    """Ajoute au son un écho de 7 ms (filtre en peigne) : timbre métallique, volume inchangé."""
+    x = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
+    d = int(rate * FX_DELAY_S)
+    y = x.copy()
+    y[d:] += FX_MIX * x[:-d]
+    return (y / (1 + FX_MIX)).astype(np.int16).tobytes()
+
+
 class Speaker:
     """Lecteur bas niveau. `say` est INTERNE : seul `Voice.say` doit l'appeler (muet, réponses déjà masquées)."""
 
     def __init__(self, audit=None, *, models=ROOT / "models", margin=MARGIN_S, sd=None, loader=None,
-                 manifest=ROOT / "models" / "MANIFEST.json"):
+                 manifest=ROOT / "models" / "MANIFEST.json", voice=None, rate=None, fx=None):
         self.audit, self.models, self.margin, self.manifest = audit, Path(models), margin, Path(manifest)
+        self.voice_name = voice or os.environ.get("JARVIS_VOICE", "").strip().lower() or DEFAULT_VOICE
+        self.rate = rate_from_env() if rate is None else rate
+        self.fx = os.environ.get("JARVIS_VOICE_FX", "1").strip() != "0" if fx is None else fx
         self._lock = threading.Lock()  # test is_speaking + set de say() atomique
         self._sd, self._loader, self._voice = sd, loader, None
         self._speaking = threading.Event()
@@ -50,20 +76,23 @@ class Speaker:
         if self._voice:
             return
         os.environ["HF_HUB_OFFLINE"] = "1"  # imposé, pas suggéré : aucun accès réseau depuis la synthèse
+        if self.voice_name not in VOICES:
+            raise TTSError("voix inconnue")
+        voice = VOICES[self.voice_name][0]
         entries = {e["path"]: e for e in json.loads(self.manifest.read_text(encoding="utf-8"))["files"]}
-        for path in (VOICE, VOICE + ".json"):  # la voix ET sa config doivent figurer au manifeste et être vérifiées
+        for path in (voice, voice + ".json"):  # la voix ET sa config doivent figurer au manifeste et être vérifiées
             e = entries.get(path)
             if e is None or not is_good(self.models / path, e["size"], e["sha256"]):
                 raise TTSError("voix non vérifiée")
         if self._loader is None:
             from piper import PiperVoice
             self._loader = PiperVoice.load
-        self._voice = self._loader(str(self.models / VOICE))
+        self._voice = self._loader(str(self.models / voice))
 
     def _play(self, text):
         from piper import SynthesisConfig
         sd = self._sd or __import__("sounddevice")
-        cfg = SynthesisConfig(length_scale=LENGTH_SCALE)
+        cfg = SynthesisConfig(length_scale=self.rate, speaker_id=VOICES[self.voice_name][1])
         stream = None
         try:
             for chunk in self._voice.synthesize(text, cfg):  # un morceau par phrase
@@ -73,7 +102,7 @@ class Speaker:
                     stream = sd.RawOutputStream(samplerate=chunk.sample_rate, channels=1, dtype="int16",
                                                 device=audio_device())
                     stream.start()
-                stream.write(chunk.audio_int16_bytes)
+                stream.write(robot(chunk.audio_int16_bytes, chunk.sample_rate) if self.fx else chunk.audio_int16_bytes)
             return "interrompu" if self._stop.is_set() else "ok"
         finally:
             if stream is not None:

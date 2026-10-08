@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "SHA-256 calculés au premier téléchargement (2026-10-08) ; model.bin et fr_FR-tom-medium.onnx recoupés avec le sha256 LFS de l'API Hugging Face.",
+  "note": "SHA-256 calculés au premier téléchargement (2026-10-08) ; model.bin et fr_FR-tom-medium.onnx recoupés avec le sha256 LFS de l'API Hugging Face. Voix gilles et upmc ajoutées le 2026-10-08 : .onnx recoupés avec le sha256 LFS de l'API Hugging Face.",
   "files": [
     {
       "path": "openwakeword/hey_jarvis_v0.1.onnx",
@@ -80,6 +80,38 @@
       "size": 4959,
       "sha256": "2f7f885ad5a0aad802e3cc24e4f57239febdcb142b4876de5d238094674361cc",
       "licence": "AGPL-3.0 (jeu de données de la voix, d'après MODEL_CARD)",
+      "source": "huggingface.co/rhasspy/piper-voices, révision c10ece1a"
+    },
+    {
+      "path": "piper/fr_FR-gilles-low.onnx",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/gilles/low/fr_FR-gilles-low.onnx",
+      "size": 63104526,
+      "sha256": "5cd711846720e261c2a176f6924c198a7424d0a75dd4b0a5357a5fb9cb739285",
+      "licence": "CC0 (jeu de données de la voix, d'après MODEL_CARD)",
+      "source": "huggingface.co/rhasspy/piper-voices, révision c10ece1a"
+    },
+    {
+      "path": "piper/fr_FR-gilles-low.onnx.json",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/gilles/low/fr_FR-gilles-low.onnx.json",
+      "size": 4158,
+      "sha256": "5a47cc0789e91267d17666bbec842dd92950669271a09023eb6970ee364cf88a",
+      "licence": "CC0 (jeu de données de la voix, d'après MODEL_CARD)",
+      "source": "huggingface.co/rhasspy/piper-voices, révision c10ece1a"
+    },
+    {
+      "path": "piper/fr_FR-upmc-medium.onnx",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx",
+      "size": 76733615,
+      "sha256": "9abb3800c199148897a9ed64e100d224f3de83579f100044174ad19418f1786f",
+      "licence": "CC BY-SA 4.0 (jeu de données de la voix, d'après MODEL_CARD)",
+      "source": "huggingface.co/rhasspy/piper-voices, révision c10ece1a"
+    },
+    {
+      "path": "piper/fr_FR-upmc-medium.onnx.json",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx.json",
+      "size": 4996,
+      "sha256": "e8636ec15dfd5d72db37a02cb5320a20f2b8d339f2a0e4337da64c58a33a5868",
+      "licence": "CC BY-SA 4.0 (jeu de données de la voix, d'après MODEL_CARD)",
       "source": "huggingface.co/rhasspy/piper-voices, révision c10ece1a"
     }
   ]

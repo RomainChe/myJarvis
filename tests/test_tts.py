@@ -9,6 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import numpy as np
+
 from jarvis.core import gpu, tts
 from jarvis.core.audit import Audit
 from jarvis.core.chat import ANSWER_MAX
@@ -57,7 +59,9 @@ class TTSTest(unittest.TestCase):
         self.addCleanup(p.stop)
 
     def speaker(self, **kw):
-        return Speaker(self.audit, sd=self.sd, loader=lambda path: self.fv, **kw)
+        kw.setdefault("fx", False)  # les faux morceaux ne sont pas de l'int16
+        self.loaded = []
+        return Speaker(self.audit, sd=self.sd, loader=lambda path: self.loaded.append(path) or self.fv, **kw)
 
     def rows(self):
         return self.audit.db.execute("SELECT source, tool, args, decision, result FROM audit").fetchall()
@@ -69,6 +73,36 @@ class TTSTest(unittest.TestCase):
         self.assertEqual(self.sd.opened[0]["samplerate"], 22050)
         self.assertEqual(self.fv.cfg.length_scale, 1.05)
         self.assertIsNone(s.error)
+
+    def test_voix_choisie_par_nom(self):
+        with mock.patch.dict(os.environ, {"JARVIS_VOICE": " Pierre "}):
+            self.speaker().say("Un.")
+        self.assertTrue(self.loaded[0].endswith("fr_FR-upmc-medium.onnx"))
+        self.assertEqual(self.fv.cfg.speaker_id, 1)
+
+    def test_voix_inconnue_refusee(self):
+        s = self.speaker(voice="../../secret")  # un nom, jamais un chemin
+        s.say("Un.")
+        self.assertEqual(s.error, tts.ERR_MSG)
+        self.assertEqual(self.loaded, [])
+
+    def test_debit_borne(self):
+        for raw, want in (("1.3", 1.3), ("9", tts.RATE_MAX), ("0", tts.RATE_MIN), ("abc", 1.05), ("nan", 1.05)):
+            with mock.patch.dict(os.environ, {"JARVIS_VOICE_RATE": raw}):
+                self.assertEqual(tts.rate_from_env(), want)
+
+    def test_effet_ia(self):
+        pcm = np.zeros(2000, dtype=np.int16)
+        pcm[0] = 16000
+        out = np.frombuffer(tts.robot(pcm.tobytes(), 22050), dtype=np.int16)
+        d = int(22050 * tts.FX_DELAY_S)
+        self.assertEqual(len(out), 2000)
+        self.assertEqual(out[0], 10000)  # 16000 / 1,6 : pas de saturation
+        self.assertEqual(out[d], 6000)  # l'écho
+        self.assertEqual(tts.robot(b"", 22050), b"")
+        with mock.patch.dict(os.environ, {"JARVIS_VOICE_FX": "0"}):
+            self.assertFalse(Speaker(self.audit).fx)
+        self.assertTrue(Speaker(self.audit).fx)
 
     def test_texte_trop_long_tronque(self):
         self.speaker().say("a" * (ANSWER_MAX + 500))
@@ -89,7 +123,7 @@ class TTSTest(unittest.TestCase):
         self.assertEqual(self.sd.written, [])
 
     def test_manifeste_vide_ou_incomplet_refuse(self):
-        for files in ([], [{"path": tts.VOICE, "size": 1, "sha256": "0" * 64}]):  # config .json absente
+        for files in ([], [{"path": tts.VOICES["tom"][0], "size": 1, "sha256": "0" * 64}]):  # config .json absente
             m = Path(self.tmp.name) / "m.json"
             m.write_text(json.dumps({"files": files}), encoding="utf-8")
             with self.assertRaises(tts.TTSError):
