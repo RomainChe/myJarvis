@@ -24,6 +24,8 @@ BLOCK = 1280  # 80 ms : taille attendue par openWakeWord
 WAKE_FILES = ("openwakeword/hey_jarvis_v0.1.onnx", "openwakeword/melspectrogram.onnx", "openwakeword/embedding_model.onnx")
 THRESHOLD = 0.5
 MAX_WAKES_PER_MIN = 4
+MAX_WAKES_PER_DAY = 200  # plafond du journal des réveils (7) : au-delà, réveil refusé jusqu'au lendemain
+MAX_FEED_ERRORS = 5  # erreurs de `feed` d'affilée avant arrêt (11)
 MAX_UTTERANCE_S = 15  # tampon borné (14)
 MAX_BLOCKS = MAX_UTTERANCE_S * RATE // BLOCK + 2  # plafond dur, indépendant de l'horloge
 TAIL_S = 1.5  # fenêtre de la passe VAD une fois la parole entendue (coût constant)
@@ -57,13 +59,16 @@ def silero_speech_end(audio):
 class Mic:
     def __init__(self, on_utterance, audit=None, speaker=None, on_state=None, *, flag=FLAG, models=ROOT / "models",
                  manifest=ROOT / "models" / "MANIFEST.json", threshold=THRESHOLD, sd=None, wake_loader=None,
-                 speech_end=silero_speech_end, clock=time.monotonic):
+                 speech_end=silero_speech_end, clock=time.monotonic, today=lambda: time.strftime("%Y-%m-%d")):
+        if speaker is None:  # (13) sans lecteur, pas d'anti-écho : le micro entendrait Jarvis
+            raise ValueError("speaker obligatoire")
         self.on_utterance, self.audit, self.speaker, self.on_state = on_utterance, audit, speaker, on_state
         self.flag, self.models, self.manifest, self.threshold = Path(flag), Path(models), Path(manifest), threshold
         self._sd, self._wake_loader, self._speech_end, self._clock = sd, wake_loader, speech_end, clock
         self._wake = None
         self._wakes = collections.deque()  # instants des réveils acceptés (limite de débit)
         self._limited = False
+        self._today, self._day, self._day_wakes, self._feed_errors = today, None, 0, 0
         self._buf, self._started, self._blocks, self._heard = None, 0.0, 0, False  # tampon de phrase (None = en veille)
         self.state, self.error = "veille", None
         self._stop = threading.Event()
@@ -92,11 +97,14 @@ class Mic:
                 self.on_state(state)
 
     def _log(self, tool, args, result):
+        """True si la ligne est écrite. Journal en échec = on ne transmet rien (8) : sans trace, pas d'écoute."""
         try:
             if self.audit:
                 self.audit.log(SOURCE, tool, args, None, "auto", result)
+            return True
         except Exception:  # la boucle ne doit pas mourir sur le journal
             self.error = ERR_MSG
+            return False
 
     def _load(self):
         if self._wake:
@@ -116,6 +124,14 @@ class Mic:
         self._wake = self._wake_loader()
 
     def _accept_wake(self, now):
+        day = self._today()
+        if day != self._day:
+            self._day, self._day_wakes = day, 0
+        if self._day_wakes >= MAX_WAKES_PER_DAY:
+            if self._day_wakes == MAX_WAKES_PER_DAY:  # une seule ligne pour la journée
+                self._day_wakes += 1
+                self._log("wake", None, "plafond journalier")
+            return False
         while self._wakes and now - self._wakes[0] > 60:
             self._wakes.popleft()
         if len(self._wakes) >= MAX_WAKES_PER_MIN:
@@ -125,16 +141,17 @@ class Mic:
             return False
         self._limited = False
         self._wakes.append(now)
+        self._day_wakes += 1
         return True
 
     def _end(self, audio, reason):
         self._buf = None
         self._set("veille")
         self._wake.reset()
-        if audio is not None:
-            self._log("mic", {"secondes": round(len(audio) / RATE, 1)}, reason)
+        if audio is not None and self._log("mic", {"secondes": round(len(audio) / RATE, 1)}, reason):
             try:
-                self.on_utterance(audio)
+                if self.on_utterance(audio) is False:  # le rappel a jeté la phrase : le journal doit le dire
+                    self._log("mic", None, "ignorée (occupé)")
             except Exception:  # pas de trace : elle pourrait contenir du texte reconnu
                 self.error = ERR_MSG
 
@@ -142,10 +159,14 @@ class Mic:
         """Un bloc int16 de BLOCK échantillons. Seule porte d'entrée de l'audio ; ne lève jamais."""
         try:
             self._feed(block)
+            self._feed_errors = 0
         except Exception:
             self.error = ERR_MSG
             self._buf = None
             self._set("veille")
+            self._feed_errors += 1
+            if self._feed_errors >= MAX_FEED_ERRORS:  # périphérique ou modèle cassé : on s'arrête plutôt que de boucler
+                self._stop.set()
 
     def _feed(self, block):
         now = self._clock()
@@ -163,8 +184,7 @@ class Mic:
         if self._buf is None:
             self._load()
             scores = self._wake.predict(block)  # le bloc est jeté ensuite (15)
-            if max(scores.values(), default=0.0) >= self.threshold and self._accept_wake(now):
-                self._log("wake", None, "ok")
+            if max(scores.values(), default=0.0) >= self.threshold and self._accept_wake(now) and self._log("wake", None, "ok"):
                 self._buf, self._started, self._blocks, self._heard = [], now, 0, False
                 self._set("écoute")
             return

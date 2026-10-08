@@ -19,6 +19,8 @@ import os
 import sys
 from pathlib import Path
 
+os.environ["HF_HUB_OFFLINE"] = "1"  # (9) avant tout import voix : aucun accès réseau des bibliothèques de modèles
+
 import keyring.errors
 import segno
 
@@ -130,8 +132,13 @@ def mic_cmd(argv: list[str], audit: Audit) -> int:
             if d["max_input_channels"] > 0:
                 print(i, d["name"])
         return 0
-    mic = Mic(lambda audio: print(f"phrase de {len(audio) / 16000:.1f} s (jetée, étape 5 : Whisper)"), audit,
-              on_state=lambda s: print(f"[{s}]"), threshold=threshold_from_env())
+    from jarvis.core.chat import Chat
+    from jarvis.core.stt import Transcriber
+    from jarvis.core.tts import Speaker
+    from jarvis.core.voice import Listener, Voice
+    voice = Voice(Chat(audit), Speaker(audit))
+    listener = Listener(voice, Transcriber(), lambda text, answer: print(f"> {text}\n{answer}") if sys.stdout.isatty() else None)  # jamais vers un fichier
+    mic = Mic(listener, audit, voice.speaker, on_state=lambda s: print(f"[{s}]"), threshold=threshold_from_env())
     if sub in ("on", "off"):
         if sub == "on" and not sys.stdin.isatty():  # réarmer le micro exige un terminal
             print("Réarmer le micro exige un terminal interactif.")
@@ -148,10 +155,10 @@ def mic_cmd(argv: list[str], audit: Audit) -> int:
         mic.run()
     except KeyboardInterrupt:
         pass
-    if mic.error:
-        print(mic.error)
-        return 1
-    return 0
+    for err in (mic.error, listener.error, voice.speaker.error):
+        if err:
+            print(err)
+    return 1 if mic.error else 0
 
 
 def push_cmd(argv: list[str], audit: Audit) -> int:

@@ -10,7 +10,9 @@ import time
 from collections import deque
 from pathlib import Path
 
-import uvicorn
+os.environ["HF_HUB_OFFLINE"] = "1"  # (9) avant tout import voix : le serveur n'ouvre jamais le réseau pour un modèle
+
+import uvicorn  # noqa: E402
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response

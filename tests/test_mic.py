@@ -129,7 +129,7 @@ class TestMic(MicBase):
         self.feed(3)
         self.assertEqual(self.mic.state, "coupé")
         self.assertEqual(self.log(), [])
-        again = Mic(self.heard.append, flag=self.tmp / "mic_off")  # autre instance : le fichier persiste
+        again = Mic(self.heard.append, speaker=FakeSpeaker(), flag=self.tmp / "mic_off")  # autre instance : le fichier persiste
         self.assertTrue(again.disabled())
         self.mic.enable()
         self.feed()
@@ -212,7 +212,7 @@ class TestCorrectifsRevue(MicBase):
             def close(self): events.append("close")
         class SD:
             def InputStream(self, **kw): return Stream()
-        m = Mic(lambda a: None, flag=self.tmp / "off2", sd=SD(), wake_loader=lambda: self.wake)
+        m = Mic(lambda a: None, speaker=FakeSpeaker(), flag=self.tmp / "off2", sd=SD(), wake_loader=lambda: self.wake)
         m._load = lambda: setattr(m, "_wake", self.wake)
         threading = __import__("threading")
         t = threading.Thread(target=m.run)
@@ -233,11 +233,92 @@ class TestCorrectifsRevue(MicBase):
             self.assertEqual(audio_device("JARVIS_AUDIO_IN"), "²")
 
 
+class TestEtape5(MicBase):
+    def test_plafond_journalier_des_reveils(self):  # constat 7
+        day = ["j1"]
+        self.mic._today = lambda: day[0]
+        for _ in range(micmod.MAX_WAKES_PER_DAY + 20):
+            self.mic._wakes.clear()  # la limite par minute est testée ailleurs
+            self.wake_up()
+            self.mic._buf = None
+        wakes = [r for r in self.log() if "wake" in str(r)]
+        self.assertEqual(sum("plafond" in str(r) for r in wakes), 1)
+        self.assertEqual(self.mic._day_wakes, micmod.MAX_WAKES_PER_DAY + 1)
+        day[0] = "j2"
+        self.mic._wakes.clear()
+        self.wake_up()
+        self.assertEqual(self.mic.state, "écoute")
+
+    def test_journal_en_panne_rien_n_est_transmis(self):  # constat 8
+        self.wake_up()
+        self.speech = (True, int(micmod.SILENCE_S * RATE))
+        self.audit.log = lambda *a, **k: 1 / 0
+        self.feed(6)
+        self.assertEqual(self.heard, [])
+        self.assertEqual(self.mic.error, micmod.ERR_MSG)
+
+    def test_journal_en_panne_pas_de_reveil(self):
+        self.audit.log = lambda *a, **k: 1 / 0
+        self.wake_up()
+        self.assertEqual(self.mic.state, "veille")
+
+    def test_arret_apres_erreurs_consecutives(self):  # constat 11
+        self.mic._load = lambda: setattr(self.mic, "_wake", self.wake)
+        self.wake.predict = lambda b: 1 / 0
+        for _ in range(micmod.MAX_FEED_ERRORS):
+            self.assertFalse(self.mic._stop.is_set())
+            self.mic.feed(BLOCK_AUDIO)
+        self.assertTrue(self.mic._stop.is_set())
+
+    def test_une_reussite_remet_le_compteur_a_zero(self):
+        self.wake.predict = lambda b: 1 / 0
+        for _ in range(micmod.MAX_FEED_ERRORS - 1):
+            self.mic.feed(BLOCK_AUDIO)
+        self.wake.predict = lambda b: {"x": 0.0}
+        self.mic.feed(BLOCK_AUDIO)
+        self.assertEqual(self.mic._feed_errors, 0)
+
+    def test_phrase_jetee_par_le_rappel_est_journalisee(self):  # constat 3
+        self.mic.on_utterance = lambda audio: False
+        self.wake_up()
+        self.speech = (True, int(micmod.SILENCE_S * RATE))
+        self.feed(6)
+        self.assertTrue(any("occupé" in str(r) for r in self.log()))
+
+    def test_speaker_obligatoire(self):  # constat 13
+        with self.assertRaises(ValueError):
+            Mic(lambda a: None, flag=self.tmp / "x")
+
+    def test_sourd_pendant_voice_say(self):  # constat 13 : vrai Speaker, le micro ne se réveille pas pendant la lecture
+        from types import SimpleNamespace
+        from jarvis.core.tts import Speaker
+        from jarvis.core.voice import Voice
+        from tests.test_tts import FakeSD
+        seen = []
+        test = self
+
+        class V:
+            def synthesize(self, text, cfg):
+                test.wake.score = 0.9
+                for _ in range(3):
+                    test.t += 0.08
+                    test.mic.feed(BLOCK_AUDIO)
+                seen.append(test.mic.state)
+                yield SimpleNamespace(sample_rate=22050, audio_int16_bytes=b"x")
+
+        sp = Speaker(sd=FakeSD(), loader=lambda p: V(), models=self.tmp, manifest=self.tmp / "m.json")
+        sp._load = lambda: setattr(sp, "_voice", V())
+        self.mic.speaker = sp
+        Voice(SimpleNamespace(), sp).say("bonjour")
+        self.assertEqual(seen, ["veille"])
+        self.assertIsNone(self.mic._buf)
+
+
 class TestChargement(unittest.TestCase):
     def test_modele_non_verifie_refuse(self):
         tmp = Path(tempfile.mkdtemp())
         (tmp / "m.json").write_text(json.dumps({"files": []}), encoding="utf-8")
-        m = Mic(lambda a: None, flag=tmp / "off", models=tmp, manifest=tmp / "m.json", wake_loader=lambda: FakeWake())
+        m = Mic(lambda a: None, speaker=FakeSpeaker(), flag=tmp / "off", models=tmp, manifest=tmp / "m.json", wake_loader=lambda: FakeWake())
         with self.assertRaises(MicError):
             m._load()
 
@@ -249,7 +330,7 @@ class TestChargement(unittest.TestCase):
             (tmp / p).write_bytes(b"x")
             files.append({"path": p, "size": 1, "sha256": "0" * 64})
         (tmp / "m.json").write_text(json.dumps({"files": files}), encoding="utf-8")
-        m = Mic(lambda a: None, flag=tmp / "off", models=tmp, manifest=tmp / "m.json", wake_loader=lambda: FakeWake())
+        m = Mic(lambda a: None, speaker=FakeSpeaker(), flag=tmp / "off", models=tmp, manifest=tmp / "m.json", wake_loader=lambda: FakeWake())
         with self.assertRaises(MicError):
             m._load()
 
@@ -266,7 +347,7 @@ class TestRun(unittest.TestCase):
             def InputStream(self, **kw):
                 raise OSError("Logitech PRO X introuvable")
         tmp = Path(tempfile.mkdtemp())
-        m = Mic(lambda a: None, flag=tmp / "off", sd=BadSD(), wake_loader=lambda: FakeWake())
+        m = Mic(lambda a: None, speaker=FakeSpeaker(), flag=tmp / "off", sd=BadSD(), wake_loader=lambda: FakeWake())
         m._load = lambda: None
         m.run()
         self.assertEqual(m.error, micmod.ERR_MSG)

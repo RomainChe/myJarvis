@@ -19,3 +19,8 @@
 - `gpu.py` : site-packages du Python courant seulement (pas le site utilisateur), dossiers ajoutés en fin de PATH et via `os.add_dll_directory`. Limite acceptée : les sous-processus des outils (apps, scripts, nvidia-smi...) héritent de ce PATH ; les épurer demanderait un `env=` à chaque `subprocess`, non fait. Risque faible : dossiers en fin de PATH, dans le Python de l'utilisateur.
 - Risque accepté (TOCTOU) : un fichier de `models/` pourrait être remplacé entre la vérification et le chargement ; `models/` n'est inscriptible que par l'utilisateur lui-même (même niveau de confiance que le code du dépôt).
 - `say` (commande de lecture) n'est pas un canal de commande : elle lit un texte, ne déclenche aucun outil ni aucune action.
+
+## 2026-10-08 — Phase 4 étape 5 : Whisper branché
+- Constat 10 (étape 4) consigné, risque accepté : TOCTOU des modèles (vérifiés puis chargés, `models/` inscriptible par l'utilisateur seul, même confiance que le code) ; le modèle Silero VAD est embarqué dans le paquet `faster-whisper` et n'est pas au manifeste (protégé par le pin de version et `pip-audit`).
+- `stt.py` : tous les fichiers `whisper-large-v3-turbo/*` du manifeste vérifiés avant chargement ; hors ligne ; l'audio reste en mémoire (tableau float32), jamais de fichier temporaire. Le texte reconnu n'est pas journalisé (seul `Voice.handle` écrit longueur + SHA-256). La commande `mic listen` l'affiche dans le terminal du propriétaire seulement.
+- La voix reste plafonnée à N0/N1 : une phrase reconnue ne peut pas confirmer un N2 (pas d'empreinte vocale).
