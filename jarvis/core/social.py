@@ -6,6 +6,7 @@ Lit les fichiers que lol-clipper dépose à côté de ses vidéos : `<vidéo>.yo
 vérifié) en sortent, le titre vient du nom de fichier. Pas de ligne d'audit : lecture N0.
 """
 import json
+from itertools import islice
 from datetime import datetime
 from pathlib import Path
 
@@ -13,7 +14,7 @@ CONFIG = Path.home() / ".jarvis" / "social.json"
 DEFAULT_DIR = Path.home() / "Videos" / "LoL Clips"
 FOLDERS = ("Montage", "Parties")
 LINKS = {"youtube": "https://youtu.be/", "tiktok": "https://www.tiktok.com/"}
-MAX_BYTES, MAX_ROWS = 4096, 20
+MAX_BYTES, MAX_ROWS, MAX_FILES = 4096, 20, 500
 
 
 def clips_dir(path: Path = CONFIG) -> Path:
@@ -42,8 +43,8 @@ def snapshot(root: Path | None = None) -> dict:
     for folder in FOLDERS:
         for platform, link in LINKS.items():
             suffix = f".{platform}.json"
-            for f in (root / folder).glob(f"*{suffix}"):
-                data = _read(f)
+            for f in islice((root / folder).glob(f"*{suffix}"), MAX_FILES):
+                data = _read(f) if not f.is_symlink() else None
                 if data is None:
                     continue
                 url = data.get("url")
@@ -54,8 +55,8 @@ def snapshot(root: Path | None = None) -> dict:
                 published.append({"platform": platform, "title": _title(f, suffix), "at": at,
                                   "url": url if isinstance(url, str) and url.startswith(link) else None,
                                   "privacy": data.get("privacy") if data.get("privacy") in ("public", "private", "unlisted") else None})
-        for f in (root / folder).glob("*.publish.todo"):
-            data = _read(f)
+        for f in islice((root / folder).glob("*.publish.todo"), MAX_FILES):
+            data = _read(f) if not f.is_symlink() else None
             try:
                 at = datetime.fromisoformat(data["publish_at"]).isoformat(timespec="minutes")
             except (TypeError, KeyError, ValueError):
