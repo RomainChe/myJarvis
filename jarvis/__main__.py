@@ -60,7 +60,12 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
     """Gestion des appareils de la PWA et lancement du serveur local : uniquement depuis le PC, jamais par HTTP."""
     devices = Devices(str(DB_PATH))
     if argv == ["serve"]:
-        server = make_server(devices, audit, port_from_env())
+        try:
+            port = port_from_env()
+        except ValueError:
+            print("JARVIS_PORT doit être un entier entre 1024 et 65535.")
+            return 2
+        server = make_server(devices, audit, port)
         print(f"Serveur local sur http://{HOST}:{server.config.port} (Ctrl+C pour arrêter)", file=sys.stderr)
         server.run()
         return 0

@@ -58,20 +58,25 @@ def create_app(devices: Devices, audit: Audit, port: int) -> FastAPI:
         return len(failures) >= AUTH_FAIL_MAX
 
     def authenticate(request: Request) -> tuple[int, str] | JSONResponse:
+        header = request.headers.get("authorization")
+        if header is None:  # une page web ne peut pas poser cet en-tête (pas de CORS) : ni compté, ni journalisé,
+            return reply(401, "non autorisé")  # sinon elle bloquerait les appareils légitimes (constat 2)
+        scheme, _, token = header.partition(" ")
+        found = devices.check(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
+        if found is not None:  # un token valide n'est jamais bloqué par le compteur
+            return found
         if limited():
             return reply(429, "trop d'échecs", **{"Retry-After": str(AUTH_FAIL_WINDOW_S)})
-        scheme, _, token = request.headers.get("authorization", "").partition(" ")
-        found = devices.check(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
-        if found is None:
-            failures.append(_now())
-            audit.log("pwa:?", "auth", {}, None, "refusé", "token invalide ou révoqué")  # jamais le token
-            return reply(401, "non autorisé")
-        return found
+        failures.append(_now())
+        audit.log("pwa:?", "auth", {}, None, "refusé", "token invalide ou révoqué")  # jamais le token
+        return reply(401, "non autorisé")
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
         if request.headers.get("host") != host:  # DNS rebinding : une page web ne peut pas viser 127.0.0.1
             return reply(400, "requête invalide")
+        if "transfer-encoding" in request.headers:  # CL + TE contourneraient la borne du corps (constat 1)
+            return reply(411, "longueur requise")
         if request.method != "GET":
             if request.headers.get("origin") != origin:  # absent ou différent : refus (CSRF)
                 return reply(403, "origine refusée")
@@ -104,12 +109,14 @@ def create_app(devices: Devices, audit: Audit, port: int) -> FastAPI:
 
     @app.post("/api/enroll")
     def enroll(body: Enroll):
+        locked = devices.locked()
         try:
             result = devices.enroll(body.code, body.name)
         except ValueError:
             return reply(422, "requête invalide")
         if result is None:  # même réponse pour un code faux, expiré, déjà utilisé ou verrouillé
-            audit.log("pwa:?", "enroll", {}, None, "refusé", "code invalide")
+            if not locked:  # verrouillé : rien dans l'audit (append-only, il ne se purge pas), constat 3
+                audit.log("pwa:?", "enroll", {}, None, "refusé", "code invalide")
             return reply(401, "code invalide")
         audit.log(f"pwa:{result[0]}", "enroll", {"name": body.name.strip()}, None, "auto", "appareil enrôlé")
         return {"id": result[0], "token": result[1]}

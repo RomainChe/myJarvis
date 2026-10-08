@@ -73,6 +73,7 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 - La VM est en réseau ponté, donc HA a sa propre IP sur le réseau local.
 - Jarvis parle à HA uniquement via son API REST et WebSocket, avec un token longue durée rangé dans le keyring Windows.
 - **Risque accepté (revue Sécurité, constat 1) :** le token HA circule en HTTP clair vers `homeassistant.local` (mDNS), sur le LAN. Un appareil du réseau qui usurperait ce nom pourrait le capter ; limites : utilisateur `jarvis` non administrateur et token révocable à tout moment dans HA. À durcir en Phase 3/5 (IP fixe réservée dans la Bbox, HTTPS ou Tailscale). Le client refuse déjà proxy, redirections et identifiants dans l'URL.
+- **Risque accepté (revue Sécurité Phase 3, étape 1) :** le verrouillage d'enrôlement est global et en mémoire : un processus local peut envoyer 5 faux codes pour brûler le code du propriétaire (déni de service local ; une page web ne le peut pas, elle n'a pas l'`Origin`). Les refus d'authentification au-delà de 10 par minute ne sont pas journalisés (l'audit est en ajout seul, il ne se purge pas).
 - **Risque accepté :** PC éteint = plus de domotique pilotée par Jarvis. Les plannings de chauffage restent donc **dans les clims** (minuterie ou appli MELCloud), jamais seulement dans HA.
 
 | Appareil | Intégration HA | Local ? | Matériel en plus |

@@ -47,6 +47,9 @@ class Devices:
             self.db.execute("INSERT INTO enroll_codes VALUES (?, ?)", (_h(code), _now() + CODE_TTL_S))
         return code
 
+    def locked(self) -> bool:
+        return _now() < self.locked_until
+
     def enroll(self, code: str, name: str) -> tuple[int, str] | None:
         """(id, token) si le code est valide ; None sinon, sans dire pourquoi (faux, expiré, déjà utilisé, verrouillé)."""
         name = name.strip()

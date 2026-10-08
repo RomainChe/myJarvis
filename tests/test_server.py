@@ -162,6 +162,43 @@ class GuardTest(ServerBase):
         for path in ("/docs", "/redoc", "/openapi.json"):
             self.assertEqual(self.call("GET", path)[0], 404, path)
 
+    def test_transfer_encoding_avec_content_length_refuse(self):  # constat 1 : 2 Mo passaient avec CL: 10 + chunked
+        crlf = "\r\n"
+        head = crlf.join([f"POST /api/enroll HTTP/1.1", f"Host: 127.0.0.1:{self.port}",
+                          f"Origin: http://127.0.0.1:{self.port}", "Content-Type: application/json",
+                          "Content-Length: 10", "Transfer-Encoding: chunked", "", ""])
+        with socket.create_connection(("127.0.0.1", self.port), timeout=5) as c:
+            c.sendall(head.encode())
+            c.sendall(b"200000\r\n" + b"x" * 0x200000 + b"\r\n0\r\n\r\n")
+            self.assertIn(b" 411 ", c.recv(200).split(b"\r\n")[0])
+
+    def test_get_sans_authorization_ne_bloque_personne(self):  # constat 2 : DoS par une page web
+        _, token = self.enroll()
+        for _ in range(server.AUTH_FAIL_MAX * 3):
+            self.assertEqual(self.call("GET", "/api/ping")[0], 401)
+        self.assertEqual(self.call("GET", "/api/ping", token=token)[0], 200)
+        self.assertEqual(self.audit.last(1)[0][1], "pwa:1")  # aucune ligne d'audit ajoutée par ces GET
+
+    def test_token_valide_jamais_bloque_par_le_compteur(self):
+        _, token = self.enroll()
+        for _ in range(server.AUTH_FAIL_MAX + 2):
+            self.call("GET", "/api/ping", token="faux")
+        self.assertEqual(self.call("GET", "/api/ping", token="faux")[0], 429)
+        self.assertEqual(self.call("GET", "/api/ping", token=token)[0], 200)
+
+    def test_verrouillage_d_enrolement_n_ecrit_plus_dans_l_audit(self):  # constat 3
+        for _ in range(dev.MAX_FAILS):
+            self.call("POST", "/api/enroll", {"code": "faux", "name": "x"})
+        lines = len(self.audit.last(1000))
+        for _ in range(20):
+            self.assertEqual(self.call("POST", "/api/enroll", {"code": "faux", "name": "x"})[0], 401)
+        self.assertEqual(len(self.audit.last(1000)), lines)
+
+    def test_port_non_numerique_donne_un_message(self):  # constat 6
+        with mock.patch.dict("os.environ", {"JARVIS_PORT": "abc"}), mock.patch("builtins.print") as out:
+            self.assertEqual(cli.device_or_serve(["serve"], Audit(":memory:")), 2)
+        self.assertIn("JARVIS_PORT", str(out.call_args_list))
+
     def test_ecoute_uniquement_sur_loopback(self):
         hosts = {s.getsockname()[0] for srv in self.srv.servers for s in srv.sockets}
         self.assertEqual(hosts, {"127.0.0.1"})
