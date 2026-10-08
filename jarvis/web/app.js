@@ -86,6 +86,8 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
   const data = await res.json().catch(() => null);
   return { status: res.status, ok: res.ok, data };
 }
+const unavailable = (what, e) => (e.message === 'network' ? `${what} : PC injoignable.`
+  : `${what} : le serveur JARVIS répond mal (redémarrage nécessaire après une mise à jour ?).`);
 async function signOut() {
   token = null;
   currentDevice = null;
@@ -351,8 +353,8 @@ async function loadAudit() {
       out.push(g);
     }
     box.replaceChildren(...out);
-  } catch {
-    box.replaceChildren(el('p', 'error', 'Journal indisponible : PC injoignable.'));
+  } catch (e) {
+    box.replaceChildren(el('p', 'error', unavailable('Journal indisponible', e)));
   }
 }
 
@@ -399,9 +401,9 @@ async function loadHome() {
     $('sys-list').replaceChildren(...rows);
     $('sys-error').hidden = rows.length > 0;
     $('sys-error').textContent = 'État du système indisponible.';
-  } catch {
+  } catch (e) {
     $('sys-error').hidden = false;
-    $('sys-error').textContent = 'Tableau de bord indisponible : PC injoignable.';
+    $('sys-error').textContent = unavailable('Tableau de bord indisponible', e);
   }
   homeTimer = setTimeout(() => { if (!views.home.hidden && !document.hidden) loadHome(); else if (!views.home.hidden) homeTimer = setTimeout(loadHome, 5000); }, 5000);
 }
@@ -439,8 +441,7 @@ async function loadSocial() {
     fill('social-done', r.data.published, 'Aucune publication.', true);
   } catch (e) {
     err.hidden = false;
-    err.textContent = e.message === 'network' ? 'Réseaux indisponibles : PC injoignable.'
-      : 'Réseaux indisponibles : le serveur JARVIS répond mal (redémarrage nécessaire après une mise à jour ?).';
+    err.textContent = unavailable('Réseaux indisponibles', e);
   }
 }
 
@@ -465,8 +466,8 @@ async function loadDevices() {
       li.appendChild(meta);
       return li;
     }));
-  } catch {
-    ul.replaceChildren(el('li', 'error', 'Liste indisponible : PC injoignable.'));
+  } catch (e) {
+    ul.replaceChildren(el('li', 'error', unavailable('Liste indisponible', e)));
   }
 }
 
@@ -647,8 +648,8 @@ async function loadSettings() {
       g.append(el('h3', '', name), ul);
       return g;
     }));
-  } catch {
-    box.replaceChildren(el('p', 'error', 'Réglages indisponibles : PC injoignable.'));
+  } catch (e) {
+    box.replaceChildren(el('p', 'error', unavailable('Réglages indisponibles', e)));
   }
 }
 
