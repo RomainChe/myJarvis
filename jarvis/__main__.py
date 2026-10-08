@@ -24,7 +24,7 @@ from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import Router
 from jarvis.core.secrets import get_secret, set_secret
 from jarvis.core.tools import Tool
-from jarvis.server import HOST, make_server, port_from_env
+from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 
@@ -59,17 +59,19 @@ def no_strong_auth(tool: Tool, args: dict) -> bool:
 def device_or_serve(argv: list[str], audit: Audit) -> int:
     """Gestion des appareils de la PWA et lancement du serveur local : uniquement depuis le PC, jamais par HTTP."""
     devices = Devices(str(DB_PATH))
-    if argv == ["serve"]:
+    sub = argv[1] if len(argv) > 1 else ""
+    if argv == ["serve"] or sub == "add" and len(argv) == 2:  # list et revoke ne dépendent d'aucune variable réseau
         try:
-            port = port_from_env()
-        except ValueError:
-            print("JARVIS_PORT doit être un entier entre 1024 et 65535.")
+            port, ts_host = port_from_env(), ts_host_from_env()
+        except ValueError as e:
+            print(e if "TS_HOST" in str(e) else "JARVIS_PORT doit être un entier entre 1024 et 65535.")
             return 2
-        server = make_server(devices, audit, port)
-        print(f"Serveur local sur http://{HOST}:{server.config.port} (Ctrl+C pour arrêter)", file=sys.stderr)
+    if argv == ["serve"]:
+        server = make_server(devices, audit, port, ts_host=ts_host)
+        print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
+              + " (Ctrl+C pour arrêter)", file=sys.stderr)
         server.run()
         return 0
-    sub = argv[1] if len(argv) > 1 else ""
     if sub == "list" and len(argv) == 2:
         for row in devices.list():
             print(" | ".join("" if v is None else str(v) for v in row))
@@ -82,6 +84,13 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             code = devices.new_code()
             audit.log("cli", "device_add", {}, 3, "confirmé", "code d'enrôlement créé")
             print(f"Code d'enrôlement (à usage unique, valable {CODE_TTL_S // 60} min) : {code}")
+            url = f"https://{ts_host}/#code={code}" if ts_host else f"http://{HOST}:{port}/#code={code}"
+            print(f"Sur le téléphone, ouvre : {url}")  # le code est dans le fragment (#) : jamais envoyé au serveur
+            try:
+                import segno  # QR optionnel : `pip install segno`
+                segno.make(url, error="m").terminal(compact=True)
+            except ImportError:
+                print("(Pour un QR code à scanner : pip install segno)")
             return 0
         ok = devices.revoke(int(argv[2]))
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")

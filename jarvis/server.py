@@ -53,6 +53,22 @@ def port_from_env() -> int:
     return port
 
 
+TS_HOST = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+\.ts\.net")
+
+
+def ts_host_from_env() -> str | None:
+    """Nom Tailscale de ce PC (JARVIS_TS_HOST), exact : ni joker, ni port, ni chemin, ni majuscule.
+
+    Il vient de l'environnement, jamais du dépôt public. Absent : seul 127.0.0.1 est accepté.
+    """
+    host = (os.environ.get("JARVIS_TS_HOST") or "").strip()
+    if not host:
+        return None
+    if len(host) > 253 or not TS_HOST.fullmatch(host):
+        raise ValueError("JARVIS_TS_HOST doit être le nom exact de ce PC sur le tailnet (…ts.net, minuscules)")
+    return host
+
+
 class Enroll(BaseModel):
     code: str = Field(max_length=64)
     name: str = Field(max_length=40)
@@ -67,9 +83,13 @@ class Confirm(BaseModel):
 
 
 def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-               web_dir: Path = WEB_DIR) -> FastAPI:
+               web_dir: Path = WEB_DIR, ts_host: str | None = None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
-    host, origin = f"{HOST}:{port}", f"http://{HOST}:{port}"
+    # Host accepté -> Origin attendu pour ce Host. Liste fermée : jamais de joker, jamais de confiance dans l'IP source
+    # ni dans les en-têtes Tailscale (derrière `tailscale serve`, tout arrive de 127.0.0.1).
+    hosts = {f"{HOST}:{port}": f"http://{HOST}:{port}"}
+    if ts_host:
+        hosts[ts_host] = f"https://{ts_host}"
     failures: deque[float] = deque()
     chat = chat or Chat(audit)
 
@@ -97,7 +117,9 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
-        if request.headers.get("host") != host:  # DNS rebinding : une page web ne peut pas viser 127.0.0.1
+        host = request.headers.get("host", "")
+        origin = hosts.get(host)
+        if origin is None:  # DNS rebinding : une page web ne peut pas viser 127.0.0.1 sous un autre nom
             return reply(400, "requête invalide")
         if "transfer-encoding" in request.headers:  # CL + TE contourneraient la borne du corps (constat 1)
             return reply(411, "longueur requise")
@@ -114,6 +136,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         response = await call_next(request)
         for key, value in HEADERS.items():
             response.headers[key] = value
+        if host == ts_host:  # HTTPS réel (certificat Tailscale) : le navigateur n'essaiera plus jamais le HTTP clair
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
 
     @app.exception_handler(RequestValidationError)
@@ -203,7 +227,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
 
 def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-                web_dir: Path = WEB_DIR) -> uvicorn.Server:
-    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir), host=HOST, port=port, access_log=False,
+                web_dir: Path = WEB_DIR, ts_host: str | None = None) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host), host=HOST, port=port, access_log=False,
                             server_header=False, proxy_headers=False, log_level="warning")
     return uvicorn.Server(config)

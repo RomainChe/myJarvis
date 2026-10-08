@@ -282,6 +282,66 @@ class ReadRoutesTest(ServerBase):
         self.assertNotIn(token, json.dumps(body))
 
 
+TS = "pc-test.tail1234.ts.net"
+
+
+class TailscaleHostTest(ServerBase):
+    def setUp(self):
+        super().setUp()
+        self.srv.should_exit = True
+        time.sleep(0.3)
+        self.port = free_port()
+        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat, self.web, TS)
+        threading.Thread(target=self.srv.run, daemon=True).start()
+        for _ in range(100):
+            if self.srv.started:
+                break
+            time.sleep(0.05)
+        _, self.token = self.enroll_local()
+
+    def enroll_local(self):
+        code = self.devices.new_code()
+        status, body, _ = self.call("POST", "/api/enroll", {"code": code, "name": "tel"})
+        self.assertEqual(status, 200)
+        return body["id"], body["token"]
+
+    def test_nom_tailscale_avec_son_origine_https(self):
+        status, body, r = self.call("GET", "/api/ping", token=self.token, Host=TS)
+        self.assertEqual((status, body["ok"]), (200, True))
+        self.assertIn("max-age", r.getheader("Strict-Transport-Security"))  # HSTS seulement sur le nom HTTPS
+        _, _, local = self.call("GET", "/api/ping", token=self.token)
+        self.assertIsNone(local.getheader("Strict-Transport-Security"))
+        code = self.devices.new_code()
+        ok = self.call("POST", "/api/enroll", {"code": code, "name": "x"}, Host=TS, Origin=f"https://{TS}")
+        self.assertEqual(ok[0], 200)
+
+    def test_origine_d_un_autre_host_refusee(self):  # l'Origin doit correspondre au Host utilisé, pas à « un Host permis »
+        code = self.devices.new_code()
+        local_origin = f"http://127.0.0.1:{self.port}"
+        self.assertEqual(self.call("POST", "/api/enroll", {"code": code, "name": "x"}, Host=TS, Origin=local_origin)[0], 403)
+        self.assertEqual(self.call("POST", "/api/enroll", {"code": code, "name": "x"}, Origin=f"https://{TS}")[0], 403)
+        self.assertEqual(self.call("POST", "/api/enroll", {"code": code, "name": "x"}, Host=TS, Origin=f"http://{TS}")[0], 403)
+
+    def test_autres_noms_refuses(self):
+        for host in ("autre.tail1234.ts.net", f"{TS}:443", f"{TS}.evil.example", "evil.example", TS.upper(), "ts.net"):
+            self.assertEqual(self.call("GET", "/api/ping", token=self.token, Host=host)[0], 400, host)
+
+
+class TsHostEnvTest(unittest.TestCase):
+    def check(self, value):
+        with mock.patch.dict("os.environ", {"JARVIS_TS_HOST": value}):
+            return server.ts_host_from_env()
+
+    def test_valide_absent_et_invalides(self):
+        self.assertEqual(self.check(TS), TS)
+        self.assertIsNone(self.check(""))
+        for bad in ("*.tail1234.ts.net", "pc.ts.net.evil.example", "PC.tail1234.ts.net", f"{TS}:443", f"{TS}/x",
+                    "ts.net", "localhost", "127.0.0.1", "pc..tail1234.ts.net", "-pc.tail1234.ts.net", "a b.ts.net",
+                    "x" * 300 + ".ts.net"):
+            with self.assertRaises(ValueError, msg=bad):
+                self.check(bad)
+
+
 class DevicesTest(unittest.TestCase):
     def test_nom_invalide_et_liste(self):
         d = Devices(":memory:")
@@ -313,6 +373,11 @@ class CliTest(unittest.TestCase):
             code = cli.device_or_serve(argv, self.audit)
         return code, str(out.call_args_list)
 
+    def test_list_et_revoke_ignorent_les_variables_reseau(self):  # révoquer un téléphone perdu ne doit jamais être bloqué
+        with mock.patch.dict("os.environ", {"JARVIS_TS_HOST": "*.x", "JARVIS_PORT": "abc"}):
+            self.assertEqual(self.run_cli(["device", "list"], tty=True)[0], 0)
+            self.assertEqual(self.run_cli(["device", "revoke", "999"], tty=True)[0], 1)  # introuvable, pas code 2
+
     def test_add_et_revoke_exigent_un_terminal(self):
         self.assertEqual(self.run_cli(["device", "add"], tty=False)[0], 1)
         self.assertEqual(self.run_cli(["device", "revoke", "1"], tty=False)[0], 1)
@@ -331,6 +396,15 @@ class CliTest(unittest.TestCase):
         self.assertIn("device_add", rows)
         self.assertIn("device_revoke", rows)
         self.assertNotIn(token, rows)
+
+    def test_url_d_enrolement_dans_le_fragment(self):
+        with mock.patch.object(cli, "ts_host_from_env", return_value=TS):
+            code, out = self.run_cli(["device", "add"], tty=True)
+        self.assertEqual(code, 0)
+        self.assertRegex(out, rf"https://{re.escape(TS)}/#code=[A-Za-z0-9_-]{{20,}}")
+        self.assertNotIn("code=", str(self.audit.last(10)))  # jamais dans le journal
+        with mock.patch.object(cli, "ts_host_from_env", return_value=None):
+            self.assertIn("http://127.0.0.1:", self.run_cli(["device", "add"], tty=True)[1])
 
     def test_usage_invalide(self):
         for argv in (["device"], ["device", "revoke", "abc"], ["device", "add", "extra"]):
