@@ -22,8 +22,8 @@ icônes ≥ 3:1.
 
 | Token | Sombre | Clair | Usage |
 |---|---|---|---|
-| `bg` | `#121418` | `#F5F6F8` | fond de page (pas de noir pur) |
-| `surface` | `#1B1E24` | `#FFFFFF` | cartes, barres |
+| `bg` | `#0B0E13` | `#EEF2F7` | fond de page (pas de noir pur) |
+| `surface` | `#181D26` | `#FFFFFF` | cartes, barres |
 | `raised` | `#252932` | `#ECEEF2` | carte active, survol, champ |
 | `text` | `#E8EAED` | `#15181D` | texte principal |
 | `muted` | `#A3A9B5` | `#565D6B` | texte secondaire, horodatage |

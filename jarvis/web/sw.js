@@ -1,5 +1,5 @@
 // Service worker : cache du shell statique uniquement. Jamais /api/*, jamais une requête avec Authorization.
-const CACHE = 'jarvis-shell-v5';
+const CACHE = 'jarvis-shell-v6';
 const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png',
                '/icon-512.png'];
 
@@ -22,7 +22,7 @@ self.addEventListener('push', (e) => {
   e.waitUntil(self.clients.matchAll({ type: 'window' }).then((list) => {
     if (list.some((c) => c.visibilityState === 'visible')) return undefined;
     return self.registration.showNotification(String(d.title || 'Jarvis').slice(0, 60),
-      { body: String(d.body || '').slice(0, 120), tag: 'jarvis', icon: '/icon-192.png' });
+      { body: String(d.body || '').slice(0, 120), tag: 'jarvis', renotify: true, icon: '/icon-192.png' });
   }));
 });
 

@@ -137,17 +137,28 @@ $('enroll-form').addEventListener('submit', (e) => {
 });
 
 // ---- Navigation ------------------------------------------------------------------------------
+const wide = window.matchMedia('(min-width: 1200px)');
 const views = { chat: $('view-chat'), audit: $('view-audit'), devices: $('view-devices'), settings: $('view-settings') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
     if (t.dataset.view === name) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
-  if (name === 'audit') loadAudit();
+  if (name === 'audit' || (name === 'chat' && wide.matches)) loadAudit(); // bureau : le journal est affiché à côté du chat
   if (name === 'devices') loadDevices();
   if (name === 'settings') loadSettings();
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
+
+// Raccourcis clavier (bureau) : Alt+1..4 change de vue, « / » met le focus sur la saisie du chat.
+document.addEventListener('keydown', (e) => {
+  if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
+  const tabs = ['chat', 'audit', 'devices', 'settings'];
+  if (e.altKey && /^[1-4]$/.test(e.key)) { e.preventDefault(); show(tabs[Number(e.key) - 1]); return; }
+  if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
+    e.preventDefault(); show('chat'); $('chat-input').focus();
+  }
+});
 
 function showApp() {
   $('enroll').hidden = true;
