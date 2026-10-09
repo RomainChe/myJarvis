@@ -647,9 +647,11 @@ function renderCycle(c) {
   points.append(...c.points.map((x) => el('p', 'cyc-point', `${x.icon} ${x.text}`)));
   const more = [];
   if (c.subs.length) { const p = cycPanel('sub', '🔁 Abonnements & prélèvements'); p.append(cycList(c.subs)); more.push(p); }
-  if (c.recos.length) { const p = cycPanel('reco', '🎯 Recommandations'); p.append(...c.recos.map((t) => el('p', 'cyc-point', t))); more.push(p); }
   if (c.week) { const p = cycPanel('info', '📅 Dernière semaine', `dépenses : ${eur(c.week.spent)}`); p.append(cycList([...c.week.top, ...c.week.internal])); more.push(p); }
-  box.append(strip, where, fixed, saving, cons, detail, points, ...more);
+  const grid = el('div', 'cyc-grid');
+  grid.append(where, fixed, saving, cons, detail, points, ...more);
+  box.append(strip, grid);
+  if (c.recos.length) { const p = cycPanel('reco', '🎯 Recommandations'); p.append(...c.recos.map((t) => el('p', 'cyc-point', t))); box.append(p); } // dernier, hors grille
 }
 
 // Ledger : soldes lus en tâche de fond par le serveur ; première lecture en cours = l'onglet se recharge une fois
