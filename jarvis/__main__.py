@@ -7,7 +7,7 @@
     python -m jarvis ha check
     python -m jarvis veille fetch                      (copie les envois « [Veille ...] » du compte mail dans ~/.jarvis/veille/, lecture seule)
     python -m jarvis finance fetch                     (copie les rapports « [Dépenses] » du compte mail dans ~/.jarvis/finance/, lecture seule)
-    python -m jarvis bank key <app_id> <fichier.pem> <redirect_url> | link "<banque>" [pays] | status | fetch
+    python -m jarvis bank key <app_id> <fichier.pem> <redirect_url> | link "<banque>" [pays] | status | fetch [daily]
                                                        (Enable Banking, lecture seule ; terminal interactif)
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
@@ -227,7 +227,10 @@ def bank_cmd(argv: list[str], audit: Audit) -> int:
         elif argv[1:] == ["status"]:
             for s in banking.status():
                 print(f"{s['bank']} | {s['accounts']} compte(s) | consentement : {'?' if s['days_left'] is None else s['days_left']} j")
-        elif argv[1:] == ["fetch"]:
+        elif argv[1:] in (["fetch"], ["fetch", "daily"]):
+            if argv[-1] == "daily" and banking.fetched_today():  # tâche à l'ouverture de session : une seule fois par jour
+                print("Déjà récupéré aujourd'hui.")
+                return 0
             r = banking.fetch()
             audit.log("cli", "bank_fetch", {}, 2, "auto", f"{r['accounts']} compte(s), {len(r['errors'])} échec(s)")
             print(f"{r['accounts']} compte(s), {r['transactions']} transaction(s).", *r["errors"], sep="\n")

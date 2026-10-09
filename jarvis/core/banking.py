@@ -264,6 +264,13 @@ def fetch(today: date | None = None) -> dict:
         _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts})
     return {"accounts": len(accounts), "transactions": sum(len(a["transactions"]) for a in accounts), "errors": errors}
 
+def fetched_today() -> bool:
+    """Vrai si le cache a été écrit aujourd'hui (heure locale) ; faux si absent ou illisible."""
+    try:
+        at = (_load(CACHE, None) or {}).get("fetched_at")
+        return bool(at) and datetime.fromisoformat(at).astimezone().date() == date.today()
+    except (BankError, keyring.errors.KeyringError, ValueError, TypeError):
+        return False
 
 
 def renew_cmd(bank: str, country: str) -> str | None:

@@ -3,7 +3,7 @@ import base64
 import json
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -241,6 +241,22 @@ class CliTest(BankBase):
             self.assertEqual(self.run_cli(["bank", "fetch"]), (0, [("bank_fetch", "auto")]))
         with mock.patch.object(banking, "fetch", side_effect=banking.BankError("x")):
             self.assertEqual(self.run_cli(["bank", "fetch"])[0], 1)
+
+    def test_fetch_daily_une_fois_par_jour(self):
+        with mock.patch.object(banking, "fetch", return_value={"accounts": 1, "transactions": 0, "errors": []}) as f:
+            with mock.patch.object(banking, "fetched_today", return_value=True):
+                self.assertEqual(self.run_cli(["bank", "fetch", "daily"]), (0, []))
+            f.assert_not_called()
+            with mock.patch.object(banking, "fetched_today", return_value=False):
+                self.assertEqual(self.run_cli(["bank", "fetch", "daily"]), (0, [("bank_fetch", "auto")]))
+            f.assert_called_once()
+
+    def test_fetched_today(self):
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        old = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(timespec="seconds")
+        for at, expected in ((now, True), (old, False), (None, False)):
+            with mock.patch.object(banking, "_load", return_value={"fetched_at": at} if at else None):
+                self.assertIs(banking.fetched_today(), expected)
 
     def test_sous_commande_inconnue(self):
         self.assertEqual(self.run_cli(["bank", "pay"]), (2, []))
