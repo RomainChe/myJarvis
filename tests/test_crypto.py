@@ -56,6 +56,22 @@ class DerivationTest(unittest.TestCase):
                 crypto.parse_xpub(bad)
 
 
+    def test_point_hors_courbe_refuse(self):
+        import hashlib
+        n = 0
+        for c in ZPUB:
+            n = n * 58 + crypto.B58.index(c)
+        body = bytearray(n.to_bytes(82, "big")[:-4])
+        body[46:78] = (5).to_bytes(32, "big")  # x = 5 : x³ + 7 n'est pas un carré modulo P
+        raw = bytes(body) + hashlib.sha256(hashlib.sha256(body).digest()).digest()[:4]
+        n, s = int.from_bytes(raw, "big"), ""
+        while n:
+            n, r = divmod(n, 58)
+            s = crypto.B58[r] + s
+        with self.assertRaises(ValueError):
+            crypto.parse_xpub(s)
+
+
 class ConfigTest(unittest.TestCase):
     def cfg(self, text):
         p = Path(tempfile.mkdtemp()) / "crypto.json"
@@ -111,6 +127,20 @@ class RefreshViewTest(unittest.TestCase):
             raise OSError("réseau")
         r = crypto.refresh(self.cfg, down)
         self.assertEqual((r["assets"], r["errors"]), ([], ["cours indisponible", "Bitcoin : lecture impossible", "Ethereum : lecture impossible"]))
+
+    def test_cours_infini_ignore(self):
+        self.assertEqual(crypto.prices(lambda url: json.loads('{"bitcoin": {"eur": Infinity}, "ethereum": {"eur": NaN}}')),
+                         {"BTC": None, "ETH": None})
+
+    def test_redirection_refusee(self):
+        self.assertTrue(any(isinstance(h, crypto._NoRedirect) for h in crypto._opener.handlers))
+        self.assertIsNone(crypto._NoRedirect().redirect_request(None, None, 302, "Found", {}, "http://ailleurs.example/"))
+
+    def test_bug_imprevu_libere_la_lecture(self):
+        with mock.patch.object(crypto, "refresh", side_effect=KeyError("bug")):
+            v = crypto.view(config=lambda: self.cfg, start=lambda f: f())
+        self.assertEqual((v["refreshing"], v["errors"]), (False, ["Ledger : lecture impossible"]))
+        self.assertFalse(crypto._state["busy"])
 
     def test_vue_cache_15_min(self):
         self.assertIsNone(crypto.view(config=lambda: None))

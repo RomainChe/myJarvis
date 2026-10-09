@@ -93,7 +93,8 @@ class FinanceRouteTest(ServerBase):
         self.assertEqual(self.call("GET", "/api/finance")[0], 401)
         _, token = self.enroll()
         with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}), \
-                mock.patch("jarvis.server.bank_view", return_value={"accounts": []}) as bank,                 mock.patch("jarvis.server.crypto_view", return_value=None) as crypto:
+                mock.patch("jarvis.server.bank_view", return_value={"accounts": []}) as bank, \
+                mock.patch("jarvis.server.crypto_view", return_value=None) as crypto:
             status, body, _ = self.call("GET", "/api/finance", token=token)
             self.assertEqual((status, set(body)), (200, {"configured", "latest", "trend"}))  # dashboard : aucune donnée bancaire
             bank.assert_not_called()

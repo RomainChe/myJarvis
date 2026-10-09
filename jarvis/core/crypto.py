@@ -10,6 +10,7 @@ des réponses. Pas d'outil LLM ; la lecture est journalisée par la route (`bank
 import hashlib
 import hmac
 import json
+import math
 import re
 import threading
 import time
@@ -24,13 +25,20 @@ CONFIG = Path.home() / ".jarvis" / "crypto.json"
 MEMPOOL = "https://mempool.space/api/address/"
 ETH_RPC = "https://ethereum-rpc.publicnode.com"
 PRICES = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=eur"
-TTL_S, GAP, MAX_ADDR, PAUSE_S = 900, 20, 500, 1.0  # GAP = limite d'écart BIP44 (celle de Ledger Live) ; PAUSE_S : quota de mempool.space
+TTL_S, GAP, MAX_ADDR, PAUSE_S, DEADLINE_S = 900, 20, 500, 1.0, 600  # GAP = limite d'écart BIP44 (celle de Ledger Live) ; PAUSE_S : quota de mempool.space
 VERSIONS = (bytes.fromhex("0488b21e"), bytes.fromhex("04b24746"))  # xpub (affichée par Ledger Live), zpub
 ETH_ADDR = re.compile(r"0x[0-9a-fA-F]{40}")
 B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 BECH32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 P = 2**256 - 2**32 - 977  # corps de secp256k1
-_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):  # une redirection (vers http:// ou un autre hôte) emporterait les adresses
+        return None
+
+
+_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 _lock = threading.Lock()
 _state = {"at": None, "data": None, "busy": False}
 
@@ -50,6 +58,7 @@ def parse_xpub(s: str) -> tuple[bytes, bytes]:
         raise ValueError("somme de contrôle")
     if body[:4] not in VERSIONS or body[4] != 3 or body[45] not in (2, 3):
         raise ValueError("xpub de compte Bitcoin attendue")
+    ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256K1(), body[45:78])  # ValueError si le point n'est pas sur la courbe
     return body[13:45], body[45:78]
 
 
@@ -122,7 +131,7 @@ def p2wpkh(pub: bytes) -> str:
 
 def _get(url: str, body: dict | None = None):
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body else None,
-                                 headers={"Content-Type": "application/json", "User-Agent": "jarvis"})
+                                 headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
     for attempt in (0, 1):
         try:
             with _opener.open(req, timeout=5) as r:  # sans proxy
@@ -143,10 +152,12 @@ def _sats(stats) -> int:
 
 def btc_balance(key: tuple[bytes, bytes], get=_get) -> float:
     """Somme des adresses de réception (0) et de monnaie (1), arrêt après GAP adresses jamais utilisées."""
-    sats = 0
+    sats, deadline = 0, time.monotonic() + DEADLINE_S
     for chain in (0, 1):
         ck, gap = child(key, chain), 0
         for i in range(MAX_ADDR):  # ponytail: un appel par adresse (~45 pour un petit portefeuille), lot si l'explorateur limite
+            if time.monotonic() > deadline:  # explorateur très lent : abandon plutôt qu'un thread occupé des heures
+                raise TimeoutError("lecture trop longue")
             time.sleep(PAUSE_S)
             r = get(MEMPOOL + p2wpkh(child(ck, i)[1]))
             used = any(isinstance(r.get(k), dict) and r[k].get("tx_count") for k in ("chain_stats", "mempool_stats"))
@@ -173,7 +184,7 @@ def prices(get=_get) -> dict:
     out = {}
     for sym, cid in (("BTC", "bitcoin"), ("ETH", "ethereum")):
         v = (r.get(cid) or {}).get("eur") if isinstance(r, dict) else None
-        out[sym] = float(v) if isinstance(v, (int, float)) and v > 0 else None
+        out[sym] = float(v) if isinstance(v, (int, float)) and math.isfinite(v) and v > 0 else None  # Infinity = route en 500
     return out
 
 
@@ -212,7 +223,12 @@ def view(config=load_config, get=_get, clock=time.monotonic,
         return None
 
     def run():
-        data = refresh(cfg, get, _state["data"])
+        with _lock:
+            previous = _state["data"]
+        try:
+            data = refresh(cfg, get, previous)
+        except Exception:  # bug imprévu : anciennes valeurs gardées, busy libéré, nouvelle lecture après TTL_S
+            data = {**(previous or {"updated_at": None, "assets": []}), "errors": ["Ledger : lecture impossible"]}
         with _lock:
             _state.update(data=data, busy=False)
 
