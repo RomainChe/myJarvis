@@ -25,6 +25,7 @@ from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.dashboard import Dashboard
 from jarvis.core.devices import Devices
 from jarvis.core.banking import view as bank_view
+from jarvis.core.crypto import view as crypto_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
@@ -369,8 +370,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        audit.log(f"pwa:{auth[0]}", "bank_read", {}, 2, "auto", "comptes bancaires lus")
-        return {"bank": bank_view()}
+        audit.log(f"pwa:{auth[0]}", "bank_read", {}, 2, "auto", "comptes bancaires et Ledger lus")
+        return {"bank": bank_view(), "crypto": crypto_view()}
 
     @app.get("/api/veille")
     def veille_state(request: Request):

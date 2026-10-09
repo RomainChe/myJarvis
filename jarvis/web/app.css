@@ -430,6 +430,7 @@ h2.section { margin-top: var(--j-space-4); }
 .tx-amt.pos { color: var(--j-color-accent); }
 #fin-bank { display: grid; gap: var(--j-space-3); margin-bottom: var(--j-space-3); }
 #fin-bank[hidden] { display: none; }
+#fin-crypto { margin-bottom: var(--j-space-3); }
 #fin-bank > .panel { padding: var(--j-space-4); }
 #veille-list { display: grid; gap: var(--j-space-3); }
 #veille-list details.panel { padding: var(--j-space-4); }
