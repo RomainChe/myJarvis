@@ -157,6 +157,21 @@ Register-ScheduledTask -TaskName "JARVIS - verif horaire" -Principal $principal 
   -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries)
 ```
 
+### 7.3 Récupération bancaire quotidienne (créée le 2026-10-09)
+
+`bank fetch daily` (Enable Banking, lecture seule) à l'ouverture de session (1 min de délai pour le réseau), une seule
+fois par jour : la commande saute si le cache date déjà d'aujourd'hui.
+Le consentement reste à renouveler à la main tous les 90 jours (`bank link`, terminal interactif) : l'onglet Finances
+affiche les jours restants et la commande à 14 jours de l'échéance.
+
+```powershell
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User $me
+$trigger.Delay = "PT1M"
+Register-ScheduledTask -TaskName "JARVIS - banque" -Principal $principal `
+  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m jarvis bank fetch daily" -WorkingDirectory $repo) `
+  -Trigger $trigger -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries)
+```
+
 Vérifier, lancer à la main, supprimer :
 
 ```powershell

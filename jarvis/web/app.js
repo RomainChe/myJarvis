@@ -499,7 +499,7 @@ const money = (n, cur) => {
   try { return n.toLocaleString('fr-FR', { style: 'currency', currency: cur }); } catch { return eur(n); } // devise inconnue
 };
 function clearFinance() {
-  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx', 'fin-crypto']) $(id).replaceChildren();
+  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto']) $(id).replaceChildren();
   $('fin-body').hidden = $('fin-bank').hidden = $('fin-crypto').hidden = true;
   $('fin-bank-at').textContent = '';
   $('fin-left').textContent = $('fin-balance').textContent = $('fin-period').textContent = '';
@@ -534,10 +534,18 @@ async function loadFinance() {
 }
 
 // Comptes Enable Banking : libellés = contenu externe, posés en textContent seulement
+const CONSENT_WARN = 14; // jours : à partir de là, la commande de renouvellement s'affiche
 function renderBank(b) {
   if (!b) return;
   const at = new Date(b.fetched_at);
   $('fin-bank-at').textContent = Number.isNaN(at.getTime()) ? '' : `Comptes mis à jour le ${at.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
+  $('fin-consent').replaceChildren(...(b.consent || []).map((c) => {
+    const late = !Number.isInteger(c.days_left) || c.days_left <= CONSENT_WARN;
+    const li = el('li', late ? 'warn' : 'muted', !Number.isInteger(c.days_left) ? `${c.bank} : échéance du consentement inconnue`
+      : c.days_left < 0 ? `${c.bank} : consentement expiré` : `${c.bank} : consentement valable encore ${c.days_left} j`);
+    if (late && c.renew) li.append(el('code', '', c.renew)); // construite et filtrée côté serveur (banking.renew_cmd)
+    return li;
+  }));
   $('fin-accounts').replaceChildren(...b.accounts.map((a) => {
     const s = el('section', 'panel hud stat');
     s.append(el('h2', '', a.bank), el('p', 'big', money(a.balance, a.currency)), el('p', 'muted', a.name));
