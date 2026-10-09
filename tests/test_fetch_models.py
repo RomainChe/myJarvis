@@ -61,13 +61,25 @@ class FetchModelsTest(unittest.TestCase):
         with self.assertRaises(OSError):
             h.redirect_request(mock.Mock(), None, 302, "", {}, "http://huggingface.co/a")
 
+    def test_entree_sans_url_verifiee_sans_telechargement(self):
+        tmp = Path(tempfile.mkdtemp())
+        data = b"modele"
+        man = tmp / "m.json"
+        man.write_text(json.dumps({"files": [{"path": "a.onnx", "size": len(data),
+                                              "sha256": hashlib.sha256(data).hexdigest()}]}), encoding="utf-8")
+        with mock.patch.object(fm, "fetch", side_effect=AssertionError("aucun réseau")):
+            self.assertEqual(fm.main(["--manifest", str(man), "--dest", str(tmp)]), 1)  # absent
+            (tmp / "a.onnx").write_bytes(data)
+            self.assertEqual(fm.main(["--manifest", str(man), "--dest", str(tmp)]), 0)
+
     def test_manifeste_commite_est_coherent(self):
         files = json.loads((fm.ROOT / "models" / "MANIFEST.json").read_text(encoding="utf-8"))["files"]
         self.assertTrue(files)
         for e in files:
-            self.assertTrue(fm.host_ok(e["url"]), e["url"])
+            if "url" in e:  # sans URL = modèle entraîné localement
+                self.assertTrue(fm.host_ok(e["url"]), e["url"])
+                self.assertNotIn("/main/", e["url"])
             self.assertRegex(e["sha256"], r"^[0-9a-f]{64}$")
-            self.assertNotIn("/main/", e["url"])
             self.assertNotIn("..", e["path"])
             self.assertTrue(e["licence"])
 

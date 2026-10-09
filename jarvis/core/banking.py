@@ -295,6 +295,10 @@ def view(limit: int = 30) -> dict | None:
         return None
     accounts = data.get("accounts") or []
     txs = [dict(t, account=f"{a['bank']} · {a['name']}", currency=a["currency"]) for a in accounts for t in a["transactions"]]
-    return {"fetched_at": data.get("fetched_at"), "consent": consent,
+    monday = (date.today() - timedelta(days=date.today().weekday())).isoformat()
+    # ponytail: un virement entre ses propres comptes compte comme une dépense ; filtrer par libellé si ça gêne
+    spent = round(-sum(t["amount"] for a in accounts if a["currency"] == "EUR" for t in a["transactions"] if t["amount"] < 0 and t["date"] >= monday), 2)
+    total = round(sum(a["balance"] or 0 for a in accounts if a["currency"] == "EUR"), 2)
+    return {"fetched_at": data.get("fetched_at"), "consent": consent, "total": total, "week_spent": spent,
             "accounts": [{k: a[k] for k in ("bank", "name", "currency", "balance")} for a in accounts],
             "transactions": sorted(txs, key=lambda t: t["date"], reverse=True)[:limit]}

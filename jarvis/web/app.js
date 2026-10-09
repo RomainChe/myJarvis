@@ -700,10 +700,15 @@ function clearDigest() {
 $('dg-fin-show').addEventListener('click', async () => {
   const run = digestRun;
   $('dg-fin-show').hidden = true;
-  let f = null, failed = false;
-  try { f = (await getData('/api/finance')).latest; } catch { failed = true; }
+  let b = null, f = null, failed = false;
+  try { b = (await getData('/api/finance/bank')).bank; } catch { failed = true; }
+  if (!b) try { f = (await getData('/api/finance')).latest; failed = false; } catch { failed = true; }
   if (run !== digestRun || views.chat.hidden) return;
-  if (f) {
+  if (b) {
+    $('dg-left').textContent = eur(b.total);
+    const at = new Date(b.fetched_at);
+    $('dg-fin').textContent = `Solde des comptes · dépensé cette semaine : ${eur(b.week_spent)}${Number.isNaN(at.getTime()) ? '' : ` · maj ${at.toLocaleString('fr-FR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}`}`;
+  } else if (f) {
     $('dg-left').textContent = eur(f.left_to_live);
     $('dg-fin').textContent = `Reste à vivre · dépensé S${f.week} : ${eur(f.spent?.amount)}`;
   } else $('dg-fin').textContent = failed ? 'Indisponible.' : 'Aucun rapport.';

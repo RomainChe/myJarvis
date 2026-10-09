@@ -78,6 +78,11 @@ def main(argv=None):
             print(f"REFUS  {e['path']} : chemin hors du dossier", file=sys.stderr)
             bad += 1
             continue
+        if "url" not in e:  # modèle entraîné localement : rien à télécharger, on vérifie seulement
+            ok = is_good(dest, e["size"], e["sha256"])
+            print(f"{'ok' if ok else 'ABSENT':10} {e['path']} (local)", file=sys.stdout if ok else sys.stderr)
+            bad += 0 if ok else 1
+            continue
         try:
             print(f"{fetch(e['url'], dest, e['size'], e['sha256']):10} {e['path']}")
         except (ValueError, OSError) as ex:  # URLError est un OSError

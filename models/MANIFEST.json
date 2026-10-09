@@ -11,6 +11,13 @@
       "source": "github.com/dscripka/openWakeWord, release v0.5.1"
     },
     {
+      "path": "openwakeword/jarvis_fr.onnx",
+      "size": 205431,
+      "sha256": "677df88082f0340e9e3d3073048231a73dc53155d160588ed5ef612c8c1c5114",
+      "licence": "modèle entraîné localement (données synthétiques Piper)",
+      "source": "entraîné localement, sans URL (scripts/wakeword)"
+    },
+    {
       "path": "openwakeword/melspectrogram.onnx",
       "url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/melspectrogram.onnx",
       "size": 1087958,

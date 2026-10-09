@@ -82,12 +82,12 @@ def start_mic(audit: Audit):
     """Micro toujours à l'écoute tant que `~/.jarvis/mic_off` n'existe pas ; échec = serveur sans micro, jamais bloquant."""
     try:
         from jarvis.core.chat import Chat
-        from jarvis.core.mic import Mic, threshold_from_env
+        from jarvis.core.mic import Mic, threshold_from_env, wake_name_from_env
         from jarvis.core.stt import Transcriber
         from jarvis.core.tts import Speaker
         from jarvis.core.voice import Listener, Voice
         voice = Voice(Chat(audit), Speaker(audit))
-        mic = Mic(Listener(voice, Transcriber(), lambda text, answer: None), audit, voice.speaker, threshold=threshold_from_env())
+        mic = Mic(Listener(voice, Transcriber(), lambda text, answer: None), audit, voice.speaker, threshold=threshold_from_env(), wake_name=wake_name_from_env())
         threading.Thread(target=mic.run, daemon=True).start()
         return mic
     except Exception:
@@ -154,7 +154,7 @@ def passkey_cmd(argv: list[str], audit: Audit) -> int:
 
 
 def mic_cmd(argv: list[str], audit: Audit) -> int:
-    from jarvis.core.mic import Mic, threshold_from_env
+    from jarvis.core.mic import Mic, threshold_from_env, wake_name_from_env
     sub = argv[1] if len(argv) > 1 else "listen"
     if sub == "devices":
         import sounddevice
@@ -168,7 +168,7 @@ def mic_cmd(argv: list[str], audit: Audit) -> int:
     from jarvis.core.voice import Listener, Voice
     voice = Voice(Chat(audit), Speaker(audit))
     listener = Listener(voice, Transcriber(), lambda text, answer: print(f"> {text}\n{answer}") if sys.stdout.isatty() else None)  # jamais vers un fichier
-    mic = Mic(listener, audit, voice.speaker, on_state=lambda s: print(f"[{s}]"), threshold=threshold_from_env())
+    mic = Mic(listener, audit, voice.speaker, on_state=lambda s: print(f"[{s}]"), threshold=threshold_from_env(), wake_name=wake_name_from_env())
     if sub in ("on", "off"):
         if sub == "on" and not sys.stdin.isatty():  # réarmer le micro exige un terminal
             print("Réarmer le micro exige un terminal interactif.")

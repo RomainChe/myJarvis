@@ -341,6 +341,23 @@ class TestChargement(unittest.TestCase):
                 self.assertEqual(threshold_from_env(), want)
 
 
+    def test_modele_de_reveil_depuis_l_environnement(self):
+        from unittest import mock
+        for raw, want in (("jarvis_fr", "jarvis_fr"), ("../x", micmod.WAKE_DEFAULT), ("a/b", micmod.WAKE_DEFAULT),
+                          ("..", micmod.WAKE_DEFAULT), ("Jarvis", micmod.WAKE_DEFAULT), ("", micmod.WAKE_DEFAULT)):
+            with mock.patch.dict("os.environ", {"JARVIS_WAKE_WORD": raw}):
+                self.assertEqual(micmod.wake_name_from_env(), want)
+
+    def test_modele_choisi_verifie_son_propre_fichier(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "m.json").write_text(json.dumps({"files": []}), encoding="utf-8")
+        m = Mic(lambda a: None, speaker=FakeSpeaker(), flag=tmp / "off", models=tmp, manifest=tmp / "m.json",
+                wake_loader=lambda: FakeWake(), wake_name="jarvis_fr")
+        self.assertEqual(micmod.wake_files("jarvis_fr")[0], "openwakeword/jarvis_fr.onnx")
+        with self.assertRaises(MicError):
+            m._load()
+
+
 class TestRun(unittest.TestCase):
     def test_erreur_materielle_message_fixe(self):
         class BadSD:

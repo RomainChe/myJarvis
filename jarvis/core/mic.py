@@ -10,6 +10,7 @@ n'authentifie personne ; le plafond N0/N1 reste celui de `Voice`.
 import collections
 import json
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -21,7 +22,14 @@ from jarvis.core.tts import ROOT, audio_device
 
 RATE = 16000
 BLOCK = 1280  # 80 ms : taille attendue par openWakeWord
-WAKE_FILES = ("openwakeword/hey_jarvis_v0.1.onnx", "openwakeword/melspectrogram.onnx", "openwakeword/embedding_model.onnx")
+WAKE_DEFAULT = "hey_jarvis_v0.1"  # modèle de secours ; `JARVIS_WAKE_WORD=jarvis_fr` choisit le modèle maison
+
+
+def wake_files(name=WAKE_DEFAULT):
+    return (f"openwakeword/{name}.onnx", "openwakeword/melspectrogram.onnx", "openwakeword/embedding_model.onnx")
+
+
+WAKE_FILES = wake_files()
 THRESHOLD = 0.5
 MAX_WAKES_PER_MIN = 4
 MAX_WAKES_PER_DAY = 200  # plafond du journal des réveils (7) : au-delà, réveil refusé jusqu'au lendemain
@@ -49,6 +57,12 @@ def threshold_from_env():
         return THRESHOLD
 
 
+def wake_name_from_env():
+    """Nom de fichier seulement (pas de chemin) : l'environnement ne peut pas viser un fichier hors de models/."""
+    name = os.environ.get("JARVIS_WAKE_WORD", WAKE_DEFAULT)
+    return name if re.fullmatch(r"[a-z0-9_.]{1,40}", name) and ".." not in name else WAKE_DEFAULT
+
+
 def silero_speech_end(audio):
     """int16 -> (parole détectée, silence final en échantillons). Silero est embarqué dans faster-whisper (MIT)."""
     from faster_whisper.vad import VadOptions, get_speech_timestamps
@@ -59,14 +73,15 @@ def silero_speech_end(audio):
 class Mic:
     def __init__(self, on_utterance, audit=None, speaker=None, on_state=None, *, flag=FLAG, models=ROOT / "models",
                  manifest=ROOT / "models" / "MANIFEST.json", threshold=THRESHOLD, sd=None, wake_loader=None,
-                 speech_end=silero_speech_end, clock=time.monotonic, today=lambda: time.strftime("%Y-%m-%d")):
+                 speech_end=silero_speech_end, clock=time.monotonic, today=lambda: time.strftime("%Y-%m-%d"),
+                 wake_name=WAKE_DEFAULT):
         if speaker is None:  # (13) sans lecteur, pas d'anti-écho : le micro entendrait Jarvis
             raise ValueError("speaker obligatoire")
         self.on_utterance, self.audit, self.speaker, self.on_state = on_utterance, audit, speaker, on_state
         self.flag, self.models, self.manifest, self.threshold = Path(flag), Path(models), Path(manifest), threshold
         self._sd, self._wake_loader, self._speech_end, self._clock = sd, wake_loader, speech_end, clock
-        self._wake = None
-        self._wakes = collections.deque()  # instants des réveils acceptés (limite de débit)
+        self.wake_name, self._wake = wake_name, None
+        self._wakes =collections.deque()  # instants des réveils acceptés (limite de débit)
         self._limited = False
         self._today, self._day, self._day_wakes, self._feed_errors = today, None, 0, 0
         self._buf, self._started, self._blocks, self._heard = None, 0.0, 0, False  # tampon de phrase (None = en veille)
@@ -111,14 +126,14 @@ class Mic:
             return
         os.environ["HF_HUB_OFFLINE"] = "1"
         entries = {e["path"]: e for e in json.loads(self.manifest.read_text(encoding="utf-8"))["files"]}
-        for path in WAKE_FILES:  # (23) vérifiés avant chargement
+        for path in wake_files(self.wake_name):  # (23) vérifiés avant chargement
             e = entries.get(path)
             if e is None or not is_good(self.models / path, e["size"], e["sha256"]):
                 raise MicError("modèle de réveil non vérifié")
         if self._wake_loader is None:
             from openwakeword.model import Model
             d = self.models / "openwakeword"
-            self._wake_loader = lambda: Model(wakeword_models=[str(d / "hey_jarvis_v0.1.onnx")], inference_framework="onnx",
+            self._wake_loader = lambda: Model(wakeword_models=[str(d / f"{self.wake_name}.onnx")], inference_framework="onnx",
                                               melspec_model_path=str(d / "melspectrogram.onnx"),
                                               embedding_model_path=str(d / "embedding_model.onnx"))
         self._wake = self._wake_loader()
