@@ -648,9 +648,11 @@ function renderCycle(c) {
   const more = [];
   if (c.subs.length) { const p = cycPanel('sub', '🔁 Abonnements & prélèvements'); p.append(cycList(c.subs)); more.push(p); }
   if (c.week) { const p = cycPanel('info', '📅 Dernière semaine', `dépenses : ${eur(c.week.spent)}`); p.append(cycList([...c.week.top, ...c.week.internal])); more.push(p); }
-  const grid = el('div', 'cyc-grid');
-  grid.append(where, fixed, saving, cons, detail, points, ...more);
-  box.append(strip, grid);
+  const [subs, week] = [more.find((p) => p.classList.contains('sub')), more.find((p) => p.classList.contains('info'))];
+  const row1 = el('div', 'cyc-grid'), row2 = el('div', 'cyc-grid');
+  row1.append(fixed, saving, cons);
+  row2.append(detail, points, ...(subs ? [subs] : []));
+  box.append(strip, where, row1, row2, ...(week ? [week] : []));
   if (c.recos.length) { const p = cycPanel('reco', '🎯 Recommandations'); p.append(...c.recos.map((t) => el('p', 'cyc-point', t))); box.append(p); } // dernier, hors grille
 }
 

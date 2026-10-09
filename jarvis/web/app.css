@@ -475,7 +475,7 @@ h2.section { margin-top: var(--j-space-4); }
 [data-cat="Transport"] { color: #0ea5e9; } [data-cat="Impôts"] { color: #e11d48; } [data-cat="Dons"] { color: #f43f5e; }
 [data-cat="Sport"] { color: #8b5cf6; } [data-cat="Abonnements"] { color: #f59e0b; } [data-cat="Santé"] { color: #14b8a6; }
 [data-cat="Shopping"] { color: #d946ef; } [data-cat="Épargne"] { color: #10b981; }
-.cyc-grid { display: grid; gap: var(--j-space-3); align-items: start; }
+.cyc-grid { display: grid; gap: var(--j-space-3); align-items: stretch; } /* cartes d'une même rangée : même hauteur */
 @media (min-width: 900px) { .cyc-top { grid-template-columns: repeat(4, 1fr); } .cyc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* ---- Grilles bureau : Réglages (2 colonnes), Réseaux et Journal (3 colonnes), lignes en cartes ---- */
