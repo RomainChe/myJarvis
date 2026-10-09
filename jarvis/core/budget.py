@@ -34,7 +34,7 @@ def classify(t: dict) -> tuple[str, dict]:
     if amount > 0:
         if bank == TR:
             return ("ignore", mk("💹", "Dividendes reçus", amount)) if amount < 5 else ("internal", mk("🔁", "Virement interne", amount))
-        if "NEWORCH" in label:
+        if "NEWORCH" in label and amount < PAY_MIN:  # le même employeur verse la paie (≥ PAY_MIN) et de petits remboursements
             return "ignore", mk("🧾", "Remboursement employeur", amount)
         if "ROMAIN" in label and "CHEVALIER" in label or "TRADE" in label:
             return "internal", mk("🔁", "Virement interne", amount)

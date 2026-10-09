@@ -38,6 +38,10 @@ class BudgetTest(unittest.TestCase):
     def setUp(self):
         self.r = report(CYCLE, date(2026, 9, 28))
 
+    def test_paie_au_libelle_neworch(self):
+        r = report([tx(CM, "2026-09-29", 2362.05, "NEWORCH"), tx(CM, "2026-09-30", 12.0, "VIR NEWORCH INVOICE")], date(2026, 10, 9))
+        self.assertEqual(r["pay"]["amount"], 2362.05)
+
     def test_sans_paie_pas_de_bilan(self):
         self.assertIsNone(report([tx(CM, "2026-09-05", -8.25, "COTIS EUROCOMPTE")], date(2026, 9, 28)))
 
