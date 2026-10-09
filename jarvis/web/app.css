@@ -422,9 +422,9 @@ h2.section { margin-top: var(--j-space-4); }
 .meter-bar { height: 6px; margin-top: var(--j-space-1); border-radius: 3px; background: var(--j-color-border); overflow: hidden; }
 .meter-bar > span { display: block; height: 100%; background: var(--j-color-accent); transition: width var(--j-motion-base) ease-out; }
 .meter-bar.hot > span { background: var(--j-color-danger); }
-.tx { display: grid; margin: 0; padding: 0; list-style: none; }
-.tx li { display: flex; justify-content: space-between; gap: var(--j-space-3); padding: var(--j-space-2) 0; border-bottom: 1px solid var(--j-color-border); }
-.tx li:last-child { border-bottom: 0; }
+.tx { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--j-space-3); margin: 0; padding: 0; list-style: none; }
+.tx li { display: flex; flex-direction: column; justify-content: space-between; gap: var(--j-space-2); padding: var(--j-space-3); border: 1px solid var(--j-color-border); border-radius: 8px; }
+@media (max-width: 600px) { .tx { grid-template-columns: 1fr; } }
 .tx-what { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .tx-amt { font: 500 var(--j-text-sm)/1.3 var(--j-font-tech); white-space: nowrap; }
 .tx-amt.pos { color: var(--j-color-accent); }
@@ -444,6 +444,38 @@ h2.section { margin-top: var(--j-space-4); }
 .veille-src { margin: var(--j-space-3) 0 var(--j-space-1); font: 500 var(--j-text-xs)/1.2 var(--j-font-tech); letter-spacing: .12em; text-transform: uppercase; color: var(--j-color-muted); }
 .veille-links li { overflow-wrap: anywhere; padding: 2px 0; }
 .veille-links a { color: var(--j-color-accent); }
+
+/* ---- Bilan de cycle : panneaux Jarvis, accent par section, pastilles de catégorie ---- */
+#fin-cycle { display: grid; gap: var(--j-space-3); }
+#fin-cycle[hidden] { display: none; }
+.cyc-top { grid-template-columns: repeat(2, 1fr); }
+.cyc { padding: var(--j-space-4); border-left: 3px solid var(--j-color-accent); }
+.cyc.fx { border-left-color: #6366f1; } .cyc.sv { border-left-color: #10b981; } .cyc.cs { border-left-color: #f59e0b; }
+.cyc.info { border-left-color: #38bdf8; } .cyc.sub { border-left-color: #a78bfa; } .cyc.reco { border-left-color: #ec4899; }
+#fin-cycle .panel > h2 { font: 600 var(--j-text-md)/1.2 var(--j-font-tech); letter-spacing: 0; text-transform: none; color: var(--j-color-text); }
+.cyc-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.cyc-line { display: flex; align-items: center; justify-content: space-between; gap: var(--j-space-3); padding: var(--j-space-2) 0; border-bottom: 1px solid var(--j-color-border); }
+.cyc-total { border-bottom: 0; font-weight: 600; }
+.cyc-amt { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font: 600 var(--j-text-sm)/1.3 var(--j-font-tech); white-space: nowrap; }
+.cyc-amt.ok, .ok { color: var(--j-color-success); }
+.cyc-amt.gold { color: var(--j-color-warning); }
+.warn { color: var(--j-color-danger); }
+.cyc-line .meter-bar { flex: 1; min-width: 40px; margin: 0; }
+.cyc-stack { display: flex; height: 10px; margin: var(--j-space-2) 0; border-radius: 5px; overflow: hidden; background: var(--j-color-border); }
+.cyc-stack .fx { background: #6366f1; } .cyc-stack .sv { background: #10b981; } .cyc-stack .cs { background: #f59e0b; }
+.cyc-refund { display: grid; gap: 2px; margin: var(--j-space-2) 0 0; }
+.cyc-point { margin: var(--j-space-2) 0 0; }
+.bank { font-size: var(--j-text-xs); }
+.bank.cm { color: #60a5fa; }
+.bank.tr { color: var(--j-color-muted); }
+.cat { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--j-color-border); background: var(--j-color-raised); font: 600 var(--j-text-xs)/1.4 var(--j-font-tech); }
+.meter-bar > span[data-cat] { background: currentColor; }
+[data-cat="Logement"] { color: #6366f1; } [data-cat="Frais bancaires"] { color: #ef4444; } [data-cat="Courses"] { color: #84cc16; }
+[data-cat="Restaurants"] { color: #f97316; } [data-cat="Loisirs"] { color: #ec4899; } [data-cat="Voyage"] { color: #06b6d4; }
+[data-cat="Transport"] { color: #0ea5e9; } [data-cat="Impôts"] { color: #e11d48; } [data-cat="Dons"] { color: #f43f5e; }
+[data-cat="Sport"] { color: #8b5cf6; } [data-cat="Abonnements"] { color: #f59e0b; } [data-cat="Santé"] { color: #14b8a6; }
+[data-cat="Shopping"] { color: #d946ef; } [data-cat="Épargne"] { color: #10b981; }
+@media (min-width: 900px) { .cyc-top { grid-template-columns: repeat(4, 1fr); } }
 
 /* ---- Grilles bureau : Réglages (2 colonnes), Réseaux et Journal (3 colonnes), lignes en cartes ---- */
 .strip.yt .big { font-size: 1.75rem; }

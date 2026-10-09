@@ -499,8 +499,8 @@ const money = (n, cur) => {
   try { return n.toLocaleString('fr-FR', { style: 'currency', currency: cur }); } catch { return eur(n); } // devise inconnue
 };
 function clearFinance() {
-  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto']) $(id).replaceChildren();
-  $('fin-body').hidden = $('fin-bank').hidden = $('fin-crypto').hidden = true;
+  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle']) $(id).replaceChildren();
+  $('fin-body').hidden = $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = true;
   $('fin-bank-at').textContent = '';
   $('fin-left').textContent = $('fin-balance').textContent = $('fin-period').textContent = '';
 }
@@ -551,14 +551,105 @@ function renderBank(b) {
     s.append(el('h2', '', a.bank), el('p', 'big', money(a.balance, a.currency)), el('p', 'muted', a.name));
     return s;
   }));
-  $('fin-tx').replaceChildren(...(b.transactions.length ? b.transactions.map((t) => {
+  $('fin-tx').replaceChildren(...(b.transactions.length ? b.transactions.slice(0, 6).map((t) => {
     const li = el('li');
     const what = el('span', 'tx-what', t.label || '—');
     what.append(el('small', 'muted', `${t.date} · ${t.account}`));
     li.append(what, el('span', t.amount > 0 ? 'tx-amt pos' : 'tx-amt', money(t.amount, t.currency)));
     return li;
   }) : [el('li', 'muted', 'Aucune opération sur 90 jours.')]));
+  renderCycle(b.cycle);
   $('fin-bank').hidden = false;
+}
+
+// Bilan du cycle de paie (calculé par budget.py) : libellés bancaires posés en textContent seulement
+const fdate = (d) => (d ? `le ${d.slice(8, 10)}/${d.slice(5, 7)}` : '');
+function cycPanel(accent, title, sub) {
+  const p = el('section', `panel hud cyc ${accent}`);
+  p.append(el('h2', '', title));
+  if (sub) p.append(el('p', 'muted', sub));
+  return p;
+}
+function cycLine(r, withCat) {
+  const li = el('li', 'cyc-line');
+  const what = el('span', 'tx-what', `${r.emoji} ${r.name}`);
+  const meta = [r.detail, fdate(r.date)].filter(Boolean).join(' · ');
+  if (meta || r.bank) {
+    const s = el('small', 'muted', meta);
+    if (r.bank) s.append(el('span', `bank ${r.bank === 'Trade Republic' ? 'tr' : 'cm'}`, ` ● ${r.bank}`));
+    what.append(s);
+  }
+  const amt = el('span', 'cyc-amt', eur(r.amount));
+  if (withCat && r.cat) { const c = el('span', 'cat', r.cat); c.dataset.cat = r.cat; amt.append(c); }
+  li.append(what, amt);
+  return li;
+}
+function cycTotal(label, value, cls = '') {
+  const li = el('li', 'cyc-line cyc-total');
+  li.append(el('span', '', label), el('span', `cyc-amt ${cls}`, eur(value)));
+  return li;
+}
+function cycList(rows, withCat, total) {
+  const u = el('ul', 'plain cyc-list');
+  u.append(...rows.map((r) => cycLine(r, withCat)));
+  if (total) u.append(total);
+  return u;
+}
+function renderCycle(c) {
+  const box = $('fin-cycle');
+  box.replaceChildren();
+  box.hidden = !c;
+  if (!c) return;
+  const stat = (t, v, sub, cls = '') => {
+    const s = el('section', 'panel hud stat');
+    s.append(el('h2', '', t), el('p', 'big', v), el('p', `muted ${cls}`, sub));
+    return s;
+  };
+  const strip = el('div', 'strip cyc-top');
+  strip.append(stat('💰 Paie reçue', eur(c.pay.amount), fdate(c.pay.date)), stat('🏠 Charges fixes', eur(c.fixed.total), `${c.fixed.pct} % de la paie`),
+    stat('🌱 Épargne', eur(c.saving.total), `taux ${c.saving.rate} %`), stat('📉 Reste fin de cycle', eur(c.left), c.left < 0 ? 'dépassement' : 'disponible', c.left < 0 ? 'warn' : 'ok'));
+  const where = cycPanel('', '🧭 Où est partie la paie');
+  const bar = el('div', 'cyc-stack');
+  for (const [cls, v] of [['fx', c.fixed.total], ['sv', c.saving.total], ['cs', c.conso.total]]) {
+    const s = el('span', cls);
+    s.style.flexGrow = String(Math.max(0, v));
+    bar.append(s);
+  }
+  where.append(bar, el('p', 'muted', `Fixes ${eur(c.fixed.total)} · Épargne ${eur(c.saving.total)} · Consommation ${eur(c.conso.total)}`));
+  if (c.left < 0) where.append(el('p', 'warn', `Les sorties dépassent la paie de ${eur(-c.left)}${c.covered.total ? `, couvert par ${eur(c.covered.total)} venus de ton autre compte` : ''}.`));
+  const fixed = cycPanel('fx', '🏠 Charges fixes', `${c.fixed.pct} % de ta paie`);
+  fixed.append(cycList(c.fixed.items, false, cycTotal('Total', c.fixed.total)));
+  const saving = cycPanel('sv', '🌱 Épargne', `taux d'épargne ${c.saving.rate} %`);
+  const rate = el('ul', 'plain meters');
+  rate.append(meter('Taux d\'épargne', Math.min(100, c.saving.rate), `${c.saving.rate} % · repère 20 %`, false));
+  saving.append(cycList(c.saving.items, false, cycTotal('Total épargné', c.saving.total, 'ok')), rate);
+  const top = Math.max(1, ...c.conso.cats.map((x) => x.amount));
+  const cons = cycPanel('cs', '🛍️ Consommation', 'par catégorie, remboursements d\'amis déduits');
+  const cats = el('ul', 'plain cyc-list');
+  cats.append(...c.conso.cats.map((x) => {
+    const li = el('li', 'cyc-line'), tag = el('span', 'cat', x.name), w = el('div', 'meter-bar'), f = el('span');
+    tag.dataset.cat = f.dataset.cat = x.name;
+    f.style.width = `${(x.amount / top) * 100}%`;
+    w.append(f);
+    li.append(tag, w, el('span', 'cyc-amt', eur(x.amount)));
+    return li;
+  }));
+  cats.append(cycTotal('Total consommation', c.conso.total, 'gold'));
+  cons.append(cats);
+  if (c.conso.refunds.items.length) {
+    const rf = el('p', 'cyc-refund');
+    rf.append(el('strong', 'ok', `🤝 Remboursements d'amis −${eur(c.conso.refunds.total)}`), el('small', 'muted', c.conso.refunds.items.map((r) => `${r.name} ${eur(r.amount)}`).join(', ')));
+    cons.append(rf);
+  }
+  const detail = cycPanel('cs', '🧾 Le détail');
+  detail.append(cycList(c.conso.detail, true));
+  const points = cycPanel('info', '💡 Ce qui ressort');
+  points.append(...c.points.map((x) => el('p', 'cyc-point', `${x.icon} ${x.text}`)));
+  const more = [];
+  if (c.subs.length) { const p = cycPanel('sub', '🔁 Abonnements & prélèvements'); p.append(cycList(c.subs)); more.push(p); }
+  if (c.recos.length) { const p = cycPanel('reco', '🎯 Recommandations'); p.append(...c.recos.map((t) => el('p', 'cyc-point', t))); more.push(p); }
+  if (c.week) { const p = cycPanel('info', '📅 Dernière semaine', `dépenses : ${eur(c.week.spent)}`); p.append(cycList([...c.week.top, ...c.week.internal])); more.push(p); }
+  box.append(strip, where, fixed, saving, cons, detail, points, ...more);
 }
 
 // Ledger : soldes lus en tâche de fond par le serveur ; première lecture en cours = l'onglet se recharge une fois
