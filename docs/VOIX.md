@@ -136,6 +136,7 @@ synthèse. C'est acceptable pour du N2 (réversible ou confirmé par conséquenc
 Environnement séparé `%LOCALAPPDATA%\jarvis-wakeword` (venv Python 3.12, hors dépôt). Avec torch/torchaudio 2.11 et openwakeword 0.6.0, deux erreurs bloquent `python -m openwakeword.train --training_config <jarvis_fr.yml local> --generate_clips --augment_clips --train_model` ; les correctifs vivent dans le venv, pas dans le dépôt :
 - `ImportError: TorchCodec is required` pendant l'augmentation : `torchcodec` s'installe (0.17) mais n'a pas de DLL FFmpeg partagées (FFmpeg winget est statique). Correctif : `venv\Lib\site-packages\sitecustomize.py` remplace `torchaudio.load` / `torchaudio.info` par `soundfile`.
 - `PermissionError WinError 32` en fin de calcul des features (`data.py`, `trim_mmap`) : des mémoires projetées gardent le fichier ouvert avant `os.remove`. Correctif : `del` + `gc.collect()` des deux mmap de `trim_mmap` (`data.py`) **et** de `fp` dans `compute_features_from_generator` (`utils.py`) avant la suppression.
+- `PicklingError: Can't pickle <lambda>` au démarrage de l'apprentissage (`train.py`, `DataLoader` à `num_workers=n_cpus` : Windows relance les workers par `spawn`) : passer à `num_workers=0`. Ensuite ~60 pas/s, 50 000 pas en ~14 min.
 - Piège : l'étape d'augmentation est sautée en bloc si `positive_features_train.npy` existe. Après un plantage, le supprimer avant de relancer. Le fichier `jarvis_fr.yml` du dépôt a un chemin factice ; lancer avec la copie locale.
 
 ## 6. Questions pour la Phase 4
