@@ -499,8 +499,8 @@ const money = (n, cur) => {
   try { return n.toLocaleString('fr-FR', { style: 'currency', currency: cur }); } catch { return eur(n); } // devise inconnue
 };
 function clearFinance() {
-  for (const id of ['fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle']) $(id).replaceChildren();
-  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = true;
+  for (const id of ['fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle', 'fin-portfolio']) $(id).replaceChildren();
+  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = $('fin-portfolio').hidden = true;
   $('fin-bank-at').textContent = '';
 }
 async function loadFinance() {
@@ -510,8 +510,8 @@ async function loadFinance() {
     const b = await api('/api/finance/bank');
     if (!b.ok) throw new Error('bad');
     if (views.finance.hidden) return; // vue quittée pendant le chargement
-    renderBank(b.data?.bank); renderCrypto(b.data?.crypto);
-    state.hidden = !!b.data?.bank || !$('fin-crypto').hidden ? true : false;
+    renderBank(b.data?.bank); renderCrypto(b.data?.crypto); renderPortfolio(b.data?.portfolio);
+    state.hidden = !!b.data?.bank || !$('fin-crypto').hidden || !$('fin-portfolio').hidden ? true : false;
     if (!state.hidden) state.textContent = 'Aucune donnée bancaire : lance « python -m jarvis bank fetch ».';
   } catch (e) {
     state.hidden = true; err.hidden = false;
@@ -652,6 +652,30 @@ function renderCycle(c) {
 
 // Ledger : soldes lus en tâche de fond par le serveur ; première lecture en cours = l'onglet se recharge une fois
 let cryptoRetry;
+// Portefeuille Trade Republic (export CSV importé) : noms = contenu externe, posés en textContent seulement
+function renderPortfolio(p) {
+  const box = $('fin-portfolio');
+  box.replaceChildren();
+  box.hidden = !p?.accounts?.length;
+  if (box.hidden) return;
+  const pct = (n) => `${n >= 0 ? '+' : ''}${n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+  for (const a of p.accounts) {
+    const s = el('section', 'panel hud stat');
+    const up = a.gain >= 0;
+    s.append(cardTitle(a.name, LOGOS['Trade Republic']), el('p', 'big', eur(a.value)),
+      el('p', `muted ${up ? 'ok' : 'warn'}`, `${a.pct == null ? '' : pct(a.pct)} · ${up ? '+' : ''}${eur(a.gain)}`),
+      el('p', 'muted', `investi ${eur(a.invested)}${a.dividends ? ` · dividendes ${eur(a.dividends)}` : ''}${a.realized ? ` · réalisé ${eur(a.realized)}` : ''}`));
+    if (a.missing) s.append(el('p', 'muted warn', `${a.missing} ligne(s) sans cours, comptée(s) à leur prix d'achat`));
+    const list = el('ul', 'plain cyc-list');
+    for (const l of a.positions) {
+      const li = el('li', 'cyc-line');
+      li.append(el('span', '', l.name), el('span', `cyc-amt ${l.pct >= 0 ? 'ok' : 'warn'}`, `${eur(l.value)}${l.pct == null ? '' : ` · ${pct(l.pct)}`}`));
+      list.append(li);
+    }
+    s.append(list);
+    box.append(s);
+  }
+}
 function renderCrypto(c) {
   clearTimeout(cryptoRetry);
   if (!c) return;

@@ -9,6 +9,7 @@
     python -m jarvis finance fetch                     (copie les rapports « [Dépenses] » du compte mail dans ~/.jarvis/finance/, lecture seule)
     python -m jarvis bank key <app_id> <fichier.pem> <redirect_url> | link "<banque>" [pays] | status | fetch [daily]
                                                        (Enable Banking, lecture seule ; terminal interactif)
+    python -m jarvis portfolio import <export.csv>     (copie l'export de transactions Trade Republic dans ~/.jarvis/, lecture seule)
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
@@ -325,6 +326,17 @@ def main(argv: list[str]) -> int:
             return 1
         audit.log("cli", what, {}, 2, "auto", f"{n} mail(s) écrit(s)")
         print(f"{n} mail(s) enregistré(s).")
+        return 0
+    if argv[:2] == ["portfolio", "import"] and len(argv) == 3:
+        from jarvis.core import portfolio
+        try:
+            n = portfolio.import_csv(Path(argv[2]))
+        except (OSError, ValueError) as e:
+            audit.log("cli", "portfolio_import", {}, 2, "auto", "échec")
+            print(f"Import impossible : {e if isinstance(e, ValueError) else type(e).__name__}")
+            return 1
+        audit.log("cli", "portfolio_import", {}, 2, "auto", f"{n} ligne(s)")
+        print(f"{n} ligne(s) importée(s).")
         return 0
     if argv[0] == "say":
         if len(argv) < 2:
