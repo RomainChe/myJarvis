@@ -130,14 +130,14 @@ Register-ScheduledTask -TaskName "JARVIS - sauvegarde" -Principal $principal `
 Le résultat se lit dans le Planificateur de tâches (colonne « Résultat de la dernière exécution »,
 `0x0` = succès, `0x1` = échec).
 
-### 7.2 Démarrage du Core à l'ouverture de session (quand le serveur existera)
+### 7.2 Démarrage du Core à l'ouverture de session (créée le 2026-10-09)
 
-Le serveur n'existe pas encore : `<commande-serveur>` est à remplacer par la commande de
-lancement du Core (ex. le futur `-m jarvis serve`).
+Pas de `.venv` (aucune dépendance) : utiliser le `pythonw.exe` du Python système.
 
 ```powershell
+$pyw = (Get-Command pythonw).Source
 Register-ScheduledTask -TaskName "JARVIS - core" -Principal $principal `
-  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "<commande-serveur>" -WorkingDirectory $repo) `
+  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m jarvis serve" -WorkingDirectory $repo) `
   -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $me) `
   -Settings (New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
              -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries)
