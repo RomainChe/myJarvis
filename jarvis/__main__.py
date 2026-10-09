@@ -23,6 +23,9 @@ import sys
 import threading
 from pathlib import Path
 
+if sys.stdout is None or sys.stderr is None:  # pythonw (tâche planifiée) : sans sortie standard, une lib native plante (0xC0000005)
+    sys.stdout = sys.stderr = open(os.devnull, "w")
+
 os.environ["HF_HUB_OFFLINE"] = "1"  # (9) avant tout import voix : aucun accès réseau des bibliothèques de modèles
 
 import keyring.errors

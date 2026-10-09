@@ -146,6 +146,17 @@ Register-ScheduledTask -TaskName "JARVIS - core" -Principal $principal `
 - `RestartCount`/`RestartInterval` : relance automatique en cas de crash (3 essais, 1 min d'écart).
 - `ExecutionTimeLimit` à zéro : pas d'arrêt forcé au bout de 72 h (défaut Windows).
 
+Vérification horaire (créée le 2026-10-09) : la tâche « JARVIS - verif horaire » interroge
+`http://127.0.0.1:8765/` toutes les heures et relance « JARVIS - core » si le Core ne répond pas.
+
+```powershell
+$cmd = 'try { Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing -TimeoutSec 10 | Out-Null } catch { Stop-ScheduledTask "JARVIS - core"; Start-ScheduledTask "JARVIS - core" }'
+Register-ScheduledTask -TaskName "JARVIS - verif horaire" -Principal $principal `
+  -Action (New-ScheduledTaskAction -Execute powershell.exe -Argument "-NoProfile -WindowStyle Hidden -Command `"$cmd`"") `
+  -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Hours 1)) `
+  -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries)
+```
+
 Vérifier, lancer à la main, supprimer :
 
 ```powershell
