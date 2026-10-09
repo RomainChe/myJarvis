@@ -81,3 +81,7 @@
   - Les fichiers non suivis du dépôt ne sont pas contrôlés (constat 7 de la contre-revue).
   - Le nouveau serveur ne réessaie pas de prendre le port, et aucun retour au dernier commit sain n'est prévu (constat 10, partiel).
   - Au délai dépassé, l'arbre de processus n'est pas tué (constat 13). Sans effet aujourd'hui : `claude.exe` est natif.
+
+## 2026-10-09 — Ledger : adresses publiques envoyées à des services tiers (revue Sécurité, constat 1)
+- **Risque accepté par le propriétaire** : les adresses BTC (dont les 20 prochaines de réception) partent vers mempool.space, l'adresse ETH vers publicnode, avec l'IP du PC ; ces services peuvent relier le patrimoine crypto au foyer. L'xpub ne quitte pas le PC. Alternatives écartées : nœud Bitcoin personnel, Tor.
+- **Constat 7** : l'xpub est en clair dans `~/.jarvis/crypto.json` (hors dépôt), comme les autres configs locales ; à reprendre si une sauvegarde non chiffrée de `~/.jarvis` est mise en place.

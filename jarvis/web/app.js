@@ -499,8 +499,8 @@ const money = (n, cur) => {
   try { return n.toLocaleString('fr-FR', { style: 'currency', currency: cur }); } catch { return eur(n); } // devise inconnue
 };
 function clearFinance() {
-  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx', 'fin-consent']) $(id).replaceChildren();
-  $('fin-body').hidden = $('fin-bank').hidden = true;
+  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto']) $(id).replaceChildren();
+  $('fin-body').hidden = $('fin-bank').hidden = $('fin-crypto').hidden = true;
   $('fin-bank-at').textContent = '';
   $('fin-left').textContent = $('fin-balance').textContent = $('fin-period').textContent = '';
 }
@@ -512,7 +512,7 @@ async function loadFinance() {
     if (!r.ok || !r.data) throw new Error('bad');
     const d = r.data.latest;
     if (views.finance.hidden) return; // vue quittée pendant le chargement
-    if (b.ok) renderBank(b.data?.bank);
+    if (b.ok) { renderBank(b.data?.bank); renderCrypto(b.data?.crypto); }
     if (!d) { state.textContent = r.data.configured ? 'Aucun rapport reconnu.' : 'Dossier des rapports introuvable.'; return; }
     state.hidden = true; $('fin-body').hidden = false;
     $('fin-period').textContent = `Semaine ${d.week}${d.period ? ` · ${d.period}` : ''}`;
@@ -559,6 +559,24 @@ function renderBank(b) {
     return li;
   }) : [el('li', 'muted', 'Aucune opération sur 90 jours.')]));
   $('fin-bank').hidden = false;
+}
+
+// Ledger : soldes lus en tâche de fond par le serveur ; première lecture en cours = l'onglet se recharge une fois
+let cryptoRetry;
+function renderCrypto(c) {
+  clearTimeout(cryptoRetry);
+  if (!c) return;
+  const qty = (a) => `${a.amount.toLocaleString('fr-FR', { maximumFractionDigits: 8 })} ${a.asset}`;
+  const cards = c.assets.map((a) => {
+    const s = el('section', 'panel hud stat');
+    s.append(el('h2', '', `Ledger · ${a.name}`), el('p', 'big', money(a.eur, 'EUR')), el('p', 'muted', qty(a)));
+    return s;
+  });
+  const note = c.errors.join(' · ') || (c.refreshing && !cards.length ? 'Ledger : lecture en cours…' : '');
+  if (note) cards.push(el('p', 'muted', note));
+  $('fin-crypto').replaceChildren(...cards);
+  $('fin-crypto').hidden = !cards.length;
+  if (c.refreshing && !c.assets.length) cryptoRetry = setTimeout(() => { if (!views.finance.hidden) loadFinance(); }, 15000);
 }
 
 // ---- Veille IA : envois hebdo du projet veille-ia (contenu écrit par un agent qui lit le web : texte seul, liens https) ----
