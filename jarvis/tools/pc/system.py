@@ -81,7 +81,7 @@ def _gpu() -> dict | None:
         out = subprocess.run(
             [str(NVIDIA_SMI), "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
              "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=5, check=True,
+            capture_output=True, text=True, timeout=5, check=True, creationflags=subprocess.CREATE_NO_WINDOW,
         ).stdout
         name, util, used, total, temp = (v.strip() for v in out.splitlines()[0].split(","))
         return {"name": name, "percent": int(util), "vram_used_mb": int(used),

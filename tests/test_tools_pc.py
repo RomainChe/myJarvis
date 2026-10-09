@@ -33,6 +33,12 @@ class SystemStatusTest(PcToolTest):
                 mock.patch.object(system.subprocess, "run", side_effect=subprocess.TimeoutExpired("x", 5)):
             self.assertIsNone(system._gpu())
 
+    def test_gpu_sans_fenetre(self):
+        with mock.patch.object(system.Path, "is_file", return_value=True), \
+                mock.patch.object(system.subprocess, "run", side_effect=OSError) as run:
+            system._gpu()
+        self.assertEqual(run.call_args.kwargs.get("creationflags"), subprocess.CREATE_NO_WINDOW)
+
     def test_entree_invalide(self):
         with self.assertRaises(ValueError):
             self.run_tool("system_status", {"extra": 1})

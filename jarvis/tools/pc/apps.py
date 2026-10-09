@@ -149,7 +149,7 @@ def run_script(name: str) -> dict:
     else:
         cmd = [str(CMD), "/d", "/c", f".\\{name}"]
     done = subprocess.run(cmd, cwd=root, stdin=subprocess.DEVNULL, capture_output=True, timeout=SCRIPT_TIMEOUT_S,
-                          encoding="oem", errors="replace")
+                          encoding="oem", errors="replace", creationflags=subprocess.CREATE_NO_WINDOW)
     return {"exit_code": done.returncode, "output": (done.stdout + done.stderr)[:OUTPUT_MAX]}
 
 

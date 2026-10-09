@@ -49,13 +49,14 @@ def power(action: str) -> dict:
         _suspend()
     else:  # liste d'arguments, sans /f : les applications peuvent demander d'enregistrer
         subprocess.run([str(SHUTDOWN), "/s" if action == "shutdown" else "/r", "/t", str(GRACE_S)],
-                       check=True, capture_output=True, timeout=10)
+                       check=True, capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
     return {"power": action}
 
 
 @tool("power_cancel", f"Annule un redémarrage ou un arrêt en attente (délai de {GRACE_S} s de `power`).", Level.N1)
 def power_cancel() -> dict:
-    done = subprocess.run([str(SHUTDOWN), "/a"], capture_output=True, timeout=10)
+    done = subprocess.run([str(SHUTDOWN), "/a"], capture_output=True, timeout=10,
+                          creationflags=subprocess.CREATE_NO_WINDOW)
     if done.returncode == ERROR_NO_SHUTDOWN:  # rien en attente : le résultat voulu est atteint
         return {"power": "nothing_pending"}
     if done.returncode:

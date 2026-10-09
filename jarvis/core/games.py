@@ -30,7 +30,8 @@ def javaw_commands() -> list[str]:
     """Lignes de commande des javaw.exe : Minecraft Java en est un, IntelliJ aussi."""
     ps = "(Get-CimInstance Win32_Process -Filter \"Name='javaw.exe'\").CommandLine"
     out = subprocess.run([str(POWERSHELL), "-NoProfile", "-NonInteractive", "-Command", ps],
-                         capture_output=True, timeout=3, encoding="utf-8", errors="replace").stdout
+                         capture_output=True, timeout=3, encoding="utf-8", errors="replace",
+                         creationflags=subprocess.CREATE_NO_WINDOW).stdout
     return out.splitlines()
 
 
