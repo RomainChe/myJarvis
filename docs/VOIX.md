@@ -132,6 +132,12 @@ synthèse. C'est acceptable pour du N2 (réversible ou confirmé par conséquenc
 ## 5ter. Reconnaissance et chaîne vocale (étape 5)
 `jarvis/core/stt.py` : `Transcriber` (faster-whisper `large-v3-turbo`, `language="fr"`, `beam_size=1`, CUDA `int8_float16` puis repli CPU `int8`). `Listener` (`voice.py`) enchaîne phrase captée → Whisper → `Voice.handle` → voix dans un thread, une phrase à la fois. `python -m jarvis mic listen` lance le tout.
 
+## 5quater. Entraînement du mot de réveil « Jarvis » : contournements Windows (2026-10-09)
+Environnement séparé `%LOCALAPPDATA%\jarvis-wakeword` (venv Python 3.12, hors dépôt). Avec torch/torchaudio 2.11 et openwakeword 0.6.0, deux erreurs bloquent `python -m openwakeword.train --training_config <jarvis_fr.yml local> --generate_clips --augment_clips --train_model` ; les correctifs vivent dans le venv, pas dans le dépôt :
+- `ImportError: TorchCodec is required` pendant l'augmentation : `torchcodec` s'installe (0.17) mais n'a pas de DLL FFmpeg partagées (FFmpeg winget est statique). Correctif : `venv\Lib\site-packages\sitecustomize.py` remplace `torchaudio.load` / `torchaudio.info` par `soundfile`.
+- `PermissionError WinError 32` en fin de calcul des features (`data.py`, `trim_mmap`) : la lecture mémoire garde le fichier ouvert avant `os.remove`. Correctif : `del` des deux mmap + `gc.collect()` avant la suppression.
+- Piège : l'étape d'augmentation est sautée en bloc si `positive_features_train.npy` existe. Après un plantage, le supprimer avant de relancer. Le fichier `jarvis_fr.yml` du dépôt a un chemin factice ; lancer avec la copie locale.
+
 ## 6. Questions pour la Phase 4
 - Micro : quel matériel (casque, micro de webcam, micro d'ambiance) ? Il conditionne les faux réveils.
 - « hey jarvis » suffit-il, ou faut-il entraîner « Jarvis » seul ?
