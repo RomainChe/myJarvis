@@ -174,6 +174,22 @@ class FetchTest(BankBase):
         self.assertEqual(banking.CACHE.read_bytes(), before)
 
 
+class ViewTest(FetchTest):
+    def test_vue_sans_identifiant_triee_et_bornee(self):
+        self.assertIsNone(banking.view())
+        banking.fetch()
+        v = banking.view(limit=1)
+        self.assertEqual(v["accounts"], [{"bank": "Crédit Mutuel", "name": "Compte ••2345", "currency": "EUR", "balance": 1234.56}])
+        self.assertEqual([(t["label"], t["account"], t["currency"]) for t in v["transactions"]], [("SALAIRE", "Crédit Mutuel · Compte ••2345", "EUR")])
+        self.assertNotIn("u1", json.dumps(v))
+
+    def test_coffre_indisponible_vue_absente(self):
+        import keyring.errors
+        banking.fetch()
+        with mock.patch.object(banking, "get_secret", side_effect=keyring.errors.KeyringError):
+            self.assertIsNone(banking.view())
+
+
 class RobustnessTest(LinkTest):
     def test_uid_hostile_ecarte_a_la_liaison(self):
         self.routes[("POST", "/sessions")]["accounts"] = [{"uid": "../aspsps?x="}, {"uid": "u-2"}]

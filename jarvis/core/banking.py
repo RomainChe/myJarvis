@@ -16,6 +16,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import keyring.errors
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -262,3 +263,21 @@ def fetch(today: date | None = None) -> dict:
         _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts})
     return {"accounts": len(accounts), "transactions": sum(len(a["transactions"]) for a in accounts), "errors": errors}
 
+
+
+def view(limit: int = 30) -> dict | None:
+    """Pour l'onglet Finances : soldes par compte et les `limit` dernières opérations, sans uid ni session.
+
+    None si rien n'a encore été récupéré ou si le cache est illisible (coffre indisponible) : l'onglet reste utilisable.
+    """
+    try:
+        data = _load(CACHE, None)
+    except (BankError, keyring.errors.KeyringError):
+        return None
+    if not data:
+        return None
+    accounts = data.get("accounts") or []
+    txs = [dict(t, account=f"{a['bank']} · {a['name']}", currency=a["currency"]) for a in accounts for t in a["transactions"]]
+    return {"fetched_at": data.get("fetched_at"),
+            "accounts": [{k: a[k] for k in ("bank", "name", "currency", "balance")} for a in accounts],
+            "transactions": sorted(txs, key=lambda t: t["date"], reverse=True)[:limit]}
