@@ -24,6 +24,7 @@ from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.dashboard import Dashboard
 from jarvis.core.devices import Devices
+from jarvis.core.banking import view as bank_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
@@ -362,6 +363,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         audit.log(f"pwa:{auth[0]}", "finance_read", {}, 2, "auto", "rapports financiers lus")  # trace d'abord : journal en échec = rien lu
         return finance_snapshot()
+
+    @app.get("/api/finance/bank")
+    def bank_state(request: Request):  # route à part : le résumé du dashboard n'appelle que /api/finance, sans données bancaires
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        audit.log(f"pwa:{auth[0]}", "bank_read", {}, 2, "auto", "comptes bancaires lus")
+        return {"bank": bank_view()}
 
     @app.get("/api/veille")
     def veille_state(request: Request):

@@ -494,19 +494,25 @@ async function loadSocial() {
 
 // ---- Finances : rapports hebdo (lecture seule, données sensibles : rien n'est gardé hors de la vue ouverte) ---------
 const eur = (n) => (Number.isFinite(n) ? n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : '—');
+const money = (n, cur) => {
+  if (!Number.isFinite(n)) return '—';
+  try { return n.toLocaleString('fr-FR', { style: 'currency', currency: cur }); } catch { return eur(n); } // devise inconnue
+};
 function clearFinance() {
-  for (const id of ['fin-cards', 'fin-cats', 'fin-trend']) $(id).replaceChildren();
-  $('fin-body').hidden = true;
+  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx']) $(id).replaceChildren();
+  $('fin-body').hidden = $('fin-bank').hidden = true;
+  $('fin-bank-at').textContent = '';
   $('fin-left').textContent = $('fin-balance').textContent = $('fin-period').textContent = '';
 }
 async function loadFinance() {
   const err = $('fin-error'), state = $('fin-state');
   err.hidden = true; state.hidden = false; state.textContent = 'Chargement…';
   try {
-    const r = await api('/api/finance');
+    const [r, b] = await Promise.all([api('/api/finance'), api('/api/finance/bank')]);
     if (!r.ok || !r.data) throw new Error('bad');
     const d = r.data.latest;
     if (views.finance.hidden) return; // vue quittée pendant le chargement
+    if (b.ok) renderBank(b.data?.bank);
     if (!d) { state.textContent = r.data.configured ? 'Aucun rapport reconnu.' : 'Dossier des rapports introuvable.'; return; }
     state.hidden = true; $('fin-body').hidden = false;
     $('fin-period').textContent = `Semaine ${d.week}${d.period ? ` · ${d.period}` : ''}`;
@@ -525,6 +531,26 @@ async function loadFinance() {
     state.hidden = true; err.hidden = false;
     err.textContent = unavailable('Finances indisponibles', e);
   }
+}
+
+// Comptes Enable Banking : libellés = contenu externe, posés en textContent seulement
+function renderBank(b) {
+  if (!b) return;
+  const at = new Date(b.fetched_at);
+  $('fin-bank-at').textContent = Number.isNaN(at.getTime()) ? '' : `Comptes mis à jour le ${at.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
+  $('fin-accounts').replaceChildren(...b.accounts.map((a) => {
+    const s = el('section', 'panel hud stat');
+    s.append(el('h2', '', a.bank), el('p', 'big', money(a.balance, a.currency)), el('p', 'muted', a.name));
+    return s;
+  }));
+  $('fin-tx').replaceChildren(...(b.transactions.length ? b.transactions.map((t) => {
+    const li = el('li');
+    const what = el('span', 'tx-what', t.label || '—');
+    what.append(el('small', 'muted', `${t.date} · ${t.account}`));
+    li.append(what, el('span', t.amount > 0 ? 'tx-amt pos' : 'tx-amt', money(t.amount, t.currency)));
+    return li;
+  }) : [el('li', 'muted', 'Aucune opération sur 90 jours.')]));
+  $('fin-bank').hidden = false;
 }
 
 // ---- Veille IA : envois hebdo du projet veille-ia (contenu écrit par un agent qui lit le web : texte seul, liens https) ----

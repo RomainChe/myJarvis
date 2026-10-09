@@ -92,11 +92,18 @@ class FinanceRouteTest(ServerBase):
     def test_authentification_exigee_lecture_journalisee(self):
         self.assertEqual(self.call("GET", "/api/finance")[0], 401)
         _, token = self.enroll()
-        with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}):
+        with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}), \
+                mock.patch("jarvis.server.bank_view", return_value={"accounts": []}) as bank:
             status, body, _ = self.call("GET", "/api/finance", token=token)
-        self.assertEqual((status, set(body)), (200, {"configured", "latest", "trend"}))
+            self.assertEqual((status, set(body)), (200, {"configured", "latest", "trend"}))  # dashboard : aucune donnée bancaire
+            bank.assert_not_called()
+            self.assertEqual(self.call("GET", "/api/finance/bank", token=token)[:2], (200, {"bank": {"accounts": []}}))
         status, body, _ = self.call("GET", "/api/audit?limit=20", token=token)
         self.assertIn("finance_read", str(body))
+        self.assertIn("bank_read", str(body))
+
+    def test_route_bancaire_authentifiee(self):
+        self.assertEqual(self.call("GET", "/api/finance/bank")[0], 401)
 
 
 if __name__ == "__main__":
