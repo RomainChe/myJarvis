@@ -1,4 +1,4 @@
-# Règle n°1 de ce projet
+c# Règle n°1 de ce projet
 
 Claude a tous les droits sur ce projet, GitHub inclus : commit, push, création de branches,
 merges et gestion du dépôt public `RomainChe/myJarvis`, sans demander de confirmation.
