@@ -99,6 +99,7 @@ async function signOut() {
   $('devices-list').replaceChildren();
   $('sys-list').replaceChildren();
   for (const id of ['st-loc', 'st-weather', 'st-up']) $(id).textContent = '—';
+  bootAt = null;
   for (const id of ['st-sky', 'st-net', 'sys-error']) $(id).textContent = '';
   clearTimeout(homeTimer);
   $('levels-list').replaceChildren();
@@ -402,10 +403,16 @@ function gauge(label, value, detail, hot = value >= 90) {
   return li;
 }
 function fmtUptime(s) {
-  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
-  const hm = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  return d ? `${d} j ${hm}` : hm;
+  const d = Math.floor(s / 86400), p = (n) => String(n).padStart(2, '0');
+  const hms = `${p(Math.floor(s % 86400 / 3600))}:${p(Math.floor(s % 3600 / 60))}:${p(s % 60)}`;
+  return d ? `${d} j ${hms}` : hms;
 }
+// Uptime : lu une seule fois (premier tableau de bord reçu), puis compté localement chaque seconde.
+let bootAt = null;
+function tickUptime() {
+  if (bootAt !== null) $('st-up').textContent = fmtUptime(Math.max(0, Math.floor((Date.now() - bootAt) / 1000)));
+}
+setInterval(() => { if (!document.hidden) tickUptime(); }, 1000);
 async function loadHome() {
   clearTimeout(homeTimer);
   if (!token) return;
@@ -417,7 +424,8 @@ async function loadHome() {
     $('st-weather').textContent = d.weather ? `${d.weather.temp_c} °C` : '—';
     $('st-sky').textContent = d.weather ? String(d.weather.sky) : d.location ? 'Météo indisponible' : '';
     $('st-net').textContent = d.network?.ms != null ? `Réseau : ${d.network.quality} · ${d.network.ms} ms` : 'Réseau : hors ligne';
-    $('st-up').textContent = Number.isInteger(d.uptime_s) ? fmtUptime(d.uptime_s) : '—';
+    if (bootAt === null && Number.isInteger(d.uptime_s)) bootAt = Date.now() - d.uptime_s * 1000;
+    tickUptime();
     const s = d.system;
     const rows = [];
     if (s) {
