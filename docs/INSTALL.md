@@ -1,4 +1,4 @@
-# Installer JARVIS sur Windows 11
+﻿# Installer JARVIS sur Windows 11
 
 État au 2026-10-07 (Phase 1) : le code est en Python pur, **sans dépendance externe**
 (`pyproject.toml` : `dependencies = []`). Il n'y a pas encore de serveur : seule la CLI
@@ -150,9 +150,9 @@ Vérification horaire (créée le 2026-10-09) : la tâche « JARVIS - verif hora
 `http://127.0.0.1:8765/` toutes les 5 minutes et relance « JARVIS - core » si le Core ne répond pas.
 
 ```powershell
-$cmd = 'try { Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing -TimeoutSec 10 | Out-Null } catch { Stop-ScheduledTask "JARVIS - core"; Start-ScheduledTask "JARVIS - core" }'
+# scripts\verif_core.pyw : pythonw, donc aucune fenêtre (powershell -WindowStyle Hidden en faisait clignoter une)
 Register-ScheduledTask -TaskName "JARVIS - verif horaire" -Principal $principal `
-  -Action (New-ScheduledTaskAction -Execute powershell.exe -Argument "-NoProfile -WindowStyle Hidden -Command `"$cmd`"") `
+  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "scripts\verif_core.pyw" -WorkingDirectory $repo) `
   -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5)) `
   -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries)
 ```
