@@ -19,3 +19,6 @@ node_modules/
 # Poids des modèles de la voix (le MANIFEST.json, lui, est versionné)
 models/*
 !models/MANIFEST.json
+
+# Cache du CLI Playwright
+.playwright-cli/

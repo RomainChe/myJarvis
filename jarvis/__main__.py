@@ -7,6 +7,8 @@
     python -m jarvis ha check
     python -m jarvis veille fetch                      (copie les envois « [Veille ...] » du compte mail dans ~/.jarvis/veille/, lecture seule)
     python -m jarvis finance fetch                     (copie les rapports « [Dépenses] » du compte mail dans ~/.jarvis/finance/, lecture seule)
+    python -m jarvis bank key <app_id> <fichier.pem> <redirect_url> | link "<banque>" [pays] | status | fetch
+                                                       (Enable Banking, lecture seule ; terminal interactif)
     python -m jarvis device add | list | revoke <id>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
@@ -199,6 +201,53 @@ def push_cmd(argv: list[str], audit: Audit) -> int:
     return 0 if ok else 1
 
 
+def bank_cmd(argv: list[str], audit: Audit) -> int:
+    from jarvis.core import banking
+    if argv[1] not in ("key", "link", "status", "fetch"):
+        print(__doc__)
+        return 2
+    what = f"bank_{argv[1]}"
+    if not sys.stdin.isatty():  # un processus lancé par Jarvis ne lit ni ne lie aucune banque
+        audit.log("cli", what, {}, 2, "refusé", "terminal non interactif")
+        print("Refusé : cette commande exige un terminal interactif.")
+        return 1
+    try:
+        if len(argv) == 5 and argv[1] == "key":
+            banking.configure(argv[2], Path(argv[3]).read_bytes(), argv[4])
+            audit.log("cli", "bank_key", {}, 2, "auto", "application enregistrée")
+            print(f"Enregistré (chiffré). Supprime maintenant {argv[3]}.")
+        elif len(argv) in (3, 4) and argv[1] == "link":
+            link = banking.start_link(argv[2], argv[3] if len(argv) == 4 else "FR")
+            print(f"Ouvre ce lien, connecte-toi à la banque, puis colle l'adresse de la page d'arrivée :\n{link['url']}")
+            n = banking.finish_link(link, input("Adresse de retour : "))
+            audit.log("cli", "bank_link", {"bank": link["aspsp"]["name"]}, 2, "auto", f"{n} compte(s)")
+            print(f"{n} compte(s) lié(s).")
+        elif argv[1:] == ["status"]:
+            for s in banking.status():
+                print(f"{s['bank']} | {s['accounts']} compte(s) | consentement : {'?' if s['days_left'] is None else s['days_left']} j")
+        elif argv[1:] == ["fetch"]:
+            r = banking.fetch()
+            audit.log("cli", "bank_fetch", {}, 2, "auto", f"{r['accounts']} compte(s), {len(r['errors'])} échec(s)")
+            print(f"{r['accounts']} compte(s), {r['transactions']} transaction(s).", *r["errors"], sep="\n")
+            return 1 if r["errors"] else 0
+        else:
+            print(__doc__)
+            return 2
+    except (banking.BankError, OSError) as e:
+        audit.log("cli", what, {}, 2, "auto", "échec")
+        print(e if isinstance(e, banking.BankError) else f"fichier illisible : {type(e).__name__}")
+        return 1
+    except keyring.errors.KeyringError:
+        audit.log("cli", what, {}, 2, "auto", "échec : coffre indisponible")
+        print("coffre Windows indisponible")
+        return 1
+    except (EOFError, KeyboardInterrupt):
+        audit.log("cli", what, {}, 2, "auto", "annulé")
+        print("\nSaisie annulée.")
+        return 1
+    return 0
+
+
 def level_cmd(argv: list[str]) -> int:
     if argv == ["level", "list"]:
         for name, base, floor, now in levels.table():
@@ -293,6 +342,8 @@ def main(argv: list[str]) -> int:
         return push_cmd(argv, audit)
     if argv[0] == "level":
         return level_cmd(argv)
+    if argv[0] == "bank" and len(argv) > 1:
+        return bank_cmd(argv, audit)
     if argv[0] == "device" or argv == ["serve"]:
         return device_or_serve(argv, audit)
     if argv[0] == "run":
