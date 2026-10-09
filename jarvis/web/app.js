@@ -519,6 +519,14 @@ async function loadFinance() {
   }
 }
 
+// Logos locaux (liste fixe : une valeur venue de l'API ne construit jamais un chemin)
+const LOGOS = { 'Crédit Mutuel': 'bank-cm.svg', 'Trade Republic': 'bank-tr.svg', BTC: 'coin-btc.svg', ETH: 'coin-eth.svg' };
+function cardTitle(text, logo) {
+  const h = el('h2', 'with-logo');
+  if (logo) { const i = el('img', 'logo'); i.src = `/${logo}`; i.alt = ''; i.width = i.height = 22; h.append(i); }
+  h.append(document.createTextNode(text));
+  return h;
+}
 // Comptes Enable Banking : libellés = contenu externe, posés en textContent seulement
 const CONSENT_WARN = 14; // jours : à partir de là, la commande de renouvellement s'affiche
 function renderBank(b) {
@@ -534,7 +542,7 @@ function renderBank(b) {
   }));
   $('fin-accounts').replaceChildren(...b.accounts.map((a) => {
     const s = el('section', 'panel hud stat');
-    s.append(el('h2', '', a.bank), el('p', 'big', money(a.balance, a.currency)), el('p', 'muted', a.name));
+    s.append(cardTitle(a.bank, LOGOS[a.bank]), el('p', 'big', money(a.balance, a.currency)), el('p', 'muted', a.name));
     return s;
   }));
   $('fin-tx').replaceChildren(...(b.transactions.length ? b.transactions.slice(0, 6).map((t) => {
@@ -650,7 +658,7 @@ function renderCrypto(c) {
   const qty = (a) => `${a.amount.toLocaleString('fr-FR', { maximumFractionDigits: 8 })} ${a.asset}`;
   const cards = c.assets.map((a) => {
     const s = el('section', 'panel hud stat');
-    s.append(el('h2', '', `Ledger · ${a.name}`), el('p', 'big', money(a.eur, 'EUR')), el('p', 'muted', qty(a)));
+    s.append(cardTitle(`Ledger · ${a.name}`, LOGOS[a.asset]), el('p', 'big', money(a.eur, 'EUR')), el('p', 'muted', qty(a)));
     return s;
   });
   const note = c.errors.join(' · ') || (c.refreshing && !cards.length ? 'Ledger : lecture en cours…' : '');

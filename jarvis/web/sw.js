@@ -1,7 +1,7 @@
 // Service worker : cache du shell statique uniquement. Jamais /api/*, jamais une requête avec Authorization.
-const CACHE = 'jarvis-shell-v32';
+const CACHE = 'jarvis-shell-v33';
 const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png',
-               '/icon-512.png'];
+               '/icon-512.png', '/bank-cm.svg', '/bank-tr.svg', '/coin-btc.svg', '/coin-eth.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

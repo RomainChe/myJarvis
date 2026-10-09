@@ -444,6 +444,9 @@ h2.section { margin-top: var(--j-space-4); }
 .veille-links li { overflow-wrap: anywhere; padding: 2px 0; }
 .veille-links a { color: var(--j-color-accent); }
 
+h2.with-logo { display: flex; align-items: center; gap: var(--j-space-2); }
+.logo { border-radius: 6px; flex: none; }
+
 /* ---- Bilan de cycle : panneaux Jarvis, accent par section, pastilles de catégorie ---- */
 #fin-cycle { display: grid; gap: var(--j-space-3); }
 #fin-cycle[hidden] { display: none; }
