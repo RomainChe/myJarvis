@@ -499,34 +499,20 @@ const money = (n, cur) => {
   try { return n.toLocaleString('fr-FR', { style: 'currency', currency: cur }); } catch { return eur(n); } // devise inconnue
 };
 function clearFinance() {
-  for (const id of ['fin-cards', 'fin-cats', 'fin-trend', 'fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle']) $(id).replaceChildren();
-  $('fin-body').hidden = $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = true;
+  for (const id of ['fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle']) $(id).replaceChildren();
+  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = true;
   $('fin-bank-at').textContent = '';
-  $('fin-left').textContent = $('fin-balance').textContent = $('fin-period').textContent = '';
 }
 async function loadFinance() {
   const err = $('fin-error'), state = $('fin-state');
   err.hidden = true; state.hidden = false; state.textContent = 'Chargement…';
   try {
-    const [r, b] = await Promise.all([api('/api/finance'), api('/api/finance/bank')]);
-    if (!r.ok || !r.data) throw new Error('bad');
-    const d = r.data.latest;
+    const b = await api('/api/finance/bank');
+    if (!b.ok) throw new Error('bad');
     if (views.finance.hidden) return; // vue quittée pendant le chargement
-    if (b.ok) { renderBank(b.data?.bank); renderCrypto(b.data?.crypto); }
-    if (!d) { state.textContent = r.data.configured ? 'Aucun rapport reconnu.' : 'Dossier des rapports introuvable.'; return; }
-    state.hidden = true; $('fin-body').hidden = false;
-    $('fin-period').textContent = `Semaine ${d.week}${d.period ? ` · ${d.period}` : ''}`;
-    const card = (title, c) => {
-      const s = el('section', 'panel hud stat');
-      s.append(el('h2', '', title), el('p', 'big', eur(c?.amount)), el('p', 'muted', Number.isInteger(c?.vs_pct) ? `${c.vs_pct > 0 ? '+' : ''}${c.vs_pct} % vs sem. préc.` : ''));
-      return s;
-    };
-    $('fin-cards').replaceChildren(card('Dépenses', d.spent), card('Épargne', d.saved), card('Consommation', d.consumed), card('Entrées', d.income));
-    $('fin-left').textContent = eur(d.left_to_live) + (Number.isFinite(d.per_day) ? ` · ≈ ${eur(d.per_day)}/jour` : '');
-    $('fin-balance').textContent = Number.isFinite(d.balance) ? `Total disponible : ${eur(d.balance)}` : '';
-    $('fin-cats').replaceChildren(...(d.categories.length ? d.categories.map((c) => meter(c.name, c.pct, `${eur(c.amount)} · ${c.pct} %`)) : [el('li', 'muted', 'Aucune catégorie.')]));
-    const top = Math.max(1, ...r.data.trend.map((t) => t.spent ?? 0));
-    $('fin-trend').replaceChildren(...r.data.trend.map((t) => meter(`S${t.week}`, ((t.spent ?? 0) / top) * 100, eur(t.spent), false)));
+    renderBank(b.data?.bank); renderCrypto(b.data?.crypto);
+    state.hidden = !!b.data?.bank || !$('fin-crypto').hidden ? true : false;
+    if (!state.hidden) state.textContent = 'Aucune donnée bancaire : lance « python -m jarvis bank fetch ».';
   } catch (e) {
     state.hidden = true; err.hidden = false;
     err.textContent = unavailable('Finances indisponibles', e);

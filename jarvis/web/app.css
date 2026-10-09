@@ -339,12 +339,9 @@ h2.section { margin-top: var(--j-space-4); }
 /* ---- Console : Système / Météo / Localisation / Uptime | œil | conversation (Phase 6 point 7) ---- */
 #view-chat { overflow: hidden; }
 #view-chat h2, #view-finance .panel > h2 { font: 500 var(--j-text-xs)/1.2 var(--j-font-tech); letter-spacing: .12em; text-transform: uppercase; color: var(--j-color-muted); margin: 0 0 var(--j-space-2); }
-.big, #fin-left { margin: 0; font: 600 var(--j-text-lg)/1.2 var(--j-font-tech); color: var(--j-color-accent); }
+.big { margin: 0; font: 600 var(--j-text-lg)/1.2 var(--j-font-tech); color: var(--j-color-accent); }
 #view-chat .panel { padding: var(--j-space-3) var(--j-space-4); }
 #view-chat .panel > .muted { padding: var(--j-space-1) 0 0; }
-#fin-body > .panel { padding: var(--j-space-4); }
-#fin-body { display: grid; gap: var(--j-space-3); }
-#fin-body .panel > .muted { padding: var(--j-space-1) 0 0; }
 /* Téléphone : état compact en haut (jauges + 3 encarts), conversation en bas, œil en fond au centre de l'écran. */
 .console { display: grid; grid-template: "side" auto "convo" minmax(0, 1fr) / minmax(0, 1fr); gap: var(--j-space-3); }
 .side { grid-area: side; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--j-space-2); position: relative; z-index: 1; }
@@ -430,6 +427,8 @@ h2.section { margin-top: var(--j-space-4); }
 .tx-amt.pos { color: var(--j-color-accent); }
 #fin-bank { display: grid; gap: var(--j-space-3); margin-bottom: var(--j-space-3); }
 #fin-bank[hidden] { display: none; }
+.fin-foot { display: grid; gap: var(--j-space-1); color: var(--j-color-muted); font-size: var(--j-text-sm); }
+.fin-foot p { margin: 0; }
 #fin-crypto { margin-bottom: var(--j-space-3); }
 .consent { display: grid; gap: var(--j-space-1); margin: 0; padding: 0; list-style: none; font-size: var(--j-text-sm); }
 .consent .warn { color: var(--j-color-danger); }
