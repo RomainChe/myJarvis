@@ -8,6 +8,7 @@ jamais un corps de réponse, un jeton ou un identifiant de session.
 import base64
 import http.client
 import json
+import re
 import secrets as rnd
 import time
 import urllib.error
@@ -197,7 +198,7 @@ def status() -> list[dict]:
             days = (datetime.fromisoformat(s["valid_until"]) - datetime.now(timezone.utc)).days
         except (TypeError, ValueError):
             pass
-        out.append({"bank": s["bank"], "accounts": len(s["accounts"]), "days_left": days})
+        out.append({"bank": s["bank"], "country": s.get("country", "FR"), "accounts": len(s["accounts"]), "days_left": days})
     return out
 
 
@@ -265,19 +266,28 @@ def fetch(today: date | None = None) -> dict:
 
 
 
+def renew_cmd(bank: str, country: str) -> str | None:
+    """Commande à copier dans PowerShell, ou None : le nom vient de l'API, donc ni `$`, ni accent grave, ni guillemet double."""
+    if not (re.fullmatch(r"[\w .'&()-]{1,80}", bank) and re.fullmatch(r"[A-Z]{2}", country)):
+        return None
+    return f'python -m jarvis bank link "{bank}"' + ("" if country == "FR" else f" {country}")
+
+
 def view(limit: int = 30) -> dict | None:
-    """Pour l'onglet Finances : soldes par compte et les `limit` dernières opérations, sans uid ni session.
+    """Pour l'onglet Finances : soldes par compte, `limit` dernières opérations et jours de consentement restants,
+    sans uid ni session.
 
     None si rien n'a encore été récupéré ou si le cache est illisible (coffre indisponible) : l'onglet reste utilisable.
     """
     try:
         data = _load(CACHE, None)
+        consent = [{"bank": s["bank"], "days_left": s["days_left"], "renew": renew_cmd(s["bank"], s["country"])} for s in status()]
     except (BankError, keyring.errors.KeyringError):
         return None
     if not data:
         return None
     accounts = data.get("accounts") or []
     txs = [dict(t, account=f"{a['bank']} · {a['name']}", currency=a["currency"]) for a in accounts for t in a["transactions"]]
-    return {"fetched_at": data.get("fetched_at"),
+    return {"fetched_at": data.get("fetched_at"), "consent": consent,
             "accounts": [{k: a[k] for k in ("bank", "name", "currency", "balance")} for a in accounts],
             "transactions": sorted(txs, key=lambda t: t["date"], reverse=True)[:limit]}

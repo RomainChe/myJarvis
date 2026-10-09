@@ -207,7 +207,9 @@ def bank_cmd(argv: list[str], audit: Audit) -> int:
         print(__doc__)
         return 2
     what = f"bank_{argv[1]}"
-    if not sys.stdin.isatty():  # un processus lancé par Jarvis ne lit ni ne lie aucune banque
+    # Configurer et lier exigent un humain ; `fetch` et `status` tournent aussi en tâche planifiée (pythonw : stdin absent).
+    # ponytail: un script lancé par Jarvis peut déclencher `fetch` ; impact borné (cache chiffré, quota PSD2 de la banque).
+    if argv[1] in ("key", "link") and not (sys.stdin and sys.stdin.isatty()):
         audit.log("cli", what, {}, 2, "refusé", "terminal non interactif")
         print("Refusé : cette commande exige un terminal interactif.")
         return 1
@@ -254,7 +256,7 @@ def level_cmd(argv: list[str]) -> int:
             print(f"{name} | registre N{base} | plancher N{floor} | effectif N{now}")
         return 0
     if len(argv) == 4 and argv[1] == "set" and argv[3] in ("0", "1", "2", "3"):
-        if not sys.stdin.isatty():
+        if not (sys.stdin and sys.stdin.isatty()):
             print("Refusé : cette commande exige un terminal interactif.")
             return 1
         try:
