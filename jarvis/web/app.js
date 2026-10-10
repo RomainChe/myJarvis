@@ -666,13 +666,6 @@ function renderPortfolio(p) {
       el('p', `muted ${up ? 'ok' : 'warn'}`, `${a.pct == null ? '' : pct(a.pct)} · ${up ? '+' : ''}${eur(a.gain)}`),
       el('p', 'muted', `investi ${eur(a.invested)}${a.dividends ? ` · dividendes ${eur(a.dividends)}` : ''}${a.realized ? ` · réalisé ${eur(a.realized)}` : ''}`));
     if (a.missing) s.append(el('p', 'muted warn', `${a.missing} ligne(s) sans cours, comptée(s) à leur prix d'achat`));
-    const list = el('ul', 'plain cyc-list');
-    for (const l of a.positions) {
-      const li = el('li', 'cyc-line');
-      li.append(el('span', '', l.name), el('span', `cyc-amt ${l.pct >= 0 ? 'ok' : 'warn'}`, `${eur(l.value)}${l.pct == null ? '' : ` · ${pct(l.pct)}`}`));
-      list.append(li);
-    }
-    s.append(list);
     box.append(s);
   }
 }
