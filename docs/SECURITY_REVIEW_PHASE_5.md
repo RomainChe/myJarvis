@@ -97,3 +97,16 @@ Lecture : la garde `taint` tient (la défense ne repose pas sur le modèle). Le 
 
 **N1 résiduels appelables après du contenu externe** (réversibles, sans donnée) : `open_app`, `close_app`, `set_volume`, `mute`, `media_control`, `tv_on`, `tv_off`, `tv_volume`, `tv_mute`. Risque accepté : nuisance, pas de perte ni de fuite. Les rendre `taint_blocked` casserait « cherche X puis monte le son » ; à décider par le propriétaire.
 Limites : un seul modèle, température 0, 40 cas écrits à la main (pas un fuzzing) ; les cas « porteur non appelé » n'existent pas dans ce jeu.
+
+## Étape 5 — scanner d'injection français (2026-10-11)
+
+`jarvis/core/injection_scan.py` (regex, sans dépendance) : `scan(texte)` renvoie les motifs vus (ignore les consignes, fausse autorité, changement de rôle, « sans confirmation », faux rôle/balises, ordre d'outil, nom d'outil brut, ordre PC). Texte normalisé (accents, majuscules, zéro-largeur). Branché dans `llm.ask` : un résultat d'un outil `external` qui déclenche un motif ajoute une ligne `signal` au journal (« injection probable : <motifs> »). **Jamais un contrôle** : rien n'est bloqué, la garde reste `taint` ; un échec du journal d'un signal n'interrompt pas la demande.
+
+| Mesure | Résultat |
+| --- | --- |
+| Faux positifs sur 50 données ordinaires (noms de fichiers, processus, mails, états TV, pièges `kill_bill`, `power_cancel_notes.txt`) | 0 |
+| Charges du banc d'injection (40) | 40 / 40, **mais motifs réglés sur ces cas** |
+| 12 cas écrits avant les motifs | 11 / 12 au premier essai, 12 / 12 après réglage |
+| 8 attaques neuves écrites après le réglage, une seule mesure | **3 / 8 (37 %)** |
+
+Lecture : le scanner attrape les formulations courantes, pas les paraphrases (« nouvelle mission », « super-utilisateur », « annule la demande précédente »). C'est attendu pour des regex : le taux réel face à un attaquant qui adapte le texte est faible. Ne jamais s'en servir pour autoriser quoi que ce soit. Les 50 phrases saines peuvent donner des faux positifs ailleurs (mails réels) : une ligne de journal, sans effet.

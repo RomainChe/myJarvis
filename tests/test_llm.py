@@ -103,6 +103,15 @@ class LLMTest(unittest.TestCase):
         self.assertEqual(ran, [])
         self.assertIn("refusé", [row[5] for row in self.audit.last() if row[2] == "llm_power"])
 
+    def test_injection_signalee_au_journal_sans_rien_bloquer(self):  # Phase 5 étape 5
+        self.ask(FakeOllama(reply(call("llm_ext")), reply(content="fait")))
+        rows = [r for r in self.audit.last() if r[5] == "signal"]
+        self.assertEqual(len(rows), 1)
+        self.assertIn("balise", rows[0][6])
+        ran.clear()
+        self.ask(FakeOllama(reply(call("llm_num")), reply(content="fait")))
+        self.assertEqual(len([r for r in self.audit.last() if r[5] == "signal"]), 1)  # donnée saine : pas de signal
+
     def test_outil_taint_blocked_refuse_apres_contenu_externe_mais_pas_avant(self):
         """S2 : un N1 qui écrit chez l'utilisateur (presse-papiers) est bloqué après contenu externe."""
         o = FakeOllama(reply(call("llm_ext")), reply(call("llm_copy")), reply(content="fait"))

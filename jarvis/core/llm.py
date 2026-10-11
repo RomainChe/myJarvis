@@ -7,6 +7,7 @@ from typing import Callable
 
 from . import games
 from .audit import Audit
+from .injection_scan import scan
 from .levels import effective
 from .permissions import Refused, as_data, execute
 from .tools import REGISTRY, Level, Tool, masked
@@ -128,5 +129,11 @@ def ask(
                 except Exception as e:  # le détail peut contenir des données d'un outil privé
                     result = f"erreur : {type(e).__name__}"
                 tainted = tainted or bool(tool and tool.external)
+                if tool and tool.external and (hits := scan(result)):  # signal seulement : la garde reste `taint`
+                    try:
+                        audit.log(source, name, masked(args, tool.hidden), effective(tool), "signal",
+                                  "injection probable : " + ", ".join(hits))
+                    except Exception:  # noqa: BLE001 (un signal ne doit jamais bloquer la demande)
+                        pass
             messages.append({"role": "tool", "tool_name": name, "content": as_data(result)})
     return "Trop d'étapes, j'abandonne."
