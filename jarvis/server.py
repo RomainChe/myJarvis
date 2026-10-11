@@ -327,6 +327,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
+        if body.tool not in levels.REGISTRY:  # pas de défi signable pour un outil qui n'existe pas
+            return reply(422, "requête invalide")
         options = passkeys.request_options(auth[0], f"level:{body.tool}:{body.level}")
         return reply(403, "aucune clé d'accès pour cet appareil") if options is None else options
 

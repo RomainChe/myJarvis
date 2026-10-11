@@ -379,6 +379,10 @@ class LevelsRoutesTest(WebAuthnServerBase):
         self.assertEqual(self.call("POST", "/api/levels", {"tool": "inconnu", "level": 1})[0], 422)
         self.assertEqual(self.call("POST", "/api/levels", {"tool": "delete_file", "level": 0})[0], 422)  # plancher
 
+    def test_defi_refuse_pour_un_outil_inconnu(self):
+        self.register_key()
+        self.assertEqual(self.call("POST", "/api/levels/challenge", {"tool": "inconnu", "level": 1})[0], 422)  # pas de défi
+
 
 if __name__ == "__main__":
     unittest.main()

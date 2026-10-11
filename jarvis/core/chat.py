@@ -36,6 +36,31 @@ PREVIEW_MAX = 300  # un aperçu long cacherait la cible réelle ; la coupe est e
 TEXT_MAX = 1000
 
 
+class Lease:
+    """Verrou « occupé » à bail : un tour bloqué (Ollama, outil) rend la main après `JOB_MAX_S` au lieu de geler le chat (étape 8).
+
+    `release(gen)` d'un détenteur périmé est sans effet : il ne peut pas libérer le tour d'un autre.
+    """
+
+    def __init__(self):
+        self._mutex = threading.Lock()
+        self.gen = 0
+        self._until = None
+
+    def acquire(self, blocking: bool = False) -> bool:  # même signature que threading.Lock ; jamais bloquant
+        with self._mutex:
+            if self._until is not None and _now() < self._until:
+                return False
+            self.gen += 1
+            self._until = _now() + JOB_MAX_S
+            return True
+
+    def release(self, gen: int | None = None) -> None:
+        with self._mutex:
+            if gen is None or gen == self.gen:
+                self._until = None
+
+
 @dataclass
 class Pending:
     id: str
@@ -67,7 +92,7 @@ class Chat:
         self.push = push  # notification générique quand une confirmation attend (l'appli peut être en arrière-plan)
         self.passkeys = passkeys
         levels.load(audit)  # le serveur applique toujours les niveaux réglés par le propriétaire
-        self.busy = threading.Lock()  # un seul appel à la fois (un seul LLM local) : le reste reçoit « occupé »
+        self.busy = Lease()  # un seul appel à la fois (un seul LLM local) : le reste reçoit « occupé »
         self.lock = threading.Lock()
         self.jobs: dict[str, Job] = {}
         self.router = Router()
@@ -78,6 +103,7 @@ class Chat:
             raise ValueError("texte invalide")
         if not self.busy.acquire(blocking=False):
             return None
+        gen = self.busy.gen
         try:
             self.audit.log(f"pwa:{device}", "chat", {"len": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest()},
                            None, "auto", None)
@@ -86,9 +112,9 @@ class Chat:
                 while len(self.jobs) >= JOBS_MAX:  # les plus anciennes sont terminées : une seule tourne à la fois
                     del self.jobs[next(iter(self.jobs))]
                 self.jobs[job.id] = job
-            threading.Thread(target=self._run, args=(job, text), daemon=True).start()
+            threading.Thread(target=self._run, args=(job, text, gen), daemon=True).start()
         except BaseException:
-            self.busy.release()
+            self.busy.release(gen)
             raise
         return job.id
 
@@ -163,7 +189,7 @@ class Chat:
         ok, job.strong = job.strong, False  # une assertion ne sert qu'à la confirmation qui vient de la vérifier
         return ok
 
-    def _run(self, job: Job, text: str) -> None:
+    def _run(self, job: Job, text: str, gen: int) -> None:
         source = f"pwa:{job.device}"
         confirm = lambda tool, args: self._confirm(job, tool, args)  # noqa: E731
         strong = lambda tool, args: self._strong(job)  # noqa: E731
@@ -188,4 +214,4 @@ class Chat:
         finally:  # quoi qu'il arrive, la demande se termine et le verrou « occupé » est rendu
             with self.lock:
                 job.answer, job.done = answer[:ANSWER_MAX], True
-            self.busy.release()
+            self.busy.release(gen)

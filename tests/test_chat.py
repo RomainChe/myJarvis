@@ -295,5 +295,21 @@ class N2SurLeWebTest(ChatBase):
         self.assertRegex(answer, r"^<str, \d+ car\.>$")
 
 
+class LeaseTest(unittest.TestCase):
+    def test_bail_rendu_apres_job_max_et_detenteur_perime_sans_effet(self):
+        clock = [0.0]
+        with mock.patch.object(chat_mod, "_now", lambda: clock[0]):
+            lease = chat_mod.Lease()
+            self.assertTrue(lease.acquire(blocking=False))
+            old = lease.gen
+            self.assertFalse(lease.acquire(blocking=False))  # tour en cours : « occupé »
+            clock[0] = chat_mod.JOB_MAX_S + 1  # Ollama bloqué : le bail expire
+            self.assertTrue(lease.acquire(blocking=False))
+            lease.release(old)  # le tour périmé se termine enfin : ne libère pas le nouveau
+            self.assertFalse(lease.acquire(blocking=False))
+            lease.release(lease.gen)
+            self.assertTrue(lease.acquire(blocking=False))
+
+
 if __name__ == "__main__":
     unittest.main()

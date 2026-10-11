@@ -57,6 +57,7 @@ class Voice:
         chat = self.chat
         if not chat.busy.acquire(blocking=False):  # verrou partagé avec le chat
             return BUSY_MSG
+        gen = chat.busy.gen
         try:
             chat.audit.log(SOURCE, "chat", {"len": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest()},
                            None, "auto", None)
@@ -92,7 +93,7 @@ class Voice:
                 answer = N2_MSG
             return answer[:ANSWER_MAX]
         finally:
-            chat.busy.release()
+            chat.busy.release(gen)
 
 
 class Listener:
