@@ -60,3 +60,19 @@ Dépendances : 0 → {1, 2, 3, 7, 8} → 4 → 5 → 6 ; 12 et 13 ensemble ; 15 
 | D11 | Jeton YouTube `readonly` séparé de celui de lol-clipper | au prochain renouvellement | rien |
 | D12 | Serveur dédié (Pi), accès distant pour Wake-on-LAN | reporter | rien |
 | D13 | Appliquer le correctif d'ACL du projet (écart de l'étape 0) | oui | 19 |
+
+## Étape 2 — essais côté PC (2026-10-11)
+
+Serveur réel en marche (`127.0.0.1:8765`), essais avec `curl`. Aucune action ni donnée touchée.
+
+| Essai | Attendu | Résultat |
+| --- | --- | --- |
+| `Host: x`, `Host` ts.net d'un autre nom, `127.0.0.1` sans port, `localhost:8765` | 400 | 400 |
+| `Host` exact du PC (HTTPS Tailscale) ou `127.0.0.1:8765`, sans token | 401 | 401 |
+| `POST` avec `Origin` étranger / sans `Origin` | 403 | 403 / 403 |
+| Via `https://<nom>.ts.net`, sans token / `Host` forgé | 401 / 400 | 401 / 400 |
+| `http://<IP LAN>:8765` et `http://<IP tailnet>:8765` | pas de réponse | pas de réponse |
+| `tailscale serve status` / `funnel status` | `serve` seulement, « tailnet only » | conforme, un seul proxy `/` vers `127.0.0.1:8765` |
+| Ports en écoute hors boucle locale | rien de Jarvis | seul Tailscale (443 sur l'IP tailnet) ; le reste est Windows standard (135, 139, 445, 5040, 7680…) et des applis tierces |
+
+Reste, hors du PC : aucune redirection de port sur la Bbox (D8, à vérifier dans l'interface de la box ou par un scan externe) ; A7 (appareil hors ACL) et appareil étiqueté à part, qui demandent un second appareil sur le tailnet.
