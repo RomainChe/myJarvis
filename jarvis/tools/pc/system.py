@@ -143,8 +143,8 @@ def _kernel32():
     return k32
 
 
-def all_processes(k32=None) -> list[tuple[str, int]]:
-    """(nom d'image, pid) de tous les processus, par l'API Windows directe (Toolhelp, ~10 ms)."""
+def _snapshot(k32=None) -> list[tuple[str, int, int]]:
+    """(nom d'image, pid, pid parent) de tous les processus, par l'API Windows directe (Toolhelp, ~10 ms)."""
     k32 = k32 or _kernel32()
     snap = k32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
     if snap in (None, wintypes.HANDLE(-1).value):
@@ -154,11 +154,25 @@ def all_processes(k32=None) -> list[tuple[str, int]]:
         entry = _ProcEntry(dwSize=ctypes.sizeof(_ProcEntry))
         more = k32.Process32FirstW(snap, ctypes.byref(entry))
         while more:
-            procs.append((entry.szExeFile, entry.th32ProcessID))
+            procs.append((entry.szExeFile, entry.th32ProcessID, entry.th32ParentProcessID))
             more = k32.Process32NextW(snap, ctypes.byref(entry))
     finally:
         k32.CloseHandle(snap)
     return procs
+
+
+def all_processes(k32=None) -> list[tuple[str, int]]:
+    """(nom d'image, pid) de tous les processus."""
+    return [(name, pid) for name, pid, _ in _snapshot(k32)]
+
+
+def ancestors(pid: int, k32=None) -> set[int]:
+    """Parents, grands-parents… du processus `pid` (bornés : un PID réattribué peut former une boucle)."""
+    parent = {p: pp for _, p, pp in _snapshot(k32)}
+    found = set()
+    while (pid := parent.get(pid, 0)) and pid not in found and len(found) < 64:
+        found.add(pid)
+    return found
 
 
 @tool("list_processes", f"Les {MAX_PROCESSES} processus qui utilisent le plus de mémoire.", Level.N0, external=True)

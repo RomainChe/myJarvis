@@ -11,7 +11,7 @@ from pathlib import Path, PureWindowsPath
 
 from jarvis.core.router import fold
 from jarvis.core.tools import Level, tool
-from jarvis.tools.pc.system import RESERVED_NAMES, SYSTEM32
+from jarvis.tools.pc.system import RESERVED_NAMES, SYSTEM32, ancestors
 
 CONFIG_DIR = Path.home() / ".jarvis"
 APPS_FILE = CONFIG_DIR / "apps.json"  # {"navigateur": "C:\\...\\chrome.exe"} : nom -> exécutable, édité par le propriétaire
@@ -27,8 +27,9 @@ DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROU
 PROCESS_TERMINATE, QUERY_LIMITED = 0x0001, 0x1000
 WM_CLOSE = 0x0010
 # S8 minimal (revue Phase 3) : le téléphone ne doit pas pouvoir couper sa propre liaison ni le LLM. Les processus
-# de Hyper-V (vmwp, vmms) sont sous le dossier Windows, donc déjà refusés. Les ancêtres de Jarvis : Phase 5.
-PROTECTED_IMAGES = {"tailscaled.exe", "tailscale.exe", "tailscale-ipn.exe"}
+# de Hyper-V (vmwp, vmms) sont sous le dossier Windows ; ils sont aussi nommés ici (la VM Home Assistant en dépend).
+# Phase 5 (S8 complet) : chemins 8.3 ramenés à la forme longue, ancêtres de Jarvis refusés, chemin de l'image dans l'aperçu.
+PROTECTED_IMAGES = {"tailscaled.exe", "tailscale.exe", "tailscale-ipn.exe", "vmwp.exe", "vmms.exe", "vmcompute.exe"}
 PROTECTED_PREFIXES = ("ollama",)  # ollama.exe, "ollama app.exe", ollama_llama_server.exe
 
 _k32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -36,6 +37,7 @@ _u32 = ctypes.WinDLL("user32", use_last_error=True)
 _k32.OpenProcess.restype = wintypes.HANDLE
 _k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
 _k32.CloseHandle.argtypes = [wintypes.HANDLE]
+_k32.GetLongPathNameW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
 _k32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
 _k32.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
                                             ctypes.POINTER(wintypes.DWORD)]
@@ -182,11 +184,20 @@ def run_script(name: str) -> dict:
     return {"exit_code": done.returncode, "output": (done.stdout + done.stderr)[:OUTPUT_MAX]}
 
 
+def _long_path(path: str) -> str:
+    """Forme longue d'un chemin (PROGRA~1 -> Program Files), sans préfixe étendu ; le chemin d'origine si illisible."""
+    buf = ctypes.create_unicode_buffer(32768)
+    n = _k32.GetLongPathNameW(path, buf, len(buf))
+    out = buf.value if 0 < n < len(buf) else path
+    return out[4:] if out.startswith("\\?\\") else out
+
+
 def _check_target(image: str, name: str, pid: int) -> None:
     """Le processus visé est bien `name` (le PID a pu être réattribué) et n'appartient pas à Windows."""
+    image = _long_path(image)
     if PureWindowsPath(image).name.lower() != name.strip().lower():
         raise ValueError(f"le processus {pid} n'est pas {name}")
-    if Path(image).is_relative_to(WINDOWS_DIR):
+    if Path(os.path.normcase(image)).is_relative_to(os.path.normcase(_long_path(str(WINDOWS_DIR)))):
         raise ValueError(f"processus système protégé : {name}")
     real = PureWindowsPath(image).name.lower()
     if real in PROTECTED_IMAGES or real.startswith(PROTECTED_PREFIXES):
@@ -194,6 +205,8 @@ def _check_target(image: str, name: str, pid: int) -> None:
 
 
 def _kill(pid: int, name: str) -> None:
+    if pid in ancestors(os.getpid()):  # Jarvis ne coupe pas la branche qui le porte (terminal, service, lanceur)
+        raise ValueError(f"processus protégé (ancêtre de Jarvis) : {name}")
     # Un seul handle pour vérifier puis terminer : le PID ne peut pas changer de propriétaire entre les deux.
     handle = _k32.OpenProcess(PROCESS_TERMINATE | QUERY_LIMITED, False, pid)
     if not handle:
@@ -206,8 +219,21 @@ def _kill(pid: int, name: str) -> None:
         _k32.CloseHandle(handle)
 
 
+def _describe_kill(pid: int, name: str) -> str:
+    """Aperçu de confirmation : le chemin réel de l'image, pas seulement le nom fourni."""
+    handle = _k32.OpenProcess(QUERY_LIMITED, False, pid)
+    if not handle:
+        return f"pid {pid} ({name}) : processus introuvable ou inaccessible"
+    try:
+        return f"pid {pid} ({name}) : {_long_path(_image_of(handle))}"
+    except OSError:
+        return f"pid {pid} ({name}) : chemin illisible"
+    finally:
+        _k32.CloseHandle(handle)
+
+
 @tool("kill_process", "Termine de force le processus `pid`, qui doit porter le nom `name` (ex. notepad.exe).",
-      Level.N2, pid=int, name=str)
+      Level.N2, describe=_describe_kill, pid=int, name=str)
 def kill_process(pid: int, name: str) -> dict:
     if pid <= 4 or pid > 0x7FFFFFFF or pid == os.getpid() or not name.strip():
         raise ValueError(f"pid ou nom refusé : {pid}")

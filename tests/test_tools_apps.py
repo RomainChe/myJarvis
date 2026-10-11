@@ -217,13 +217,43 @@ class KillProcessTest(PcBase):
         apps._check_target(r"C:\Program Files\Truc\olla.exe", "olla.exe", 1)  # pas de préfixe trop large
 
     def test_kill_refuse_un_processus_protege_sans_le_terminer(self):
-        with mock.patch.object(apps, "_k32") as k32, mock.patch.object(apps, "_image_of",
-                                                                       return_value=r"C:\Ollama\ollama.exe"):
+        with mock.patch.object(apps, "_k32") as k32, mock.patch.object(apps, "_long_path", side_effect=lambda p: p),                 mock.patch.object(apps, "_image_of", return_value=r"C:\Ollama\ollama.exe"):
             k32.OpenProcess.return_value = 1234
             with self.assertRaises(ValueError):
                 apps._kill(4242, "ollama.exe")
         k32.TerminateProcess.assert_not_called()
         k32.CloseHandle.assert_called_once_with(1234)
+
+    def test_chemin_court_8_3_ramene_a_la_forme_longue(self):  # S8 complet
+        short = r"C:\PROGRA~1\Truc\OLLAMA~1.EXE"
+        long = r"C:\Program Files\Truc\ollama app.exe"
+        with mock.patch.object(apps, "_long_path", side_effect=lambda p: long if "~" in p else p):
+            with self.assertRaises(ValueError):
+                apps._check_target(short, "ollama app.exe", 1)
+        if os.path.isdir(r"C:\Program Files"):  # expansion réelle
+            self.assertEqual(apps._long_path(r"C:\PROGRA~1"), r"C:\Program Files")
+        self.assertEqual(apps._long_path(r"C:\nexiste\pas.exe"), r"C:\nexiste\pas.exe")
+
+    def test_vm_home_assistant_protegee_hors_dossier_windows(self):
+        for exe in ("vmwp.exe", "vmms.exe"):
+            with self.assertRaises(ValueError, msg=exe):
+                apps._check_target(rf"D:\Hyper\{exe}", exe, 1)
+
+    def test_ancetre_de_jarvis_refuse_sans_rien_terminer(self):
+        with mock.patch.object(apps, "ancestors", return_value={4242}), mock.patch.object(apps, "_k32") as k32:
+            with self.assertRaises(ValueError):
+                apps._kill(4242, "cmd.exe")
+        k32.OpenProcess.assert_not_called()
+
+    def test_ancetres_reels_contiennent_le_parent(self):
+        from jarvis.tools.pc import system
+        self.assertTrue(system.ancestors(os.getpid()))
+
+    def test_apercu_montre_le_chemin_de_l_image(self):
+        image = r"C:\Apps\notepad.exe"
+        with mock.patch.object(apps, "_k32") as k32, mock.patch.object(apps, "_long_path", side_effect=lambda p: p),                 mock.patch.object(apps, "_image_of", return_value=image):
+            k32.OpenProcess.return_value = 99
+            self.assertIn(image, REGISTRY["kill_process"].preview({"pid": 7, "name": "notepad.exe"}))
 
     def test_pid_inexistant_leve_une_erreur_sans_rien_tuer(self):
         with self.assertRaises(OSError):
