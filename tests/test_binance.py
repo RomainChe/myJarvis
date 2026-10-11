@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -80,6 +81,76 @@ class FetchTest(unittest.TestCase):
     def test_run_sans_cles(self):
         with mock.patch.object(binance, "load_keys", return_value=None), self.assertRaises(RuntimeError):
             binance.run()
+
+
+class CostTest(unittest.TestCase):
+    ROWS = {
+        "convert": [
+            {"orderStatus": "SUCCESS", "fromAsset": "EUR", "fromAmount": "100", "toAsset": "USDT", "toAmount": "110"},
+            {"orderStatus": "SUCCESS", "fromAsset": "EUR", "fromAmount": "50", "toAsset": "BTC", "toAmount": "0.002"},
+            {"orderStatus": "FAILED", "fromAsset": "EUR", "fromAmount": "999", "toAsset": "ETH", "toAmount": "9"},
+        ],
+        "auto_invest": [
+            {"transactionStatus": "SUCCESS", "targetAsset": "BTC", "targetAssetAmount": "0.001", "sourceAsset": "USDT", "sourceAssetAmount": "11"},
+            {"transactionStatus": "FAILED", "targetAsset": "BTC", "targetAssetAmount": "1", "sourceAsset": "USDT", "sourceAssetAmount": "999"},
+            {"transactionStatus": "SUCCESS", "targetAsset": "SAND", "targetAssetAmount": "5", "sourceAsset": "USDT", "sourceAssetAmount": "5"},
+        ],
+    }
+
+    def test_prix_de_revient(self):
+        b = binance.cost_basis(self.ROWS)
+        self.assertAlmostEqual(b["BTC"]["invested"], 50 + 11 * 100 / 110)  # 1 USDT = 100/110 €
+        self.assertAlmostEqual(b["BTC"]["bought"], 0.003)
+        self.assertEqual(b["ETH"], {"invested": 0.0, "bought": 0.0})  # ordre échoué ignoré
+
+    def test_enrich_ajoute_la_plus_value(self):
+        with tempfile.TemporaryDirectory() as t:
+            f = Path(t) / "h.json"
+            f.write_text(json.dumps({"data": self.ROWS}), encoding="utf-8")
+            c = {"assets": [{"asset": "BTC", "eur": 160.0}, {"asset": "ETH", "eur": 10.0}], "errors": []}
+            out = binance.enrich(c, f)
+            self.assertEqual(out["assets"][0]["invested"], 60.0)
+            self.assertEqual(out["assets"][0]["gain"], 100.0)
+            self.assertNotIn("gain", out["assets"][1])  # rien d'investi : pas de %
+        self.assertIs(binance.enrich(None), None)
+
+    def test_enrich_sans_fichier(self):
+        c = {"assets": [{"asset": "BTC", "eur": 1.0}], "errors": []}
+        self.assertEqual(binance.enrich(c, Path("introuvable.json")), c)
+
+
+class DailyTest(unittest.TestCase):
+    def setUp(self):
+        binance._refresh["tried"] = 0.0
+
+    def test_rafraichit_si_vieux_une_seule_fois_par_heure(self):
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(binance, "load_keys", return_value=("k", "s")):
+            f = Path(t) / "h.json"
+            f.write_text("{}", encoding="utf-8")
+            mtime = f.stat().st_mtime
+            ran = []
+            run = lambda fn: fn()
+            self.assertFalse(binance.refresh_if_stale(f, now=lambda: mtime + 3600, runner=lambda **k: ran.append(k), start=run))
+            self.assertTrue(binance.refresh_if_stale(f, now=lambda: mtime + 90_000, runner=lambda **k: ran.append(k), start=run))
+            self.assertFalse(binance.refresh_if_stale(f, now=lambda: mtime + 90_100, runner=lambda **k: ran.append(k), start=run))
+            self.assertEqual(ran, [{"only": binance.DAILY}])
+
+    def test_pas_de_fichier_ou_pas_de_cle(self):
+        self.assertFalse(binance.refresh_if_stale(Path("introuvable.json")))
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(binance, "load_keys", return_value=None):
+            f = Path(t) / "h.json"
+            f.write_text("{}", encoding="utf-8")
+            self.assertFalse(binance.refresh_if_stale(f, now=lambda: f.stat().st_mtime + 10**6))
+
+    def test_categorie_en_echec_garde_les_anciennes_lignes(self):
+        with tempfile.TemporaryDirectory() as t:
+            out = Path(t) / "h.json"
+            out.write_text('{"data": {"convert": [1]}}', encoding="utf-8")
+
+            def get(path, params, keys):
+                raise RuntimeError("HTTP 401 x")
+            r = binance.run(("k", "s"), get, out, only={"convert"}, pause=lambda s: None)
+            self.assertEqual(r["data"]["convert"], [1])
 
 
 if __name__ == "__main__":

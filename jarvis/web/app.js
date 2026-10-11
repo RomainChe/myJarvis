@@ -676,6 +676,11 @@ function renderCrypto(c) {
   const cards = c.assets.map((a) => {
     const s = el('section', 'panel hud stat');
     s.append(cardTitle(`Ledger · ${a.name}`, LOGOS[a.asset]), el('p', 'big', money(a.eur, 'EUR')), el('p', 'muted', qty(a)));
+    if (Number.isFinite(a.gain)) { // prix de revient Binance (Auto-Invest + conversions) ; cours rafraîchi toutes les 15 min
+      const up = a.gain >= 0;
+      s.append(el('p', `muted ${up ? 'ok' : 'warn'}`, `${up ? '+' : ''}${a.pct.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % · ${up ? '+' : ''}${eur(a.gain)}`),
+        el('p', 'muted', `investi ${eur(a.invested)}`));
+    }
     return s;
   });
   const note = c.errors.join(' · ') || (c.refreshing && !cards.length ? 'Ledger : lecture en cours…' : '');

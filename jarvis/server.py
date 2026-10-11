@@ -25,6 +25,7 @@ from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.dashboard import Dashboard
 from jarvis.core.devices import Devices
 from jarvis.core.banking import view as bank_view
+from jarvis.core import binance
 from jarvis.core.crypto import view as crypto_view
 from jarvis.core.portfolio import view as portfolio_view
 from jarvis.core.finance import snapshot as finance_snapshot
@@ -372,7 +373,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         audit.log(f"pwa:{auth[0]}", "bank_read", {}, 2, "auto", "comptes bancaires, Ledger et portefeuille lus")
-        return {"bank": bank_view(), "crypto": crypto_view(), "portfolio": portfolio_view()}
+        binance.refresh_if_stale()  # historique Binance relu en tâche de fond au plus une fois par jour
+        return {"bank": bank_view(), "crypto": binance.enrich(crypto_view()), "portfolio": portfolio_view()}
 
     @app.get("/api/veille")
     def veille_state(request: Request):

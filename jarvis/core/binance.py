@@ -9,6 +9,7 @@ import hashlib
 import hmac
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -168,7 +169,91 @@ def run(keys=None, get=_get, out: Path = OUT, only: set | None = None, pause=tim
         old = json.loads(Path(out).read_text(encoding="utf-8")).get("data", {})
     except (OSError, ValueError, AttributeError):
         old = {}
-    result["data"] = {**old, **result["data"]}
+    failed = {k.split(":")[0] for k in result["errors"]}  # une catégorie en échec ne doit pas effacer l'ancienne
+    result["data"] = {**old, **{k: v for k, v in result["data"].items() if k not in failed}}
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     Path(out).write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     return result
+
+
+# ---- prix de revient et rafraîchissement quotidien --------------------------------------------------------------------------
+
+DAILY = {"convert", "auto_invest", "withdrawals", "crypto_deposits", "earn_redemptions", "spot_balances"}  # sans fiat (quota) ni paires spot
+DAY_S = 86_400
+STABLES = ("USDT", "BUSD", "FDUSD", "USDC")
+_cache = {"mtime": None, "basis": None}
+_refresh = {"busy": threading.Lock(), "tried": 0.0}
+
+
+def cost_basis(rows: dict) -> dict:
+    """{"BTC": {"invested", "bought"}, "ETH": ...} en euros. Chaque stablecoin est valorisé au taux moyen EUR→stable des
+    conversions ; les achats Auto-Invest et conversions vers BTC/ETH sont comptés à ce taux (EUR direct : montant exact)."""
+    spent, got = {}, {}
+    for r in rows.get("convert", ()):
+        if r.get("orderStatus") == "SUCCESS" and r.get("fromAsset") == "EUR" and r.get("toAsset") in STABLES:
+            spent[r["toAsset"]] = spent.get(r["toAsset"], 0.0) + float(r["fromAmount"])
+            got[r["toAsset"]] = got.get(r["toAsset"], 0.0) + float(r["toAmount"])
+    rates = {k: spent[k] / got[k] for k in spent if got[k] > 0}
+    fallback = sum(rates.values()) / len(rates) if rates else 1.0
+    out = {a: {"invested": 0.0, "bought": 0.0} for a in ("BTC", "ETH")}
+
+    def add(asset, source, amount, qty):
+        if asset in out:
+            out[asset]["invested"] += float(amount) * (1.0 if source == "EUR" else rates.get(source, fallback))
+            out[asset]["bought"] += float(qty)
+
+    for r in rows.get("convert", ()):
+        if r.get("orderStatus") == "SUCCESS":
+            add(r.get("toAsset"), r.get("fromAsset"), r["fromAmount"], r["toAmount"])
+    for r in rows.get("auto_invest", ()):
+        if r.get("transactionStatus") == "SUCCESS":
+            add(r.get("targetAsset"), r.get("sourceAsset"), r["sourceAssetAmount"], r["targetAssetAmount"])
+    return out
+
+
+def _basis(path: Path):
+    try:
+        mtime = Path(path).stat().st_mtime
+        if _cache["mtime"] != mtime:
+            _cache.update(mtime=mtime, basis=cost_basis(json.loads(Path(path).read_text(encoding="utf-8")).get("data", {})))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+    return _cache["basis"]
+
+
+def enrich(crypto: dict | None, path: Path = OUT) -> dict | None:
+    """Ajoute investi / plus-value latente à chaque actif de la vue Ledger. Les récompenses Earn sont à coût nul (gain un peu majoré)."""
+    basis = _basis(path) if crypto else None
+    if not basis:
+        return crypto
+    assets = []
+    for a in crypto["assets"]:
+        b = basis.get(a["asset"])
+        if b and b["invested"] > 0 and a.get("eur") is not None:
+            gain = a["eur"] - b["invested"]
+            a = {**a, "invested": round(b["invested"], 2), "gain": round(gain, 2), "pct": round(gain / b["invested"] * 100, 2)}
+        assets.append(a)
+    return {**crypto, "assets": assets}
+
+
+def refresh_if_stale(path: Path = OUT, now=time.time, runner=run,
+                     start=lambda f: threading.Thread(target=f, daemon=True).start()) -> bool:
+    """Relit les catégories légères en tâche de fond si le fichier a plus de 24 h ; au plus un essai par heure.
+    Sans fichier initial (premier `binance fetch` manuel) ou sans clé : rien."""
+    try:
+        age = now() - Path(path).stat().st_mtime
+    except OSError:
+        return False
+    if age < DAY_S or now() - _refresh["tried"] < 3600 or load_keys() is None or not _refresh["busy"].acquire(blocking=False):
+        return False
+    _refresh["tried"] = now()
+
+    def job():
+        try:
+            runner(only=DAILY)
+        except Exception:  # réseau, clé révoquée : ancien fichier gardé, nouvel essai dans l'heure
+            pass
+        finally:
+            _refresh["busy"].release()
+    start(job)
+    return True
