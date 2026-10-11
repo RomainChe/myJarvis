@@ -2,10 +2,14 @@
 
 Même compte et même coffre que le connecteur mail (`~/.jarvis/mail.json`, secret `mail_password`), lecture seule : boîte
 ouverte en `readonly`, `BODY.PEEK`, rien n'est marqué lu, supprimé ni envoyé. N'est gardé que le mail qui vient de
-l'adresse du compte lui-même (la tâche planifiée s'écrit à elle-même), de taille ≤ MAX_BYTES et reconnu par
-`finance.parse` ; il est écrit sous `semaine-<année>-<NN>.eml` dans le dossier de `finance.py` (remplacé s'il existe).
+l'adresse du compte lui-même (la tâche planifiée s'écrit à elle-même), portant un en-tête unique
+`X-Jarvis-Sig` = HMAC-SHA256 hex de `"<Subject>\n<Date>"` (valeurs décodées, clé = secret `mail_sig_key`, Phase 5
+étape 6 : l'expéditeur seul est falsifiable, Gmail n'ajoute pas `Authentication-Results` aux envois à soi-même),
+de taille ≤ MAX_BYTES et reconnu par `finance.parse` ; il est écrit sous `semaine-<année>-<NN>.eml` dans le dossier de `finance.py` (remplacé s'il existe).
 Aucun contenu de mail n'est affiché ni journalisé : seulement le nombre de rapports écrits.
 """
+import hashlib
+import hmac
 import imaplib
 import os
 import re
@@ -25,6 +29,16 @@ MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", 
 USER_OK = re.compile(r"[\w.+@-]{1,254}", re.ASCII)
 
 
+def signature(key: str, subject: str, date: str) -> str:
+    return hmac.new(key.encode(), f"{subject}\n{date}".encode(), hashlib.sha256).hexdigest()
+
+
+def _signed(msg, key: str) -> bool:
+    sig = msg.get_all("X-Jarvis-Sig") or []
+    return len(sig) == 1 and hmac.compare_digest(str(sig[0]).strip().lower(),
+                                                 signature(key, str(msg["Subject"] or ""), str(msg["Date"] or "")))
+
+
 def fetch_reports(dest: Path | None = None) -> int:
     return fetch_mails(dest or finance.finance_dir(), '"Semaine"', finance.parse,
                        lambda r: f"semaine-{r['year']}-{r['week']:02}.eml", "semaine-*.eml")
@@ -37,6 +51,9 @@ def fetch_mails(dest: Path, subject: str, parse, name, pattern: str = "*.eml") -
     password = get_secret("mail_password")
     if not password:
         raise RuntimeError("mot de passe mail absent du coffre (python -m jarvis secret set mail_password)")
+    sig_key = get_secret("mail_sig_key")
+    if not sig_key:  # pas de repli : sans clé, aucun mail n'est accepté
+        raise RuntimeError("clé de signature absente du coffre (python -m jarvis secret set mail_sig_key)")
     if not USER_OK.fullmatch(user):
         raise RuntimeError("adresse du compte mail invalide (~/.jarvis/mail.json)")
     dest = Path(dest)
@@ -63,7 +80,7 @@ def fetch_mails(dest: Path, subject: str, parse, name, pattern: str = "*.eml") -
             try:
                 msg = message_from_bytes(raw, policy=policy.default)
                 sent = msg["Date"].datetime  # un Date hors fenêtre (an 9999...) pourrait masquer les vrais rapports
-                report = parse(raw) if parseaddr(str(msg["From"] or ""))[1].lower() == user.lower() else None
+                report = parse(raw) if parseaddr(str(msg["From"] or ""))[1].lower() == user.lower() and _signed(msg, sig_key) else None
                 if report is None or not oldest <= sent.astimezone(timezone.utc) <= now + timedelta(days=1):
                     continue
                 target = dest / name(report)

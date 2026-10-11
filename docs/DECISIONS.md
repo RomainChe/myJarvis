@@ -50,6 +50,9 @@
 ## 2026-10-08 — Finances et Veille IA : risques acceptés par le propriétaire
 - **Finances, constat 7** : l'onglet s'ouvre sans clé d'accès WebAuthn (token d'appareil seul). Risque accepté.
 - **Finances, constat 1** et **Veille IA, constat 1** : l'expéditeur d'un mail est falsifiable (pas de contrôle `Authentication-Results`). Risque accepté : faux chiffres en Finances ; en Veille, liens https cliquables posés par un mail usurpé (le domaine réel reste affiché sous chaque lien).
+- **Phase 5 étape 6 (D4, 2026-10-11)** remplace le risque ci-dessus : les mails reçus par `fetch_mails` doivent porter un seul en-tête `X-Jarvis-Sig` = HMAC-SHA256 hexadécimal de `<Subject>
+<Date>` (valeurs décodées, telles qu'envoyées), clé = secret `mail_sig_key` du coffre. Pas de repli : sans clé, la récupération s'arrête ; mail sans signature, signature fausse ou en double = ignoré. Raison : les `.eml` réels n'ont pas d'`Authentication-Results` (envois à soi-même). Limites : le corps n'est pas couvert (un mail signé intercepté pourrait être rejoué avec un autre corps ; il faudrait l'accès à la boîte) ; les fichiers déjà présents dans `~/.jarvis/finance` et `veille` ne sont pas revérifiés. Côté envoi (Python) : `hmac.new(cle.encode(), f"{sujet}
+{date}".encode(), "sha256").hexdigest()` ajouté en en-tête `X-Jarvis-Sig` avant `sendmail`.
 - **Test manuel S6** (corbeille, gros fichier) retiré par le propriétaire ; `delete_file` reste couvert par les tests automatiques.
 
 ## 2026-10-08 — Gel de la Phase 5 levé pour l'outil Claude Code (Phase 6 étape 9)

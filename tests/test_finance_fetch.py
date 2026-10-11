@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from email import message_from_bytes, policy
 from pathlib import Path
 from unittest import mock
 
@@ -11,8 +12,13 @@ from tests.test_finance import report
 from tests.test_mail import FakeImap
 
 
-def mine(raw: bytes, sender="moi") -> bytes:
-    return f"From: {sender}\r\n".encode() + raw
+KEY = "mdp"  # `get_secret` est simulé : même valeur pour toutes les clés du coffre
+
+
+def mine(raw: bytes, sender="moi", key=KEY) -> bytes:
+    msg = message_from_bytes(raw, policy=policy.default)
+    sig = finance_fetch.signature(key, str(msg["Subject"]), str(msg["Date"])) if key else None
+    return f"From: {sender}\r\n".encode() + (f"X-Jarvis-Sig: {sig}\r\n".encode() if sig else b"") + raw
 
 
 class FetchTest(unittest.TestCase):
@@ -92,6 +98,22 @@ class FetchTest(unittest.TestCase):
                           mine(issue("[Veille IA] Semaine 41"), "Mallory <m@example.org>")]
         self.assertEqual(finance_fetch.fetch_mails(self.dest, '"[Veille"', veille.parse, veille.name), 2)
         self.assertEqual(sorted(f.name for f in self.dest.iterdir()), ["veille-actus-2026-40.eml", "veille-plugins-2026-40.eml"])
+
+    def test_usurpation_sans_signature_ou_mauvaise_signature_ignoree(self):
+        good = mine(report(40))
+        sig = good.split(b"X-Jarvis-Sig: ")[1].split(b"\r\n")[0]
+        duplicated = good.replace(b"X-Jarvis-Sig: ", b"X-Jarvis-Sig: " + sig + b"\r\nX-Jarvis-Sig: ", 1)
+        tampered = mine(report(39)).replace(b"Semaine_39", b"Semaine_38")  # objet changé après signature
+        FakeImap.mails = [mine(report(39), key=None), mine(report(41), key="autre"), duplicated, tampered]
+        self.assertEqual(finance_fetch.fetch_reports(self.dest), 0)
+        FakeImap.mails = [good]
+        self.assertEqual(finance_fetch.fetch_reports(self.dest), 1)
+
+    def test_cle_de_signature_absente_sans_connexion(self):
+        with mock.patch.object(finance_fetch, "get_secret", side_effect=lambda n: None if n == "mail_sig_key" else "mdp"):
+            with self.assertRaises(RuntimeError):
+                finance_fetch.fetch_reports(self.dest)
+        self.assertEqual(FakeImap.calls, [])
 
     def test_mot_de_passe_absent(self):
         with mock.patch.object(finance_fetch, "get_secret", return_value=None), self.assertRaises(RuntimeError):
