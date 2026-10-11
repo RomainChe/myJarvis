@@ -39,6 +39,9 @@ from jarvis.tools.pc.system import system_status
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192
 AUTH_FAIL_MAX, AUTH_FAIL_WINDOW_S = 10, 60
+# ponytail: plafond par appareil et par minute sur toutes les routes (l'écran en fait ~60) : borne le journal gonflé par un pair
+# valide à QUOTA_MAX + 1 lignes/min ; un quota par route si l'usage légitime s'en approche.
+QUOTA_MAX, QUOTA_WINDOW_S = 240, 60
 HEADERS = {
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
                                "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
@@ -140,6 +143,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     if ts_host:
         hosts[ts_host] = f"https://{ts_host}"
     failures: deque[float] = deque()
+    quota: dict[int, deque[float]] = {}  # appareil -> instants des requêtes de la dernière minute
+    quota_logged: dict[int, float] = {}  # une seule ligne de journal par appareil et par fenêtre
     passkeys = Passkeys(devices, ts_host)  # sans nom Tailscale (HTTPS), WebAuthn est désactivé : N3 reste refusé
     push = push or Push(devices, subject_from_env())
     dashboard = Dashboard(system_status)
@@ -164,7 +169,16 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return reply(401, "non autorisé")  # sinon elle bloquerait les appareils légitimes (constat 2)
         scheme, _, token = header.partition(" ")
         found = devices.check(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
-        if found is not None:  # un token valide n'est jamais bloqué par le compteur
+        if found is not None:  # un token valide n'est jamais bloqué par le compteur d'échecs
+            recent = quota.setdefault(found[0], deque())
+            while recent and _now() - recent[0] > QUOTA_WINDOW_S:
+                recent.popleft()
+            if len(recent) >= QUOTA_MAX:
+                if _now() - quota_logged.get(found[0], -QUOTA_WINDOW_S) >= QUOTA_WINDOW_S:
+                    quota_logged[found[0]] = _now()
+                    audit.log(f"pwa:{found[0]}", "quota", {}, None, "refusé", f"plus de {QUOTA_MAX} requêtes par minute")
+                return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
+            recent.append(_now())
             return found
         if limited():
             return reply(429, "trop d'échecs", **{"Retry-After": str(AUTH_FAIL_WINDOW_S)})

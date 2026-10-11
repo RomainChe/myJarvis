@@ -38,6 +38,7 @@ VALUE_MAX = STR_MAX  # par valeur, égal à la limite de check_args : un appel v
 NAME_MAX = 100
 # ponytail: plafond global contre un appel invalide aux clés innombrables ; ~16 paramètres texte pleins.
 ARGS_MAX = 20 * STR_MAX
+ROWS_ALERT = 1_000_000
 FIELDS = "ts, source, tool, args, level, decision, result, ref"
 
 
@@ -94,6 +95,14 @@ class Audit:
                 return False
             prev = h
         return True
+
+    def health(self) -> list[str]:
+        """Problèmes à signaler au démarrage : chaîne rompue, journal anormalement gros."""
+        problems = [] if self.verify() else ["chaîne de hachage rompue : journal modifié ou corrompu"]
+        rows = self.db.execute("SELECT COUNT(*) FROM audit").fetchone()[0]
+        if rows > ROWS_ALERT:
+            problems.append(f"{rows} lignes : journal anormalement gros (plus de {ROWS_ALERT})")
+        return problems
 
     def last(self, n: int = 20) -> list[tuple]:
         return self.db.execute(

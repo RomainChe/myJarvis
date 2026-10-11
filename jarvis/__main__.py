@@ -108,6 +108,9 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             print(e if "TS_HOST" in str(e) else "JARVIS_PORT doit être un entier entre 1024 et 65535.")
             return 2
     if argv == ["serve"]:
+        for problem in audit.health():  # on démarre quand même : le propriétaire doit le savoir, pas être bloqué
+            print(f"ATTENTION journal d'audit : {problem}", file=sys.stderr)
+            audit.log("cli", "audit_health", {}, None, "refusé", problem)
         mic = start_mic(audit)
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")

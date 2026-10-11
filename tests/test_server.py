@@ -114,6 +114,21 @@ class AuthTest(ServerBase):
         self.assertEqual(status, 429)
         self.assertTrue(r.getheader("Retry-After"))
 
+    def test_quota_par_appareil_borne_le_journal(self):
+        _, token = self.enroll("tel")
+        before = len(self.audit.last(10 ** 6))
+        statuses = [self.call("GET", "/api/ping", token=token)[0] for _ in range(server.QUOTA_MAX + 50)]
+        self.assertEqual(statuses.count(200), server.QUOTA_MAX)
+        self.assertEqual(set(statuses[server.QUOTA_MAX:]), {429})
+        self.assertEqual(len(self.audit.last(10 ** 6)) - before, 1)  # une seule ligne « quota » pour 50 refus
+        self.assertTrue(self.audit.verify())
+
+    def test_audit_health_signale_un_journal_trop_gros(self):
+        self.assertEqual(self.audit.health(), [])
+        self.audit.log("cli", "x", {}, None, "auto", None)
+        with mock.patch("jarvis.core.audit.ROWS_ALERT", 0):
+            self.assertEqual(len(self.audit.health()), 1)
+
     def test_audit_sans_token(self):
         _, token = self.enroll("tel")
         self.call("GET", "/api/ping", token="SECRET-INCONNU")
