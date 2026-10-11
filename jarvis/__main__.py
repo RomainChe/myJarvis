@@ -3,6 +3,7 @@
     python -m jarvis "<phrase>"
     python -m jarvis run <outil> [clé=valeur ...]
     python -m jarvis audit [n]
+    python -m jarvis doctor [--watch]     bilan de santé ; --watch relance le Core s'il est muet (chaque minute)
     python -m jarvis purge [--dry-run]    conservation : captures 7 j, finance et veille 120 j, journal archivé après 12 mois
     python -m jarvis secret set|check <nom>
     python -m jarvis ha check
@@ -339,6 +340,19 @@ def main(argv: list[str]) -> int:
         return 2
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     audit = Audit(str(DB_PATH))
+    if argv[0] == "doctor":
+        from jarvis.core import doctor
+        from jarvis.server import port_from_env
+        port = port_from_env()
+        if "--watch" in argv:
+            r = doctor.watch(audit, up=lambda: doctor.http_up(f"http://127.0.0.1:{port}/"),
+                             notify=lambda: doctor.notify_all(str(DB_PATH)))
+            return 0 if r == "ok" else 1
+        checks = doctor.report(audit, port, Path(os.environ.get("JARVIS_BACKUP_DIR") or Path.home() / ".jarvis" / "backups"),
+                               Path(__file__).resolve().parent.parent / "models")
+        for name, problem in checks:
+            print(f"{'OK ' if problem is None else 'KO '} {name}" + (f" : {problem}" if problem else ""))
+        return 1 if any(p for _, p in checks) else 0
     if argv[0] == "purge":
         from jarvis.core import retention
         report = retention.run(audit, dry="--dry-run" in argv)

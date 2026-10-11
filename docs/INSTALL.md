@@ -154,16 +154,21 @@ Register-ScheduledTask -TaskName "JARVIS - core" -Principal $principal `
 - `RestartCount`/`RestartInterval` : relance automatique en cas de crash (3 essais, 1 min d'écart).
 - `ExecutionTimeLimit` à zéro : pas d'arrêt forcé au bout de 72 h (défaut Windows).
 
-Vérification horaire (créée le 2026-10-09) : la tâche « JARVIS - verif horaire » interroge
-`http://127.0.0.1:8765/` toutes les 5 minutes et relance « JARVIS - core » si le Core ne répond pas.
+Garde-fou chaque minute (étape 15, Phase 5) : `python -m jarvis doctor --watch` interroge le Core (2 essais à 5 s),
+relance la tâche « JARVIS - core » s'il est muet (au plus une fois par 90 s), écrit `core_restart` au journal et envoie
+une notification push (au plus une par 30 min). Il remplace l'ancienne tâche « JARVIS - verif horaire » (5 min,
+`scripts/verif_core.pyw`, supprimé) : à désenregistrer une fois la nouvelle en place.
 
 ```powershell
-# scripts\verif_core.pyw : pythonw, donc aucune fenêtre (powershell -WindowStyle Hidden en faisait clignoter une)
-Register-ScheduledTask -TaskName "JARVIS - verif horaire" -Principal $principal `
-  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "scripts\verif_core.pyw" -WorkingDirectory $repo) `
-  -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5)) `
-  -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries)
+Register-ScheduledTask -TaskName "JARVIS - garde-fou" -Principal $principal `
+  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m jarvis doctor --watch" -WorkingDirectory $repo) `
+  -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)) `
+  -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -MultipleInstances IgnoreNew)
+Unregister-ScheduledTask -TaskName "JARVIS - verif horaire" -Confirm:$false
 ```
+
+Bilan à la demande : `python -m jarvis doctor` (Core, journal, Ollama, Home Assistant, sauvegarde < 25 h, disque,
+modèles ; code 1 si un contrôle est KO).
 
 ### 7.3 Récupération bancaire quotidienne (créée le 2026-10-09)
 
