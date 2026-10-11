@@ -130,6 +130,11 @@ class LLMTest(unittest.TestCase):
         import jarvis.tools.pc  # noqa: F401
         self.assertTrue(REGISTRY["clipboard_write"].taint_blocked)
 
+    def test_n1_de_session_sont_taint_blocked(self):  # Phase 5 étape 4 (D7)
+        import jarvis.tools.pc  # noqa: F401
+        for name in ("lock_session", "screen_off", "power_cancel"):
+            self.assertTrue(REGISTRY[name].taint_blocked, name)
+
     def test_n2_autorise_apres_outil_non_externe(self):
         o = FakeOllama(reply(call("llm_num")), reply(call("llm_power")), reply(content="fait"))
         self.ask(o)

@@ -28,13 +28,14 @@ def _suspend() -> None:
         raise OSError("mise en veille impossible")
 
 
-@tool("screen_off", "Éteint les écrans (le PC reste allumé ; un mouvement de souris les rallume).", Level.N1)
+@tool("screen_off", "Éteint les écrans (le PC reste allumé ; un mouvement de souris les rallume).", Level.N1,
+      taint_blocked=True)
 def screen_off() -> dict:
     _screen_off()
     return {"screen": "off"}
 
 
-@tool("lock_session", "Verrouille la session Windows.", Level.N1)
+@tool("lock_session", "Verrouille la session Windows.", Level.N1, taint_blocked=True)
 def lock_session() -> dict:
     _lock()
     return {"locked": True}
@@ -53,7 +54,7 @@ def power(action: str) -> dict:
     return {"power": action}
 
 
-@tool("power_cancel", f"Annule un redémarrage ou un arrêt en attente (délai de {GRACE_S} s de `power`).", Level.N1)
+@tool("power_cancel", f"Annule un redémarrage ou un arrêt en attente (délai de {GRACE_S} s de `power`).", Level.N1, taint_blocked=True)
 def power_cancel() -> dict:
     done = subprocess.run([str(SHUTDOWN), "/a"], capture_output=True, timeout=10,
                           creationflags=subprocess.CREATE_NO_WINDOW)
