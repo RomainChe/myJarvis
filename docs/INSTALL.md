@@ -88,6 +88,14 @@ python -m scripts.backup                        # vers %USERPROFILE%\.jarvis\bac
 python -m scripts.backup --dest E:\sauvegardes\jarvis --keep 14
 ```
 
+Chaque sauvegarde écrit `anchor.json` (dernier id et hash du journal) à côté des copies.
+`JARVIS_BACKUP_DIR` fixe la destination par défaut (décision D1 : hors du PC).
+
+```powershell
+python -m scripts.backup --check     # code 1 si aucune copie ou copie > 25 h
+python -m scripts.backup --verify    # restaure la dernière copie à part, contrôle la chaîne et l'ancre
+```
+
 Code retour 0 si succès, 1 sinon (message sur la sortie d'erreur). Une copie invalide est
 supprimée et les anciennes copies sont conservées.
 

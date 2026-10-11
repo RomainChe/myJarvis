@@ -4,7 +4,10 @@ import unittest
 from pathlib import Path
 
 from jarvis.core.audit import Audit
-from scripts.backup import backup
+import os
+import time
+
+from scripts.backup import ANCHOR, backup, check, verify
 
 
 class BackupTest(unittest.TestCase):
@@ -47,6 +50,31 @@ class BackupTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             backup(self.src, self.dest, keep=0)
         self.assertFalse(self.dest.exists())
+
+    def test_check_absente_puis_recente_puis_perimee(self):
+        self.assertIn("aucune", check(self.dest))
+        target = backup(self.src, self.dest, keep=3)
+        self.assertIsNone(check(self.dest))
+        old = time.time() - 26 * 3600
+        os.utime(target, (old, old))
+        self.assertIn("26 h", check(self.dest))
+
+    def test_verify_copie_saine(self):
+        backup(self.src, self.dest, keep=3)
+        self.audit.log("cli", "volume", {"value": 40}, 1, "auto", 40)  # le journal a avancé : normal
+        self.assertIsNone(verify(self.dest, self.src))
+
+    def test_verify_detecte_un_journal_reecrit_depuis(self):
+        backup(self.src, self.dest, keep=3)
+        self.audit.db.execute("DROP TRIGGER IF EXISTS audit_no_update")
+        self.audit.db.execute("UPDATE audit SET hash = 'x' WHERE id = 1")
+        self.assertIn("ancrée", verify(self.dest, self.src))
+
+    def test_verify_sans_ancre_ou_sans_copie(self):
+        self.assertIn("aucune", verify(self.dest, self.src))
+        backup(self.src, self.dest, keep=3)
+        (self.dest / ANCHOR).unlink()
+        self.assertIn(ANCHOR, verify(self.dest, self.src))
 
 
 if __name__ == "__main__":
