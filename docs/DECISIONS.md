@@ -21,6 +21,7 @@
 - `say` (commande de lecture) n'est pas un canal de commande : elle lit un texte, ne déclenche aucun outil ni aucune action.
 
 ## 2026-10-08 — Phase 4 étape 5 : Whisper branché
+- Mise à jour 2026-10-11 (Phase 5, étape 19) : les modèles sont revérifiés à chaque chargement (taille + date de modification mémorisées après un SHA-256 réussi) et `serve` contrôle tout `models/` au démarrage ; reste la fenêtre entre la vérification et la lecture par la bibliothèque, et l'ACL du dossier (D13).
 - Constat 10 (étape 4) consigné, risque accepté : TOCTOU des modèles (vérifiés puis chargés, `models/` inscriptible par l'utilisateur seul, même confiance que le code) ; le modèle Silero VAD est embarqué dans le paquet `faster-whisper` et n'est pas au manifeste (protégé par le pin de version et `pip-audit`).
 - `stt.py` : tous les fichiers `whisper-large-v3-turbo/*` du manifeste vérifiés avant chargement ; hors ligne ; l'audio reste en mémoire (tableau float32), jamais de fichier temporaire. Le texte reconnu n'est pas journalisé (seul `Voice.handle` écrit longueur + SHA-256). La commande `mic listen` l'affiche dans le terminal du propriétaire seulement.
 - La voix reste plafonnée à N0/N1 : une phrase reconnue ne peut pas confirmer un N2 (pas d'empreinte vocale).

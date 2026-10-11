@@ -80,6 +80,21 @@ def no_strong_auth(tool: Tool, args: dict) -> bool:
     return False
 
 
+def check_models(audit: Audit) -> None:
+    """Au démarrage : tout modèle présent doit correspondre au manifeste (sinon signalé et journalisé). Réchauffe aussi le
+    cache de `is_good`, donc le premier chargement vocal ne re-hache pas 1,6 Go. Sans bloquer le démarrage."""
+    try:
+        from jarvis.core.modelcheck import check_manifest
+        models = Path(__file__).resolve().parent.parent / "models"
+        if not (models / "MANIFEST.json").is_file():
+            return
+        for path in check_manifest(models / "MANIFEST.json", models):
+            print(f"ATTENTION modèle modifié ou corrompu : {path}", file=sys.stderr)
+            audit.log("cli", "model_check", {"path": path}, None, "refusé", "modèle différent du manifeste")
+    except Exception:
+        print("Contrôle des modèles impossible.", file=sys.stderr)
+
+
 def start_mic(audit: Audit):
     """Micro toujours à l'écoute tant que `~/.jarvis/mic_off` n'existe pas ; échec = serveur sans micro, jamais bloquant."""
     try:
@@ -111,6 +126,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         for problem in audit.health():  # on démarre quand même : le propriétaire doit le savoir, pas être bloqué
             print(f"ATTENTION journal d'audit : {problem}", file=sys.stderr)
             audit.log("cli", "audit_health", {}, None, "refusé", problem)
+        threading.Thread(target=check_models, args=(audit,), daemon=True).start()
         mic = start_mic(audit)
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")

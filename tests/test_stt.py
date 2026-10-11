@@ -73,14 +73,14 @@ class TestTranscriber(unittest.TestCase):
         t.transcribe(AUDIO)
         self.assertEqual(len(calls), 2)  # le CPU est gardé, pas de nouvel essai CUDA
 
-    def test_modele_verifie_une_seule_fois(self):
+    def test_modele_reverifie_a_chaque_chargement(self):
         from unittest import mock
         t = self.make(lambda *a: FakeModel())
         with mock.patch("jarvis.core.stt.is_good", return_value=True) as ok:
             t.transcribe(AUDIO)
-            t._model = None
+            t._model = None  # rechargement (mode jeu) : le fichier peut avoir changé depuis
             t.transcribe(AUDIO)
-        self.assertEqual(ok.call_count, 2)  # 2 fichiers, une seule passe
+        self.assertEqual(ok.call_count, 4)  # 2 fichiers x 2 chargements ; le cache de is_good évite de re-hacher
 
     def test_panne_en_cours_de_decodage_repli_cpu(self):
         models = [FakeModel(fail=True), FakeModel()]

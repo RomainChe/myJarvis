@@ -33,16 +33,15 @@ class Transcriber:
                  gaming=games.detect, clock=time.monotonic):
         self.models, self.manifest, self._loader, self.gaming = Path(models), Path(manifest), loader, gaming
         self._clock, self._checked, self._game_until = clock, None, 0.0
-        self._model, self.device, self._verified, self._cuda_failed = None, None, False, False
+        self._model, self.device, self._cuda_failed = None, None, False
 
     def _load(self, device):
         os.environ["HF_HUB_OFFLINE"] = "1"
-        if not self._verified:  # une seule fois par processus : model.bin pèse 1,6 Go à hacher
-            entries = json.loads(self.manifest.read_text(encoding="utf-8"))["files"]
-            files = [e for e in entries if e["path"].startswith(MODEL_DIR + "/")]
-            if not files or not all(is_good(self.models / e["path"], e["size"], e["sha256"]) for e in files):
-                raise STTError("modèle de reconnaissance non vérifié")
-            self._verified = True
+        # À chaque chargement (rechargement du GPU après un jeu compris) : `is_good` ne re-hache pas un fichier inchangé.
+        entries = json.loads(self.manifest.read_text(encoding="utf-8"))["files"]
+        files = [e for e in entries if e["path"].startswith(MODEL_DIR + "/")]
+        if not files or not all(is_good(self.models / e["path"], e["size"], e["sha256"]) for e in files):
+            raise STTError("modèle de reconnaissance non vérifié")
         if self._loader is None:
             from jarvis.core.gpu import prepare_cuda_path
             prepare_cuda_path()  # avant l'import de faster_whisper
