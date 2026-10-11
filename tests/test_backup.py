@@ -70,6 +70,12 @@ class BackupTest(unittest.TestCase):
         self.audit.db.execute("UPDATE audit SET hash = 'x' WHERE id = 1")
         self.assertIn("ancrée", verify(self.dest, self.src))
 
+    def test_verify_apres_archivage_du_journal(self):
+        backup(self.src, self.dest, keep=3)
+        self.assertEqual(self.audit.archive_before("9999", self.root / "arch"), 1)
+        self.audit.log("cli", "volume", {}, 1, "auto", 1)
+        self.assertIsNone(verify(self.dest, self.src))
+
     def test_verify_sans_ancre_ou_sans_copie(self):
         self.assertIn("aucune", verify(self.dest, self.src))
         backup(self.src, self.dest, keep=3)

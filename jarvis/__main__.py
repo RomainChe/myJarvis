@@ -3,6 +3,7 @@
     python -m jarvis "<phrase>"
     python -m jarvis run <outil> [clé=valeur ...]
     python -m jarvis audit [n]
+    python -m jarvis purge [--dry-run]    conservation : captures 7 j, finance et veille 120 j, journal archivé après 12 mois
     python -m jarvis secret set|check <nom>
     python -m jarvis ha check
     python -m jarvis veille fetch                      (copie les envois « [Veille ...] » du compte mail dans ~/.jarvis/veille/, lecture seule)
@@ -127,6 +128,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             print(f"ATTENTION journal d'audit : {problem}", file=sys.stderr)
             audit.log("cli", "audit_health", {}, None, "refusé", problem)
         threading.Thread(target=check_models, args=(audit,), daemon=True).start()
+        threading.Thread(target=_purge, args=(audit,), daemon=True).start()
         mic = start_mic(audit)
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
@@ -293,6 +295,14 @@ def level_cmd(argv: list[str]) -> int:
     return 2
 
 
+def _purge(audit) -> None:
+    from jarvis.core import retention
+    try:
+        audit.log("serve", "purge", {}, None, "auto", str(retention.run(audit)))
+    except Exception as e:  # le serveur ne dépend pas de la purge
+        audit.log("serve", "purge", {}, None, "refusé", type(e).__name__)
+
+
 def main(argv: list[str]) -> int:
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
@@ -329,6 +339,13 @@ def main(argv: list[str]) -> int:
         return 2
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     audit = Audit(str(DB_PATH))
+    if argv[0] == "purge":
+        from jarvis.core import retention
+        report = retention.run(audit, dry="--dry-run" in argv)
+        print(report)
+        if "--dry-run" not in argv:
+            audit.log("cli", "purge", {}, None, "auto", str(report))
+        return 0
     if argv[0] == "audit":
         for row in audit.last(int(argv[1]) if len(argv) > 1 else 20):
             print(" | ".join("" if v is None else str(v) for v in row))

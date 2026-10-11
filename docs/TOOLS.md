@@ -241,7 +241,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 
 ## screenshot
 
-- **Description** : capture tous les écrans dans un PNG de `~/Pictures/Jarvis` et renvoie le chemin.
+- **Description** : capture tous les écrans dans un PNG de `~/.jarvis/captures` (hors OneDrive, supprimé après 7 jours par `python -m jarvis purge`) et renvoie le chemin.
 - **Niveau** : N2 (confirmation, vie privée). Drapeau `private` : le chemin n'est pas journalisé (seulement le type et la taille du résultat).
 - **Paramètres** : aucun.
 - **Retour** : `path` et `bytes`. L'image n'est jamais renvoyée au LLM.

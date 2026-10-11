@@ -98,14 +98,20 @@ def verify(dest_dir: Path, live: Path) -> str | None:
         finally:
             audit.db.close()
     if anchor.get("copy") == copy.name and anchor["id"]:
-        row = None
+        row, cp = None, (0, "")
         db = sqlite3.connect(f"{Path(live).resolve().as_uri()}?mode=ro", uri=True)
         try:
             row = db.execute("SELECT hash FROM audit WHERE id = ?", (anchor["id"],)).fetchone()
+            cp = db.execute("SELECT id, hash FROM audit_checkpoint ORDER BY id DESC LIMIT 1").fetchone() or cp
         except sqlite3.Error:
             pass
         finally:
             db.close()
+        cp_id, cp_hash = cp
+        if anchor["id"] < cp_id:
+            row = (anchor["hash"],)  # ligne archivée depuis (étape 13) : le segment la porte
+        elif anchor["id"] == cp_id:
+            row = (cp_hash,)
         if row is None or row[0] != anchor["hash"]:
             return f"la base vivante ne contient plus la ligne ancrée {anchor['id']} : journal tronqué ou réécrit"
     return None

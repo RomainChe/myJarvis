@@ -8,9 +8,11 @@ de l'empreinte de la dernière ligne recopiée hors du PC (sauvegarde, Phase 5).
 """
 import hashlib
 import json
+import os
 import sqlite3
 import threading
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .tools import STR_MAX
 
@@ -31,6 +33,16 @@ CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit
 BEGIN SELECT RAISE(ABORT, 'journal d''audit en ajout seul'); END;
 CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit
 BEGIN SELECT RAISE(ABORT, 'journal d''audit en ajout seul'); END;
+CREATE TABLE IF NOT EXISTS audit_checkpoint (
+    id INTEGER PRIMARY KEY,
+    hash TEXT NOT NULL,
+    ts TEXT NOT NULL,
+    archive TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS checkpoint_no_update BEFORE UPDATE ON audit_checkpoint
+BEGIN SELECT RAISE(ABORT, 'points de contrôle en ajout seul'); END;
+CREATE TRIGGER IF NOT EXISTS checkpoint_no_delete BEFORE DELETE ON audit_checkpoint
+BEGIN SELECT RAISE(ABORT, 'points de contrôle en ajout seul'); END;
 """
 
 RESULT_MAX = 500
@@ -87,14 +99,60 @@ class Audit:
                     self.db.execute("ROLLBACK")
                 raise
 
+    def checkpoint(self) -> tuple[int, str]:
+        """(id, hash) de la dernière ligne archivée ; (0, "") si le journal n'a jamais été purgé."""
+        return self.db.execute("SELECT id, hash FROM audit_checkpoint ORDER BY id DESC LIMIT 1").fetchone() or (0, "")
+
     def verify(self) -> bool:
-        """Vrai si la chaîne de hachage est intacte."""
-        prev = ""
-        for *row, h in self.db.execute(f"SELECT {FIELDS}, hash FROM audit ORDER BY id"):
-            if h is None or h != _hash(prev, tuple(row)):
+        """Vrai si la chaîne de hachage est intacte, à partir du dernier point de contrôle."""
+        start, prev = self.checkpoint()
+        for id_, *row, h in self.db.execute(f"SELECT id, {FIELDS}, hash FROM audit ORDER BY id"):
+            if id_ <= start or h is None or h != _hash(prev, tuple(row)):
                 return False
             prev = h
         return True
+
+    def archive_before(self, cutoff: str, dest_dir) -> int:
+        """Déplace les lignes antérieures à `cutoff` (ISO UTC) vers un segment JSONL de `dest_dir`.
+
+        Seule brèche voulue dans « ajout seul » (D5) : la chaîne est vérifiée avant, le segment écrit et
+        synchronisé avant toute suppression, et un point de contrôle (dernier id + hash) garde la chaîne
+        vérifiable. Renvoie le nombre de lignes archivées."""
+        dest_dir = Path(dest_dir)
+        with self.lock:
+            if not self.verify():
+                raise RuntimeError("chaîne rompue : archivage refusé")
+            rows = []
+            for r in self.db.execute(f"SELECT id, {FIELDS}, hash FROM audit ORDER BY id"):
+                if r[1] >= cutoff:
+                    break  # préfixe seulement : le reste de la chaîne ne bouge pas
+                rows.append(r)
+            if not rows:
+                return 0
+            first, last = rows[0][0], rows[-1][0]
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            target = dest_dir / f"audit-{first:09d}-{last:09d}.jsonl"
+            tmp = target.with_suffix(".tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, target)
+            self.db.execute("BEGIN IMMEDIATE")
+            try:  # le DDL est transactionnel : un échec remet triggers et lignes en place
+                self.db.execute("DROP TRIGGER audit_no_delete")
+                self.db.execute("DELETE FROM audit WHERE id <= ?", (last,))
+                self.db.execute("CREATE TRIGGER audit_no_delete BEFORE DELETE ON audit "
+                                "BEGIN SELECT RAISE(ABORT, 'journal d''audit en ajout seul'); END")
+                self.db.execute("INSERT INTO audit_checkpoint VALUES (?, ?, ?, ?)",
+                                (last, rows[-1][-1], datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                 target.name))
+                self.db.execute("COMMIT")
+            except BaseException:
+                if self.db.in_transaction:
+                    self.db.execute("ROLLBACK")
+                raise
+            return len(rows)
 
     def health(self) -> list[str]:
         """Problèmes à signaler au démarrage : chaîne rompue, journal anormalement gros."""

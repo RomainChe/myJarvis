@@ -8,7 +8,7 @@ from pathlib import Path
 
 from jarvis.core.tools import Level, tool
 
-SHOT_DIR = Path.home() / "Pictures" / "Jarvis"
+SHOT_DIR = Path.home() / ".jarvis" / "captures"  # hors OneDrive (S5), purgé après 7 jours (retention.py)
 SRCCOPY_CAPTUREBLT = 0x00CC0020 | 0x40000000
 SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN = 76, 77, 78, 79
 MAX_PIXELS = 16384 * 8192  # borne de mémoire : 4 octets par pixel
@@ -84,7 +84,7 @@ def _png(w: int, h: int, bgra: bytes) -> bytes:
             + chunk(b"IDAT", zlib.compress(raw, 3)) + chunk(b"IEND", b""))
 
 
-@tool("screenshot", "Capture tous les écrans dans un PNG du dossier Images/Jarvis et renvoie son chemin.",
+@tool("screenshot", "Capture tous les écrans dans un PNG du dossier ~/.jarvis/captures (purgé après 7 jours) et renvoie son chemin.",
       Level.N2, private=True)
 def screenshot() -> dict:
     png = _png(*_capture())
