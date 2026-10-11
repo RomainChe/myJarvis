@@ -1,9 +1,11 @@
 """Applications et processus : open_app, close_app, run_script (listes blanches), kill_process. Windows, ctypes."""
 import ctypes
+import hashlib
 import json
 import os
 import re
 import subprocess
+import time
 from ctypes import wintypes
 from pathlib import Path, PureWindowsPath
 
@@ -130,9 +132,7 @@ def close_app(name: str) -> dict:
     return {"closed_windows": len(windows)}
 
 
-@tool("run_script", "Lance un script (.ps1, .bat, .cmd) du dossier scripts, par son nom, sans argument.",
-      Level.N2, private=True, external=True, name=str)
-def run_script(name: str) -> dict:
+def _script_path(name: str) -> Path:
     name = name.strip()
     if not SCRIPT_NAME.fullmatch(name) or name.split(".")[0].lower() in RESERVED_NAMES:
         raise ValueError("nom de script invalide : lettres, chiffres, - et _, extension .ps1, .bat ou .cmd")
@@ -143,6 +143,35 @@ def run_script(name: str) -> dict:
         raise ValueError(f"script introuvable : {name}")
     if script.stat().st_nlink > 1:  # lien physique : le même fichier existe ailleurs, hors du dossier
         raise ValueError(f"script refusé (lien physique) : {name}")
+    return script
+
+
+def _sha(script: Path) -> str:
+    return hashlib.sha256(script.read_bytes()).hexdigest()
+
+
+# S3 : l'empreinte montrée à la confirmation est revérifiée juste avant l'exécution (nom -> (empreinte, instant)).
+# ponytail: reste une fenêtre de quelques ms entre le hachage et le démarrage de l'interpréteur ; copier le script
+# dans un dossier privé si un processus du même utilisateur devient une menace réaliste.
+_shown: dict[str, tuple[str, float]] = {}
+SHOWN_TTL_S = 120
+
+
+def _describe_script(name: str) -> str:
+    script = _script_path(name)
+    digest = _sha(script)
+    _shown[script.name] = (digest, time.monotonic())
+    return f"{script.name} (SHA-256 {digest[:16]}…, {script.stat().st_size} octets)"
+
+
+@tool("run_script", "Lance un script (.ps1, .bat, .cmd) du dossier scripts, par son nom, sans argument.",
+      Level.N2, private=True, external=True, describe=_describe_script, name=str)
+def run_script(name: str) -> dict:
+    script = _script_path(name)
+    name, root = script.name, script.parent
+    shown = _shown.pop(name, None)
+    if shown and time.monotonic() - shown[1] <= SHOWN_TTL_S and shown[0] != _sha(script):
+        raise ValueError(f"script modifié depuis la confirmation : refusé ({name})")
     # Le script est désigné par son nom relatif au dossier ; l'interpréteur ne reçoit aucun autre argument.
     if script.suffix.lower() == ".ps1":
         cmd = [str(POWERSHELL), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", f".\\{name}"]

@@ -152,6 +152,19 @@ class RunScriptTest(AppsBase):
                 self.run_tool("run_script", {"name": "lien.bat"}, confirm=yes)
         run.assert_not_called()
 
+    def test_script_modifie_apres_confirmation_refuse(self):
+        """S3 : l'empreinte affichée à la confirmation est revérifiée avant l'exécution."""
+        path = self.script()
+        preview = REGISTRY["run_script"].preview({"name": "hello.bat"})
+        self.assertIn("SHA-256", preview)
+        path.write_text("@echo piege\r\n")  # modifié entre la confirmation et l'exécution
+        with mock.patch.object(apps.subprocess, "run") as run:
+            with self.assertRaises(ValueError):
+                self.run_tool("run_script", {"name": "hello.bat"}, confirm=yes)
+        run.assert_not_called()
+        REGISTRY["run_script"].preview({"name": "hello.bat"})  # nouvelle confirmation : accepté
+        self.assertIn("piege", self.run_tool("run_script", {"name": "hello.bat"}, confirm=yes)["output"])
+
     def test_permission_refusee(self):
         self.script()
         with mock.patch.object(apps.subprocess, "run") as run:
