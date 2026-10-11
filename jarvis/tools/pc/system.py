@@ -184,6 +184,76 @@ def list_processes() -> dict:
     return {"total": len(procs), "processes": procs[:MAX_PROCESSES]}
 
 
+# R3 (Phase 5) : la marche tient chaque dossier OUVERT par handle, sans partage « suppression » : tant qu'un dossier est
+# lu, il ne peut être ni renommé ni remplacé par une jonction. Chaque handle est vérifié (dossier réel, pas un point
+# d'analyse, chemin final sous la racine) APRÈS l'ouverture, donc sans fenêtre entre vérification et lecture.
+_ATTR_DIR, _ATTR_REPARSE = 0x10, 0x400
+_NO_MORE_FILES = 18
+_BUF = 64 * 1024
+
+
+class _ByHandleInfo(ctypes.Structure):
+    _fields_ = [("dwFileAttributes", wintypes.DWORD)] + [(f"_{i}", wintypes.DWORD) for i in range(12)]
+
+
+def _k32_search():
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateFileW.restype = wintypes.HANDLE
+    k32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD,
+                                wintypes.DWORD, wintypes.HANDLE]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    k32.GetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ByHandleInfo)]
+    k32.GetFinalPathNameByHandleW.argtypes = [wintypes.HANDLE, wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD]
+    k32.GetFileInformationByHandleEx.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    return k32
+
+
+def _open_real_dir(k32, path: str, under: str | None) -> int | None:
+    """Handle d'un vrai dossier (ni lien, ni jonction) situé sous `under`, ou None. À fermer par l'appelant."""
+    # LIST_DIRECTORY | READ_ATTRIBUTES ; partage lecture+écriture mais pas suppression ; BACKUP_SEMANTICS | OPEN_REPARSE_POINT
+    handle = k32.CreateFileW(path, 0x1 | 0x80, 0x3, None, 3, 0x02000000 | 0x00200000, None)
+    if handle in (None, wintypes.HANDLE(-1).value):
+        return None
+    ok = False
+    try:
+        info = _ByHandleInfo()
+        buf = ctypes.create_unicode_buffer(32768)
+        if not k32.GetFileInformationByHandle(handle, ctypes.byref(info)):
+            return None
+        attrs = info.dwFileAttributes
+        n = k32.GetFinalPathNameByHandleW(handle, buf, len(buf), 0)
+        if not attrs & _ATTR_DIR or attrs & _ATTR_REPARSE or not 0 < n < len(buf):
+            return None
+        final = os.path.normcase(buf.value.removeprefix("\\\\?\\"))
+        if under is not None and not (final == under or final.startswith(under.rstrip("\\") + "\\")):
+            return None
+        ok = True
+        return handle
+    finally:
+        if not ok:
+            k32.CloseHandle(handle)
+
+
+def _entries(k32, handle):
+    """(nom, attributs) des entrées d'un dossier ouvert, sans « . » ni « .. »."""
+    buf = ctypes.create_string_buffer(_BUF)
+    cls = 11  # FileIdBothDirectoryRestartInfo, puis FileIdBothDirectoryInfo (10)
+    while k32.GetFileInformationByHandleEx(handle, cls, buf, _BUF):
+        cls, off = 10, 0
+        while True:
+            nxt = int.from_bytes(buf.raw[off:off + 4], "little")
+            attrs = int.from_bytes(buf.raw[off + 56:off + 60], "little")
+            size = int.from_bytes(buf.raw[off + 60:off + 64], "little")
+            name = buf.raw[off + 104:off + 104 + size].decode("utf-16-le")
+            if name not in (".", ".."):
+                yield name, attrs
+            if not nxt:
+                break
+            off += nxt
+    if ctypes.get_last_error() != _NO_MORE_FILES:
+        raise OSError("dossier illisible")
+
+
 @tool("search_files", f"Cherche les fichiers et dossiers dont le nom contient `name` sous `folder` "
                       f"({MAX_RESULTS} résultats max).", Level.N0, external=True, name=str, folder=str)
 def search_files(name: str, folder: str) -> dict:
@@ -193,16 +263,30 @@ def search_files(name: str, folder: str) -> dict:
     root = _allowed_root(folder.strip())
     if not root.is_dir():
         raise ValueError(f"dossier introuvable : {folder}")
-    found, deadline = [], time.monotonic() + SEARCH_DEADLINE_S
-    for dirpath, dirnames, filenames in os.walk(root):
-        for entry in dirnames + filenames:
-            if needle in fold(entry):
-                found.append(str(Path(dirpath, entry)))
-                if len(found) >= MAX_RESULTS:
-                    return {"results": found, "complete": False}
-        # os.walk suit les jonctions : on ne descend ni dans un lien ni dans une jonction (sortie de la racine).
-        dirnames[:] = [d for d in dirnames
-                       if not (os.path.islink(p := os.path.join(dirpath, d)) or os.path.isjunction(p))]
-        if time.monotonic() > deadline:
-            return {"results": found, "complete": False}
-    return {"results": found, "complete": True}
+    k32 = _k32_search()
+    home = os.path.normcase(str(Path.home().resolve()))
+    found, deadline, open_handles = [], time.monotonic() + SEARCH_DEADLINE_S, []
+    top = _open_real_dir(k32, str(root), home)  # la racine est revérifiée sur le handle : resolve() seul est une course
+    if top is None:
+        raise ValueError(f"dossier introuvable : {folder}")
+    stack = [(top, root)]
+    open_handles.append(top)
+    try:
+        while stack:
+            handle, display = stack.pop()
+            for entry, attrs in _entries(k32, handle):
+                if needle in fold(entry):
+                    found.append(str(display / entry))
+                    if len(found) >= MAX_RESULTS:
+                        return {"results": found, "complete": False}
+                if attrs & _ATTR_DIR and not attrs & _ATTR_REPARSE:
+                    child = _open_real_dir(k32, str(display / entry), home)
+                    if child is not None:  # remplacé entre-temps par une jonction, ou inaccessible : ignoré
+                        open_handles.append(child)
+                        stack.append((child, display / entry))
+            if time.monotonic() > deadline:
+                return {"results": found, "complete": False}
+        return {"results": found, "complete": True}
+    finally:
+        for h in open_handles:
+            k32.CloseHandle(h)

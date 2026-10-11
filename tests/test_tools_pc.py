@@ -1,4 +1,5 @@
 import subprocess
+import os
 import tempfile
 import time
 import unittest
@@ -128,6 +129,39 @@ class SearchFilesTest(PcToolTest):
         found = system.search_files("secret", str(base / "sous"))["results"]
         self.assertEqual(found, [])
         self.assertEqual(Path(system.search_files("lien", str(base / "sous"))["results"][0]).name, "lien")
+
+    def test_dossier_tenu_ouvert_ne_peut_etre_ni_renomme_ni_remplace(self):
+        """R3 : tant que la marche tient le handle, une jonction ne peut pas prendre la place du dossier."""
+        base = Path(self.tmp.name)
+        k32 = system._k32_search()
+        handle = system._open_real_dir(k32, str(base / "sous"), None)
+        self.assertIsNotNone(handle)
+        try:
+            with self.assertRaises(OSError):
+                os.rename(base / "sous", base / "sous2")
+        finally:
+            k32.CloseHandle(handle)
+        os.rename(base / "sous", base / "sous2")  # une fois fermé, le dossier est libre
+
+    def test_racine_et_dossiers_refuses_par_handle(self):
+        import _winapi
+        base = Path(self.tmp.name)
+        k32 = system._k32_search()
+        (base / "dehors").mkdir()
+        _winapi.CreateJunction(str(base / "dehors"), str(base / "lien"))
+        self.assertIsNone(system._open_real_dir(k32, str(base / "lien"), None))  # jonction
+        self.assertIsNone(system._open_real_dir(k32, str(base / "Rapport-2026.pdf"), None))  # fichier
+        self.assertIsNone(system._open_real_dir(k32, str(base / "nexiste_pas"), None))
+        self.assertIsNone(system._open_real_dir(k32, str(base), r"c:\windows"))  # hors de la racine autorisée
+
+    def test_racine_substituee_par_une_jonction_refusee(self):
+        import _winapi
+        base = Path(self.tmp.name)
+        (base / "dehors").mkdir()
+        (base / "dehors" / "secret.txt").write_text("x")
+        _winapi.CreateJunction(str(base / "dehors"), str(base / "racine"))
+        with self.assertRaises(ValueError):  # resolve() suit la jonction : elle sort de `base`, jamais lue
+            system.search_files("secret", str(base / "racine") + "\..\..\..\..\..\..\..\..")
 
 
 if __name__ == "__main__":

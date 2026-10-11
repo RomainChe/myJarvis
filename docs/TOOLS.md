@@ -66,7 +66,9 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
   flux ADS (`fichier:flux`), « C: » seul et noms réservés Windows (`CON`, `NUL`, `COM1`…). Le dossier
   est résolu (liens et jonctions suivis) puis doit rester sous le dossier utilisateur. Pendant le
   parcours, les liens symboliques et les jonctions ne sont pas suivis. Un dossier introuvable ou un
-  nom vide lève une erreur, journalisée.
+  nom vide lève une erreur, journalisée. R3 (Phase 5) : chaque dossier est lu par handle (`GetFileInformationByHandleEx`),
+  ouvert sans partage « suppression » et vérifié après l'ouverture (dossier réel, pas de point d'analyse, chemin final sous
+  le dossier utilisateur) : un dossier ne peut pas être remplacé par une jonction pendant la lecture.
 
 ## Listes blanches (`~/.jarvis`)
 
