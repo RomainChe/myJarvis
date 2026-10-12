@@ -34,14 +34,56 @@ def load_config(path: Path = CONFIG) -> dict | None:
     return {"city": city, "lat": lat, "lon": lon} if -90 <= lat <= 90 and -180 <= lon <= 180 else None
 
 
+def _num(value, lo: float, hi: float) -> float | None:
+    """Nombre fini dans [lo, hi] ou None : rien de la réponse n'est relayé tel quel."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    return round(v, 1) if math.isfinite(v) and lo <= v <= hi else None
+
+
+def alerts(code: int, daily_code: int, gust: float | None, rain: float | None, tmin: float | None, tmax: float | None) -> list[str]:
+    """Signaux calculés depuis les mesures : ce ne sont PAS les vigilances officielles de Météo-France."""
+    out = []
+    if {95, 96, 99} & {code, daily_code}:
+        out.append("orage")
+    if gust is not None and gust >= 60:
+        out.append("vent violent" if gust >= 90 else "vent fort")
+    if rain is not None and rain >= 4:
+        out.append("forte pluie")
+    if 71 <= max(code, daily_code) <= 77 or 85 <= max(code, daily_code) <= 86:
+        out.append("neige")
+    if tmax is not None and tmax >= 35:
+        out.append("forte chaleur")
+    if tmin is not None and tmin <= 0:
+        out.append("gel")
+    return out
+
+
 def fetch_weather(lat: float, lon: float) -> dict:
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat:.2f}&longitude={lon:.2f}&current=temperature_2m,weather_code"
+    url = (f"https://api.open-meteo.com/v1/forecast?latitude={lat:.2f}&longitude={lon:.2f}&forecast_days=1&timezone=auto"
+           "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,precipitation,relative_humidity_2m"
+           "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max")
     with urllib.request.urlopen(url, timeout=4) as r:  # ponytail: proxy système éventuel non filtré, ajouter un opener sans proxy si besoin
-        cur = json.loads(r.read(4096))["current"]
+        data = json.loads(r.read(8192))
+    cur, day = data["current"], data.get("daily") or {}
     temp = float(cur["temperature_2m"])
     if not (math.isfinite(temp) and -90 <= temp <= 70):  # NaN/Infinity feraient échouer la sérialisation JSON
         raise ValueError("température hors bornes")
-    return {"temp_c": round(temp, 1), "sky": sky(int(cur["weather_code"]))}
+    first = lambda key: (day.get(key) or [None])[0]  # noqa: E731
+    code = int(cur["weather_code"])
+    try:
+        daily_code = int(first("weather_code"))
+    except (TypeError, ValueError):
+        daily_code = code
+    gust, rain = _num(cur.get("wind_gusts_10m"), 0, 400), _num(cur.get("precipitation"), 0, 500)
+    tmin, tmax = _num(first("temperature_2m_min"), -90, 70), _num(first("temperature_2m_max"), -90, 70)
+    return {"temp_c": round(temp, 1), "sky": sky(code), "feels_c": _num(cur.get("apparent_temperature"), -90, 70),
+            "wind_kmh": _num(cur.get("wind_speed_10m"), 0, 400), "gust_kmh": gust, "rain_mm": rain,
+            "humidity": _num(cur.get("relative_humidity_2m"), 0, 100), "min_c": tmin, "max_c": tmax,
+            "rain_chance": _num(first("precipitation_probability_max"), 0, 100),
+            "alerts": alerts(code, daily_code, gust, rain, tmin, tmax)}
 
 
 def ping_ms() -> int | None:

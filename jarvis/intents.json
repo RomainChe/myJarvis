@@ -73,6 +73,10 @@
     "phrases": ["la tele est allumee", "etat de la tv", "etat de la tele"]
   },
   {
+    "tool": "weather_now",
+    "phrases": ["la meteo", "meteo", "quel temps fait il", "quel temps il fait", "quel temps fait il dehors", "il fait quel temps"]
+  },
+  {
     "tool": "scene_cinema",
     "patterns": [
       "(mets|met|lance|active|passe en) (le )?mode cin[eé]ma",
