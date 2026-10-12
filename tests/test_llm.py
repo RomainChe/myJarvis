@@ -300,6 +300,15 @@ class GamesTest(unittest.TestCase):
             with mock.patch.object(games, "EXTRA_FILE", f):
                 self.assertEqual(games.extra_games(), {"toto.exe"})
 
+    def test_fichier_jeux_trop_gros_ou_unc_ignore(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "games.txt"
+            f.write_text("toto.exe\n" + "# x\n" * games.EXTRA_MAX, encoding="utf-8")
+            with mock.patch.object(games, "EXTRA_FILE", f):
+                self.assertEqual(games.extra_games(), set())
+        with mock.patch.object(games, "EXTRA_FILE", Path(r"\\serveur\partage\games.txt")):
+            self.assertEqual(games.extra_games(), set())
+
 
 if __name__ == "__main__":
     unittest.main()

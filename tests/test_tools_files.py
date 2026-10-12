@@ -75,7 +75,7 @@ class DeleteFileTest(FilesBase):
             recycle.assert_not_called()
 
 
-SENSITIVE = ("AppData/Roaming/x", ".ssh", ".gnupg", "projet/.git", "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup",
+SENSITIVE = ("AppData/Roaming/x", ".ssh", ".gnupg", "projet/.git", ".aws", ".kube/config", ".docker", ".config/x","AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup",
              "Start Menu/Programs/Startup")
 
 

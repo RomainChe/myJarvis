@@ -86,13 +86,13 @@ def _protected() -> set[Path]:
 
 
 # Persistance ou destruction : jamais touchés, en source comme en destination (S7).
-SENSITIVE_NAMES = {"appdata", ".ssh", ".gnupg", ".git"}
+SENSITIVE_NAMES = {"appdata", ".ssh", ".gnupg", ".git", ".aws", ".kube", ".docker", ".config"}
 
 
 def _check_sensitive(path: Path) -> None:
     parts = {p.casefold() for p in path.relative_to(Path.home().resolve()).parts}
     if parts & SENSITIVE_NAMES or {"start menu", "startup"} <= parts:
-        raise ValueError("dossier sensible protégé (AppData, .ssh, .gnupg, .git, Démarrage)")
+        raise ValueError("dossier sensible protégé (AppData, .ssh, .gnupg, .git, .aws, .kube, .docker, .config, Démarrage)")
 
 
 def _existing(path: str) -> Path:

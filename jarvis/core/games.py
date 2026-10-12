@@ -35,8 +35,15 @@ def javaw_commands() -> list[str]:
     return out.splitlines()
 
 
+EXTRA_MAX = 64 * 1024  # un fichier plus gros est ignoré (lu à chaque phrase)
+
+
 def extra_games() -> set[str]:
+    if str(EXTRA_FILE).startswith("\\\\"):  # UNC : pas de lecture réseau à chaque phrase
+        return set()
     try:
+        if EXTRA_FILE.stat().st_size > EXTRA_MAX:
+            return set()
         return {line.strip().lower() for line in EXTRA_FILE.read_text(encoding="utf-8-sig").splitlines()
                 if line.strip() and not line.startswith("#")}
     except (OSError, ValueError):  # fichier absent ou pas en UTF-8
