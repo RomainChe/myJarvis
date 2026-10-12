@@ -11,9 +11,9 @@ Aucune valeur secrète n'est écrite ici : les secrets vont dans le coffre (`sec
 
 But : si le Core tombe, il est relancé en moins d'une minute et tu reçois une notification.
 
-- [ ] Ouvrir un **PowerShell** (pas besoin d'être administrateur si la tâche « JARVIS - core » a été créée avec ton compte).
-- [ ] Reprendre les variables de INSTALL §7.2 (`$pyw`, `$repo`, `$me`, `$principal`) : si le shell est neuf, les redéfinir comme dans la section 7.1 de `docs/INSTALL.md`.
-- [ ] Enregistrer la tâche et retirer l'ancienne :
+- [x] Ouvrir un **PowerShell** (pas besoin d'être administrateur si la tâche « JARVIS - core » a été créée avec ton compte).
+- [x] Reprendre les variables de INSTALL §7.2 (`$pyw`, `$repo`, `$me`, `$principal`) : si le shell est neuf, les redéfinir comme dans la section 7.1 de `docs/INSTALL.md`.
+- [x] Enregistrer la tâche et retirer l'ancienne (vérifié le 2026-10-12 : « JARVIS - garde-fou » présente, résultat 0, « verif horaire » absente) :
 
 ```powershell
 Register-ScheduledTask -TaskName "JARVIS - garde-fou" -Principal $principal `
@@ -23,9 +23,12 @@ Register-ScheduledTask -TaskName "JARVIS - garde-fou" -Principal $principal `
 Unregister-ScheduledTask -TaskName "JARVIS - verif horaire" -Confirm:$false
 ```
 
-- [ ] **Essai réel** : tuer le Core (`Get-Process pythonw | Stop-Process` ou Gestionnaire des tâches), attendre ≤ 1 min.
+- [x] **Essai réel** : tuer le Core (`Get-Process pythonw | Stop-Process` ou Gestionnaire des tâches), attendre ≤ 1 min.
   Attendu : le Core revient, `python -m jarvis audit 20` montre une ligne `core_restart`, une notification push arrive.
-- [ ] Bilan : `python -m jarvis doctor`. Attendu : tout OK, sauf « sauvegarde » tant que la section 2 n'est pas faite.
+  Fait : ligne `core_restart` (« Core muet : tâche relancée ») dans l'audit le 2026-10-12 à 18:10 et Core revenu.
+  Reste à confirmer par toi : la notification push est-elle bien arrivée sur le téléphone ?
+- [x] Bilan : `python -m jarvis doctor`. Attendu : tout OK, sauf « sauvegarde » tant que la section 2 n'est pas faite.
+  Fait le 2026-10-12 : les 7 contrôles OK.
 
 ## 2. Sauvegardes hors du PC (≈ 15 min) — décision D1, étape 12
 
@@ -47,7 +50,10 @@ python -m scripts.backup --verify  # restaure à part, contrôle la chaîne d'au
 python -m scripts.backup --check   # code 0 attendu
 ```
 
-- [ ] **Planifier** une copie quotidienne (le disque doit être branché : sinon `--check` alerte après 25 h, c'est voulu) :
+- [x] **Planifier** une copie quotidienne (le disque doit être branché : sinon `--check` alerte après 25 h, c'est voulu).
+  Fait le 2026-10-12 avec la version INSTALL §7.1 (tâche « JARVIS - sauvegarde », 3 h, `StartWhenAvailable`), premier essai OK
+  vers le dossier par défaut `~\.jarvis\backups` (donc **toujours sur le PC** : la destination externe ci-dessus reste à faire).
+  Pour ajouter `-AllowStartIfOnBatteries`, relancer la commande ci-dessous avec `-Force` :
 
 ```powershell
 Register-ScheduledTask -TaskName "JARVIS - sauvegarde" -Principal $principal `
