@@ -12,10 +12,10 @@ Conditions : arbre de travail trié avant l'étape 1 ; fonctions gelées pendant
 | IP, token ou mot de passe en dur dans les fichiers suivis | aucun (seulement deux constantes factices de tests) |
 | Fichier sensible suivi par git (`.env`, `*.db`, clés) | aucun |
 | Ports à l'écoute | `127.0.0.1:8765` (Jarvis) et `127.0.0.1:11434` (Ollama) seulement |
-| ACL de `~/.jarvis` (C1 de la revue étape 6) | Système, Administrateurs et `rchev` seulement : conforme |
-| ACL du projet et de `models/` | **écart** : `BUILTIN\Utilisateurs` a le droit Modifier (hérité du Bureau, qui l'accorde explicitement). Tout compte local pourrait changer le code ou les modèles exécutés avec tes droits. Un seul compte est actif (`rchev`), donc risque faible aujourd'hui. Correctif proposé, **à approuver** (modifie des permissions système) : `icacls <projet> /inheritance:r /grant:r "rchev:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrateurs:(OI)(CI)F"` |
+| ACL de `~/.jarvis` (C1 de la revue étape 6) | Système, Administrateurs et `<compte>` seulement : conforme |
+| ACL du projet et de `models/` | **écart** : `BUILTIN\Utilisateurs` a le droit Modifier (hérité du Bureau, qui l'accorde explicitement). Tout compte local pourrait changer le code ou les modèles exécutés avec tes droits. Un seul compte est actif (`<compte>`), donc risque faible aujourd'hui. Correctif proposé, **à approuver** (modifie des permissions système) : `icacls <projet> /inheritance:r /grant:r "<compte>:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Administrateurs:(OI)(CI)F"` |
 
-**Correctif d'ACL appliqué le 2026-10-11 (D13)** : héritage du Bureau coupé sur le dossier du projet, droits explicites `rchev`, Système et Administrateurs (contrôle total) ; `BUILTIN\Utilisateurs` n'a plus aucun droit. Propagé à `models/`, `.git`, `jarvis/`. Vérifié : git, 825 tests et serveur en marche inchangés. Retour arrière : `icacls <Bureau> /restore <sauvegarde de l'ancienne ACL>`.
+**Correctif d'ACL appliqué le 2026-10-11 (D13)** : héritage du Bureau coupé sur le dossier du projet, droits explicites `<compte>`, Système et Administrateurs (contrôle total) ; `BUILTIN\Utilisateurs` n'a plus aucun droit. Propagé à `models/`, `.git`, `jarvis/`. Vérifié : git, 825 tests et serveur en marche inchangés. Retour arrière : `icacls <Bureau> /restore <sauvegarde de l'ancienne ACL>`.
 
 ## Plan d'audit (ordre de gravité ; S ≤ ½ j, M ≈ 1 j, L > 1 j)
 

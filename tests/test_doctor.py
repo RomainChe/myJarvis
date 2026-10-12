@@ -20,6 +20,37 @@ class WatchTest(unittest.TestCase):
         return doctor.watch(self.audit, up=up, restart=self.restart, notify=self.notify, state=self.state,
                             now=lambda: self.t[0], sleep=lambda s: None)
 
+    def test_chaine_rompue_alerte_une_fois_par_heure(self):
+        notify_health = mock.Mock()
+        self.audit.log("cli", "x", {}, 1, "auto", 1)
+        self.audit.db.execute("DROP TRIGGER audit_no_update")
+        self.audit.db.execute("UPDATE audit SET args = '{\"a\": 1}' WHERE id = 1")  # chaîne rompue
+
+        def run():
+            return doctor.watch(self.audit, up=lambda: True, restart=self.restart, notify=self.notify,
+                                state=self.state, now=lambda: self.t[0], sleep=lambda s: None,
+                                notify_health=notify_health)
+        run()
+        run()  # moins d'une heure plus tard : pas de nouveau contrôle
+        notify_health.assert_called_once()
+        self.assertEqual(self.audit.last(1)[0][2], "audit_health")
+        self.t[0] += 2 * 3600
+        run()
+        self.assertEqual(notify_health.call_count, 2)
+
+    def test_chaine_saine_ne_notifie_pas(self):
+        notify_health = mock.Mock()
+        doctor.watch(self.audit, up=lambda: True, notify=self.notify, state=self.state, now=lambda: self.t[0],
+                     notify_health=notify_health)
+        notify_health.assert_not_called()
+
+    def test_schtasks_par_chemin_absolu(self):
+        with mock.patch.object(doctor.subprocess, "run") as run:
+            doctor.restart_task()
+        for call in run.call_args_list:
+            self.assertTrue(Path(call.args[0][0]).is_absolute())
+            self.assertEqual(Path(call.args[0][0]).name, "schtasks.exe")
+
     def test_core_vivant_ne_fait_rien(self):
         self.assertEqual(self.watch(lambda: True), "ok")
         self.restart.assert_not_called()

@@ -42,9 +42,11 @@ def extra_games() -> set[str]:
     if str(EXTRA_FILE).startswith("\\\\"):  # UNC : pas de lecture réseau à chaque phrase
         return set()
     try:
-        if EXTRA_FILE.stat().st_size > EXTRA_MAX:
+        with open(EXTRA_FILE, "rb") as f:
+            raw = f.read(EXTRA_MAX + 1)  # lecture bornée : la taille peut changer entre un stat et la lecture
+        if len(raw) > EXTRA_MAX:
             return set()
-        return {line.strip().lower() for line in EXTRA_FILE.read_text(encoding="utf-8-sig").splitlines()
+        return {line.strip().lower() for line in raw.decode("utf-8-sig").splitlines()
                 if line.strip() and not line.startswith("#")}
     except (OSError, ValueError):  # fichier absent ou pas en UTF-8
         return set()

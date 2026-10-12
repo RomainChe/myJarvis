@@ -9,6 +9,7 @@ de l'empreinte de la dernière ligne recopiée hors du PC (sauvegarde, Phase 5).
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -64,6 +65,45 @@ def _short(args):
     return {str(k)[:NAME_MAX]: v[:VALUE_MAX] if isinstance(v, str) else v for k, v in args.items()}
 
 
+def segment_hash(archive_dir, id_: int, end_id: int, end_hash: str) -> str:
+    """Hash archivé de la ligne `id_`, lu dans les segments JSONL de `archive_dir`.
+
+    La chaîne est recalculée du segment qui porte `id_` jusqu'à `end_id` (point de contrôle) : segments
+    contigus, hachages cohérents, dernier hash = `end_hash`. ValueError sinon (ancre non couverte, segment
+    absent ou réécrit)."""
+    segs = sorted((int(m[1]), int(m[2]), p) for p in Path(archive_dir).glob("audit-*.jsonl")
+                  if (m := re.fullmatch(r"audit-(\d{9})-(\d{9})\.jsonl", p.name)))
+    start = next((i for i, s in enumerate(segs) if s[0] <= id_ <= s[1]), None)
+    if start is None:
+        raise ValueError(f"aucun segment ne contient la ligne {id_}")
+    while start and segs[start - 1][1] + 1 == segs[start][0]:  # remonte au début de la suite contiguë
+        start -= 1
+    found = None
+    prev = "" if segs[start][0] == 1 else None  # segments plus anciens ailleurs : 1re ligne non recalculable
+    expect = segs[start][0]
+    for first, last, path in segs[start:]:
+        if first != expect:
+            raise ValueError("segments non contigus")
+        try:
+            rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+            if rows[0][0] != first or rows[-1][0] != last:
+                raise ValueError
+            for r in rows:
+                if prev is not None and r[-1] != _hash(prev, tuple(r[1:-1])):
+                    raise ValueError
+                if r[0] == id_:
+                    found = r[-1]
+                prev = r[-1]
+        except (OSError, ValueError, IndexError, TypeError):
+            raise ValueError(f"segment illisible ou chaîne rompue : {path.name}") from None
+        expect = last + 1
+        if last >= end_id:
+            break
+    if found is None or last != end_id or prev != end_hash:
+        raise ValueError("les segments ne mènent pas au point de contrôle")
+    return found
+
+
 class Audit:
     def __init__(self, path: str):
         # Autocommit + verrou : une seule connexion utilisable depuis plusieurs threads (pool FastAPI).
@@ -90,8 +130,13 @@ class Audit:
             self.db.execute("BEGIN IMMEDIATE")  # verrou d'écriture avant de lire le dernier hash
             try:
                 last = self.db.execute("SELECT hash FROM audit ORDER BY id DESC LIMIT 1").fetchone()
-                cur = self.db.execute(f"INSERT INTO audit ({FIELDS}, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                      (*row, _hash(last[0] if last else "", row)))
+                new_id = None
+                if last is None:  # journal entièrement archivé : la suite repart du point de contrôle, pas de 1
+                    cp = self.db.execute("SELECT id, hash FROM audit_checkpoint ORDER BY id DESC LIMIT 1").fetchone()
+                    if cp:
+                        last, new_id = (cp[1],), cp[0] + 1
+                cur = self.db.execute(f"INSERT INTO audit (id, {FIELDS}, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                      (new_id, *row, _hash(last[0] if last else "", row)))
                 self.db.execute("COMMIT")
                 return cur.lastrowid
             except BaseException:

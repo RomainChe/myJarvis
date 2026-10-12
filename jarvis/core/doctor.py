@@ -4,6 +4,7 @@
 notification push, au plus une toutes les 30 min. Aucun contenu sensible : des noms de contrôle seulement.
 """
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -16,6 +17,9 @@ GRACE_S = 90  # un Core relancé a ce temps pour écouter avant qu'on le relance
 COOLDOWN_S = 30 * 60
 DISK_MIN_GB = 5
 ALERT = {"title": "Jarvis", "body": "Le Core s'était arrêté, il a été relancé."}
+HEALTH_ALERT = {"title": "Jarvis", "body": "Journal d'audit rompu ou anormal : lance « python -m jarvis doctor »."}
+HEALTH_EVERY_S = 3600
+SYSTEM32 = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
 
 
 def http_up(url: str, timeout: float = 5) -> bool:
@@ -28,7 +32,8 @@ def http_up(url: str, timeout: float = 5) -> bool:
 
 def restart_task() -> None:
     for action in ("/End", "/Run"):
-        subprocess.run(["schtasks", action, "/TN", TASK], creationflags=0x08000000, check=False)
+        subprocess.run([str(SYSTEM32 / "schtasks.exe"), action, "/TN", TASK], cwd=SYSTEM32,
+                       creationflags=0x08000000, check=False)
 
 
 def _load(state: Path) -> dict:
@@ -38,9 +43,30 @@ def _load(state: Path) -> dict:
         return {}
 
 
-def watch(audit, *, up, restart=restart_task, notify, state: Path = STATE, now=time.time, sleep=time.sleep) -> str:
+def check_health(audit, notify_health, state: Path, now) -> None:
+    """Contrôle la chaîne du journal au plus une fois par heure ; push (au plus un par 30 min) si elle est rompue."""
+    s, t = _load(state), now()
+    if t - s.get("health", 0) < HEALTH_EVERY_S:
+        return
+    s["health"] = t
+    problems = audit.health()
+    if problems and t - s.get("health_alert", 0) >= COOLDOWN_S:
+        s["health_alert"] = t
+        audit.log("watchdog", "audit_health", {}, None, "refusé", "; ".join(problems))
+        try:
+            notify_health()
+        except Exception:  # noqa: BLE001 (le journal garde la trace même si le push échoue)
+            pass
+    state.parent.mkdir(parents=True, exist_ok=True)
+    state.write_text(json.dumps(s))
+
+
+def watch(audit, *, up, restart=restart_task, notify, state: Path = STATE, now=time.time, sleep=time.sleep,
+          notify_health=None) -> str:
     """Renvoie « ok », « attente » (relancé il y a moins de GRACE_S) ou « relancé »."""
     if up() or (sleep(5), up())[1]:
+        if notify_health is not None:
+            check_health(audit, notify_health, state, now)
         return "ok"
     s, t = _load(state), now()
     if t - s.get("restart", 0) < GRACE_S:
@@ -59,13 +85,13 @@ def watch(audit, *, up, restart=restart_task, notify, state: Path = STATE, now=t
     return "relancé"
 
 
-def notify_all(audit_db_path: str) -> None:
+def notify_all(audit_db_path: str, alert: dict = ALERT) -> None:
     from jarvis.core.devices import Devices
     from jarvis.core.push import Push, subject_from_env
     devices = Devices(audit_db_path)
     push = Push(devices, subject_from_env())
     for (dev,) in devices.db.execute("SELECT DISTINCT device_id FROM push_subs").fetchall():
-        push.send(dev, ALERT)
+        push.send(dev, alert)
 
 
 def report(audit, port: int, backup_dir: Path, models: Path) -> list[tuple[str, str | None]]:

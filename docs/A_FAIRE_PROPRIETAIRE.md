@@ -2,7 +2,7 @@
 
 Tout ce qui est codé côté Jarvis est fait. Ce qui suit exige ton PC, ton téléphone, ta box ou une décision.
 Ordre conseillé : rapide et utile d'abord. Cases à cocher au fur et à mesure.
-Les commandes se lancent dans `C:\Users\rchev\Desktop\ProjectJarvis`, sauf mention contraire.
+Les commandes se lancent dans le dossier du projet, sauf mention contraire.
 Aucune valeur secrète n'est écrite ici : les secrets vont dans le coffre (`secret set`) ou les variables d'environnement.
 
 ---

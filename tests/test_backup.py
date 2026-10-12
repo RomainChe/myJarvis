@@ -7,7 +7,7 @@ from jarvis.core.audit import Audit
 import os
 import time
 
-from scripts.backup import ANCHOR, backup, check, verify
+from scripts.backup import ANCHOR, backup, check, latest, verify
 
 
 class BackupTest(unittest.TestCase):
@@ -74,7 +74,46 @@ class BackupTest(unittest.TestCase):
         backup(self.src, self.dest, keep=3)
         self.assertEqual(self.audit.archive_before("9999", self.root / "arch"), 1)
         self.audit.log("cli", "volume", {}, 1, "auto", 1)
-        self.assertIsNone(verify(self.dest, self.src))
+        self.assertIsNone(verify(self.dest, self.src, self.root / "arch"))
+        # nouvelle sauvegarde après archivage : l'ancre (ligne archivée) est retrouvée dans le segment
+        backup(self.src, self.dest, keep=3, archive_dir=self.root / "arch")
+
+    def test_verify_refuse_un_point_de_controle_forge(self):
+        backup(self.src, self.dest, keep=3)
+        self.audit.db.execute("DROP TRIGGER audit_no_delete")
+        self.audit.db.execute("DELETE FROM audit")  # journal vidé, puis faux point de contrôle au-delà de l'ancre
+        self.audit.db.execute("INSERT INTO audit_checkpoint VALUES (5, 'forge', 't', 'x.jsonl')")
+        self.assertIn("non retrouvée", verify(self.dest, self.src, self.root / "arch"))
+
+    def test_verify_refuse_un_segment_reecrit(self):
+        backup(self.src, self.dest, keep=3)
+        self.audit.archive_before("9999", self.root / "arch")
+        seg = next((self.root / "arch").glob("audit-*.jsonl"))
+        seg.write_text(seg.read_text().replace('"volume"', '"autre"'), encoding="utf-8")
+        self.assertIn("non retrouvée", verify(self.dest, self.src, self.root / "arch"))
+
+    def test_ancre_malformee_refusee(self):
+        backup(self.src, self.dest, keep=3)
+        (self.dest / ANCHOR).write_text(f'{{"copy": "{latest(self.dest).name}", "id": "1", "hash": 3}}')
+        self.assertIn("malformé", verify(self.dest, self.src))
+
+    def test_sauvegarde_refusee_si_journal_reecrit(self):
+        first = backup(self.src, self.dest, keep=3)
+        anchor = (self.dest / ANCHOR).read_text()
+        self.audit.db.execute("DROP TRIGGER audit_no_update")
+        self.audit.db.execute("UPDATE audit SET args = '{}' WHERE id = 1")  # chaîne rompue
+        with self.assertRaises(RuntimeError):
+            backup(self.src, self.dest, keep=3)
+        self.assertEqual((self.dest / ANCHOR).read_text(), anchor)
+        self.assertEqual(sorted(self.dest.glob("jarvis-*.db")), [first])
+
+    def test_sauvegarde_refusee_si_ligne_ancree_disparue(self):
+        backup(self.src, self.dest, keep=3)
+        self.audit.db.execute("DROP TRIGGER audit_no_delete")
+        self.audit.db.execute("DELETE FROM audit")  # chaîne vide donc « intacte », mais la ligne ancrée n'y est plus
+        self.audit.log("cli", "autre", {}, 1, "auto", 1)
+        with self.assertRaises(RuntimeError):
+            backup(self.src, self.dest, keep=3)
 
     def test_verify_sans_ancre_ou_sans_copie(self):
         self.assertIn("aucune", verify(self.dest, self.src))

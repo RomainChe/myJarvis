@@ -6,6 +6,7 @@ erreurs génériques, échecs d'authentification comptés globalement (toutes le
 """
 import os
 import re
+import threading
 import time
 from collections import deque
 from pathlib import Path
@@ -145,6 +146,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     failures: deque[float] = deque()
     quota: dict[int, deque[float]] = {}  # appareil -> instants des requêtes de la dernière minute
     quota_logged: dict[int, float] = {}  # une seule ligne de journal par appareil et par fenêtre
+    counters = threading.Lock()  # les routes sync tournent dans un pool : deque et dict partagés
+    reads_logged: dict[tuple[int, str], float] = {}  # (appareil, lecture) -> dernière ligne de journal
     passkeys = Passkeys(devices, ts_host)  # sans nom Tailscale (HTTPS), WebAuthn est désactivé : N3 reste refusé
     push = push or Push(devices, subject_from_env())
     dashboard = Dashboard(system_status)
@@ -159,9 +162,21 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         return JSONResponse({"detail": detail}, status_code=status, headers={**HEADERS, **extra})
 
     def limited() -> bool:
-        while failures and _now() - failures[0] > AUTH_FAIL_WINDOW_S:
-            failures.popleft()
-        return len(failures) >= AUTH_FAIL_MAX
+        with counters:
+            while failures and _now() - failures[0] > AUTH_FAIL_WINDOW_S:
+                failures.popleft()
+            return len(failures) >= AUTH_FAIL_MAX
+
+    def log_read(device: int, tool: str, detail: str) -> None:
+        """Une ligne par appareil et par minute et par lecture : un token volé ne gonfle pas le journal à 240/min.
+        Trace avant lecture (journal en échec = rien lu) ; la ligne de la minute couvre les lectures suivantes."""
+        with counters:
+            last = reads_logged.get((device, tool))
+            if last is not None and 0 <= _now() - last < QUOTA_WINDOW_S:
+                return
+        audit.log(f"pwa:{device}", tool, {}, 2, "auto", detail)  # lève si le journal échoue : rien n'est mémorisé
+        with counters:
+            reads_logged[(device, tool)] = _now()
 
     def authenticate(request: Request) -> tuple[int, str] | JSONResponse:
         header = request.headers.get("authorization")
@@ -170,19 +185,25 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         scheme, _, token = header.partition(" ")
         found = devices.check(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
         if found is not None:  # un token valide n'est jamais bloqué par le compteur d'échecs
-            recent = quota.setdefault(found[0], deque())
-            while recent and _now() - recent[0] > QUOTA_WINDOW_S:
-                recent.popleft()
-            if len(recent) >= QUOTA_MAX:
-                if _now() - quota_logged.get(found[0], -QUOTA_WINDOW_S) >= QUOTA_WINDOW_S:
+            with counters:
+                recent = quota.setdefault(found[0], deque())
+                while recent and _now() - recent[0] > QUOTA_WINDOW_S:
+                    recent.popleft()
+                over = len(recent) >= QUOTA_MAX
+                log_it = over and _now() - quota_logged.get(found[0], -QUOTA_WINDOW_S) >= QUOTA_WINDOW_S
+                if log_it:
                     quota_logged[found[0]] = _now()
+                if not over:
+                    recent.append(_now())
+            if over:
+                if log_it:
                     audit.log(f"pwa:{found[0]}", "quota", {}, None, "refusé", f"plus de {QUOTA_MAX} requêtes par minute")
                 return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
-            recent.append(_now())
             return found
         if limited():
             return reply(429, "trop d'échecs", **{"Retry-After": str(AUTH_FAIL_WINDOW_S)})
-        failures.append(_now())
+        with counters:
+            failures.append(_now())
         audit.log("pwa:?", "auth", {}, None, "refusé", "token invalide ou révoqué")  # jamais le token
         return reply(401, "non autorisé")
 
@@ -380,7 +401,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        audit.log(f"pwa:{auth[0]}", "finance_read", {}, 2, "auto", "rapports financiers lus")  # trace d'abord : journal en échec = rien lu
+        log_read(auth[0], "finance_read", "rapports financiers lus")
         return finance_snapshot()
 
     @app.get("/api/finance/bank")
@@ -388,7 +409,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        audit.log(f"pwa:{auth[0]}", "bank_read", {}, 2, "auto", "comptes bancaires, Ledger et portefeuille lus")
+        log_read(auth[0], "bank_read", "comptes bancaires, Ledger et portefeuille lus")
         binance.refresh_if_stale()  # historique Binance relu en tâche de fond au plus une fois par jour
         return {"bank": bank_view(), "crypto": binance.enrich(crypto_view()), "portfolio": portfolio_view()}
 
@@ -397,7 +418,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        audit.log(f"pwa:{auth[0]}", "veille_read", {}, 2, "auto", "veille IA lue")  # trace d'abord : journal en échec = rien lu
+        log_read(auth[0], "veille_read", "veille IA lue")
         return veille_snapshot()
 
     @app.get("/api/mic")

@@ -42,6 +42,12 @@ class TestSecrets(unittest.TestCase):
         with self.assertRaises(ValueError):
             secrets.set_secret("ha_token", "  ")
 
+    def test_cle_de_signature_des_mails_trop_courte_refusee(self):
+        with self.assertRaises(ValueError):
+            secrets.set_secret("mail_sig_key", "court")
+        secrets.set_secret("mail_sig_key", "a" * 32)
+        self.assertEqual(secrets.get_secret("mail_sig_key"), "a" * 32)
+
     def test_cli_ne_montre_jamais_la_valeur(self):
         with mock.patch("getpass.getpass", return_value="TOP-SECRET"), \
                 mock.patch("builtins.print") as out:

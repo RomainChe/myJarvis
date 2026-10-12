@@ -128,6 +128,11 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         for problem in audit.health():  # on démarre quand même : le propriétaire doit le savoir, pas être bloqué
             print(f"ATTENTION journal d'audit : {problem}", file=sys.stderr)
             audit.log("cli", "audit_health", {}, None, "refusé", problem)
+            try:  # stderr va vers devnull sous pythonw : le push est le seul signal
+                from jarvis.core import doctor
+                doctor.notify_all(str(DB_PATH), doctor.HEALTH_ALERT)
+            except Exception:  # noqa: BLE001 (le journal garde la trace)
+                pass
         threading.Thread(target=check_models, args=(audit,), daemon=True).start()
         threading.Thread(target=_purge, args=(audit,), daemon=True).start()
         mic = start_mic(audit)
@@ -346,7 +351,8 @@ def main(argv: list[str]) -> int:
         port = port_from_env()
         if "--watch" in argv:
             r = doctor.watch(audit, up=lambda: doctor.http_up(f"http://127.0.0.1:{port}/"),
-                             notify=lambda: doctor.notify_all(str(DB_PATH)))
+                             notify=lambda: doctor.notify_all(str(DB_PATH)),
+                             notify_health=lambda: doctor.notify_all(str(DB_PATH), doctor.HEALTH_ALERT))
             return 0 if r == "ok" else 1
         checks = doctor.report(audit, port, Path(os.environ.get("JARVIS_BACKUP_DIR") or Path.home() / ".jarvis" / "backups"),
                                Path(__file__).resolve().parent.parent / "models")

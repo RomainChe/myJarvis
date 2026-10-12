@@ -233,6 +233,8 @@ class KillProcessTest(PcBase):
         if os.path.isdir(r"C:\Program Files"):  # expansion réelle
             self.assertEqual(apps._long_path(r"C:\PROGRA~1"), r"C:\Program Files")
         self.assertEqual(apps._long_path(r"C:\nexiste\pas.exe"), r"C:\nexiste\pas.exe")
+        with self.assertRaises(ValueError):  # nom court sans forme longue lisible : échec fermé
+            apps._long_path(r"C:\nexiste\TAILSC~1.EXE")
 
     def test_vm_home_assistant_protegee_hors_dossier_windows(self):
         for exe in ("vmwp.exe", "vmms.exe"):

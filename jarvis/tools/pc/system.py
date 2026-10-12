@@ -275,11 +275,13 @@ def search_files(name: str, folder: str) -> dict:
         while stack:
             handle, display = stack.pop()
             for entry, attrs in _entries(k32, handle):
+                if time.monotonic() > deadline:  # un dossier géant ne bloque plus : l'échéance est testée par entrée
+                    return {"results": found, "complete": False}
                 if needle in fold(entry):
                     found.append(str(display / entry))
                     if len(found) >= MAX_RESULTS:
                         return {"results": found, "complete": False}
-                if attrs & _ATTR_DIR and not attrs & _ATTR_REPARSE:
+                if attrs & _ATTR_DIR and not attrs & _ATTR_REPARSE and entry.casefold() != ".jarvis":
                     child = _open_real_dir(k32, str(display / entry), home)
                     if child is not None:  # remplacé entre-temps par une jonction, ou inaccessible : ignoré
                         open_handles.append(child)

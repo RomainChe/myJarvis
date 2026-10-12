@@ -185,9 +185,14 @@ def run_script(name: str) -> dict:
 
 
 def _long_path(path: str) -> str:
-    """Forme longue d'un chemin (PROGRA~1 -> Program Files), sans préfixe étendu ; le chemin d'origine si illisible."""
+    """Forme longue d'un chemin (PROGRA~1 -> Program Files), sans préfixe étendu.
+
+    Chemin d'origine si illisible, sauf s'il contient un nom court 8.3 : les noms protégés ne le reconnaîtraient
+    plus (TAILSC~1.EXE), donc refus."""
     buf = ctypes.create_unicode_buffer(32768)
     n = _k32.GetLongPathNameW(path, buf, len(buf))
+    if not 0 < n < len(buf) and re.search(r"~\d", path):
+        raise ValueError(f"chemin court illisible, refusé : {path}")
     out = buf.value if 0 < n < len(buf) else path
     return out[4:] if out.startswith("\\?\\") else out
 

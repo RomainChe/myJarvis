@@ -80,19 +80,24 @@ def _recycle(path: Path) -> None:
             _ole32.CoUninitialize()
 
 
+REPO_DIR = Path(__file__).resolve().parents[3]
+
+
 def _protected() -> set[Path]:
     home = Path.home().resolve()
     return {home, *(home / name for name in set(KNOWN_FOLDERS.values()))}
 
 
 # Persistance ou destruction : jamais touchés, en source comme en destination (S7).
-SENSITIVE_NAMES = {"appdata", ".ssh", ".gnupg", ".git", ".aws", ".kube", ".docker", ".config"}
+SENSITIVE_NAMES = {"appdata", ".ssh", ".gnupg", ".git", ".aws", ".kube", ".docker", ".config",
+                   ".claude", ".vscode", ".gitconfig", ".npmrc", ".pypirc", ".bashrc", "windowspowershell",
+                   "powershell"}  # hooks, profils et configurations d'outils = exécution de code à la prochaine ouverture
 
 
 def _check_sensitive(path: Path) -> None:
     parts = {p.casefold() for p in path.relative_to(Path.home().resolve()).parts}
     if parts & SENSITIVE_NAMES or {"start menu", "startup"} <= parts:
-        raise ValueError("dossier sensible protégé (AppData, .ssh, .gnupg, .git, .aws, .kube, .docker, .config, Démarrage)")
+        raise ValueError("dossier sensible protégé (AppData, .ssh, .gnupg, .git, .aws, .kube, .docker, .config, .claude, profils, Démarrage)")
 
 
 def _existing(path: str) -> Path:
@@ -109,6 +114,8 @@ def _check_not_config(path: Path) -> None:
     # ~/.jarvis porte le journal d'audit et les listes blanches : aucun outil de fichiers n'y touche.
     if path.is_relative_to(CONFIG_DIR.resolve()):
         raise ValueError("le dossier de configuration de Jarvis est protégé")
+    if path.is_relative_to(REPO_DIR):  # le code de Jarvis : le déplacer ou le remplacer = changer ses garde-fous
+        raise ValueError("le dossier du code de Jarvis est protégé")
 
 
 def _destination(dst: str, src: Path) -> Path:

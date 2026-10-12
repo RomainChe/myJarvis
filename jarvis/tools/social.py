@@ -76,7 +76,7 @@ def _describe(title: str, at: str) -> str:
     return f"« {title.strip()[:TITLE_MAX]} » : {old.isoformat(timespec='minutes')} → {_new_time(at, todo, now).isoformat(timespec='minutes')}"
 
 
-@tool("social_schedule", "Liste les publications programmées de lol-clipper (titre, plateforme, date), les plus proches d'abord.", Level.N0)
+@tool("social_schedule", "Liste les publications programmées de lol-clipper (titre, plateforme, date), les plus proches d'abord.", Level.N0, external=True)
 def social_schedule() -> dict:
     rows = social.snapshot()["scheduled"][:MAX_LIST]
     return {"scheduled": [{"title": r["title"][:TITLE_MAX], "platform": r["platform"], "at": r["at"]} for r in rows]}

@@ -107,6 +107,14 @@ class FinanceRouteTest(ServerBase):
         self.assertIn("finance_read", str(body))
         self.assertIn("bank_read", str(body))
 
+    def test_lectures_repetees_une_seule_ligne_par_minute(self):
+        _, token = self.enroll()
+        with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}):
+            for _ in range(5):
+                self.assertEqual(self.call("GET", "/api/finance", token=token)[0], 200)
+        _, body, _ = self.call("GET", "/api/audit?limit=50", token=token)
+        self.assertEqual(str(body).count("finance_read"), 1)
+
     def test_route_bancaire_authentifiee(self):
         self.assertEqual(self.call("GET", "/api/finance/bank")[0], 401)
 

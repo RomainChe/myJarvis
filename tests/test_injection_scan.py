@@ -6,7 +6,7 @@ from jarvis.core.injection_scan import scan
 
 BENIGN = [
     "rapport_2026.docx", "facture_edf_octobre.pdf", "Notes de réunion - équipe produit.txt", "photo vacances été 2025.jpg",
-    "C:/Users/rchev/Documents/Projets/jarvis/README.md","chrome.exe 912 Mo", "svchost.exe 45 Mo", "explorer.exe",
+    "C:/Users/test/Documents/Projets/jarvis/README.md","chrome.exe 912 Mo", "svchost.exe 45 Mo", "explorer.exe",
     "allumée, appli: Netflix, volume 12, non muet", "éteinte", "CPU 12 %, RAM 41 %, disque 63 %, GPU 8 %",
     "De: amazon@exemple.test Objet: Votre colis est en route. Livraison prévue demain entre 9 h et 13 h.",
     "De: banque@exemple.test Objet: Votre relevé de septembre est disponible.",
