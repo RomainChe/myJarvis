@@ -34,6 +34,7 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
   - **Reprise (ancienne) :** 1) essai au micro du propriétaire : `python scripts/wakeword/live_score.py` (compare « hey jarvis » et `jarvis_fr`), régler `JARVIS_WAKE_THRESHOLD` ; 2) si insuffisant, réentraîner (`layer_size` 64, `max_negative_weight`) ; 3) revue Sécurité (avec celle des réglages de voix) ; 4) docs/VOIX.md (choix du modèle).
 - Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7 ; Jarvis peut lire `.env` ; LLM = qwen3:14b sans réflexion, veille automatique pendant un jeu, déchargement après 15–30 min d'inactivité (ARCHITECTURE §6.6).
 - 2026-10-08 : planchers N2 → N1 (docs/DECISIONS.md), garde contenu externe et voix sur le niveau du registre.
+- 2026-10-12 : commandes vocales « Jarvis mets-toi en off / hors ligne » et « Jarvis online » (`Voice.offline`, `jarvis/core/voice.py`) : hors ligne, la voix ignore tout (rien exécuté, rien dit) sauf « online » ; en mémoire seulement (redémarrage = en ligne), journalisé `voix_mode`. Le kill switch `mic_off` reste séparé (réarmement au terminal). 872 tests verts.
 - Décisions propriétaire en attente : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7, choix parmi les pistes de la Phase 7 (proposées le 2026-10-12).
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 

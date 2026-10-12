@@ -5,12 +5,14 @@ N2 est refusé (« fais-la depuis l'application » : aucune demande n'est créé
 le routeur et le journal sont ceux du chat : aucune voie vers `execute` hors de la garde de permissions.
 """
 import hashlib
+import re
 import threading
 
 from jarvis.core.chat import ANSWER_MAX, REGISTRY, TEXT_MAX, Chat, ask, execute
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable
 from jarvis.core.permissions import Refused
+from jarvis.core.router import normalize
 from jarvis.core.tools import Level
 
 SOURCE = "voix"
@@ -18,6 +20,10 @@ BUSY_MSG = "Je suis occupé, redemande dans un instant."
 N2_MSG = "Action sensible : fais-la depuis l'application."
 N3_MSG = "À faire sur le téléphone."
 PRIVATE_MSG = "Fait, voir l'application."  # un outil privé a tourné : rien de son contenu (ni reformulé) n'est lu à voix haute
+OFFLINE_MSG = "Je me mets hors ligne."
+ONLINE_MSG = "De retour, en ligne."
+# « jarvis mets-toi en off », « jarvis hors ligne », « jarvis online » (mot d'appel déjà retiré par `normalize`).
+_OFFLINE_CMD = re.compile(r"(?:(?:mets?|mais|passe)[ -]toi )?(?:(?P<off>off[ -]?line|(?:en )?off|hors ligne)|on[ -]?line|en ligne|en on)")
 
 
 class _Tap:
@@ -41,6 +47,7 @@ class Voice:
         self.chat = chat
         self.speaker = speaker  # désactivé par défaut
         self.muted = False
+        self.offline = False  # en mémoire seulement : un redémarrage remet la voix en ligne
 
     def say(self, answer: str) -> None:
         """Lit une réponse issue de `handle` (déjà bornée, résultats privés déjà masqués). Rien si muet ou sans voix."""
@@ -51,10 +58,18 @@ class Voice:
         """Texte reconnu -> réponse à lire. Lève ValueError si le texte est vide ou trop long.
 
         L'appelant (STT/TTS) doit attraper toute exception (ex. échec du journal) et lire un message générique.
+        Hors ligne : seule la commande « online » est comprise, tout le reste est ignoré (réponse vide, rien d'exécuté).
         """
         if not isinstance(text, str) or not 0 < len(text) <= TEXT_MAX:
             raise ValueError("texte invalide")
         chat = self.chat
+        mode = _OFFLINE_CMD.fullmatch(normalize(text))
+        if mode and bool(mode["off"]) != self.offline:  # sans effet si déjà dans cet état : « on » reste une phrase ordinaire
+            self.offline = bool(mode["off"])
+            chat.audit.log(SOURCE, "voix_mode", {"état": "hors ligne" if self.offline else "en ligne"}, None, "auto", "ok")
+            return OFFLINE_MSG if self.offline else ONLINE_MSG
+        if self.offline:
+            return ""
         if not chat.busy.acquire(blocking=False):  # verrou partagé avec le chat
             return BUSY_MSG
         gen = chat.busy.gen

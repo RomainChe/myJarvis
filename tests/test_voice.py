@@ -60,6 +60,22 @@ class VoiceTest(unittest.TestCase):
             self.assertEqual(self.voice.handle(UNROUTED), "Tout va bien.")
         self.assertEqual(seen, ["voix/llm"])
 
+    def test_hors_ligne_ignore_tout_sauf_online(self):
+        with mock.patch.object(voice_mod, "execute") as execute, mock.patch.object(voice_mod, "ask") as ask:
+            for off in ("Jarvis mais toi en off", "jarvis, mets-toi hors ligne", "Jarvis offline"):
+                self.voice.offline = False
+                self.assertEqual(self.voice.handle(off), voice_mod.OFFLINE_MSG)
+                self.assertTrue(self.voice.offline)
+            self.assertEqual(self.voice.handle("allume la télé"), "")
+            self.assertEqual(self.voice.handle(UNROUTED), "")
+            execute.assert_not_called()
+            ask.assert_not_called()
+            self.assertEqual(self.voice.handle("Jarvis online"), voice_mod.ONLINE_MSG)
+            self.assertFalse(self.voice.offline)
+        with mock.patch.object(voice_mod, "ask", return_value="ok") as ask:
+            self.assertEqual(self.voice.handle("Jarvis online"), "ok")  # déjà en ligne : phrase ordinaire
+        self.assertEqual([r[1] for r in self.rows()].count("voix_mode"), 4)
+
     def test_texte_invalide_ou_trop_long(self):
         for bad in ("", "x" * (TEXT_MAX + 1), None, 12):
             with self.assertRaises(ValueError):
