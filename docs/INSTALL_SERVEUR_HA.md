@@ -198,9 +198,19 @@ se couper en ~30 s. PC allumé, lance-le puis laisse passer 5 min : la prise ne 
 
 ### 10.4 Rallumer le PC
 
-Une fois la prise coupée, Jarvis n'existe plus (le Core est sur le PC). Pour rallumer : bouton de l'appli Tapo ou de
-la PWA/appli HA sur le téléphone → prise sous tension → le PC démarre seul (réglage BIOS « Power On » du §3, à faire
-**aussi dans le BIOS de ton PC de bureau**).
+Une tour démarre seule quand le courant revient, **si le BIOS de ton PC de bureau est réglé pour ça** : cherche
+« Restore on AC Power Loss », « After Power Failure » ou « AC Back » et mets **Power On** (pas « Last State » : le
+dernier état était « éteint », il ne redémarrerait pas). L'interrupteur de l'alimentation (bloc arrière) doit rester
+sur I. Réglage à faire une fois, dans le BIOS du PC de bureau (touche Suppr ou F2 au démarrage).
+
+Test : PC éteint normalement, coupe puis rétablis la prise depuis l'appli Tapo : le PC doit démarrer en ~10 s.
+Inconvénient : après une vraie coupure de courant chez toi, le PC démarrera aussi.
+
+- **Règle `pc_plug_on` (N1)** : « allume la prise du PC », « rallume le PC », « allume mon PC principal » → la
+  prise est remise sous tension, donc le PC démarre. Elle passe par le routeur, sans LLM.
+- Elle n'est utilisable **que si le Core tourne PC éteint** (Core sur le mini-PC). Tant que le Core est sur le PC de
+  bureau, il n'existe plus une fois la prise coupée : rallume alors par l'appli Tapo ou l'appli HA du téléphone.
+- Prise `unavailable` : la règle le dit au lieu d'annoncer « c'est fait ».
 
 ## 11. Les règles dans Jarvis
 
@@ -208,6 +218,7 @@ la PWA/appli HA sur le téléphone → prise sous tension → le PC démarre seu
 |---|---|---|---|
 | « éteins le PC » | `power` (`shutdown`) | N2 | Confirmation, puis arrêt Windows après 10 s (annulable : `power_cancel`). La prise reste sous tension. |
 | « éteins la prise du PC » | `pc_off_plug` | N2 | Confirmation, puis : (1) HA lance `pc_prise_off`, qui attend ; (2) Windows s'arrête ; (3) HA vérifie que la puissance est tombée, attend 30 s, coupe la prise. |
+| « allume la prise du PC » / « rallume le PC » | `pc_plug_on` | N1 | Remet la prise sous tension ; le PC démarre seul (BIOS « Power On », §10.4). Routeur, sans LLM. |
 
 Points importants :
 

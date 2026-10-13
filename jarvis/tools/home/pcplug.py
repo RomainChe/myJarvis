@@ -14,7 +14,16 @@ PLUG = "switch.prise_pc"
 SCRIPT = "script.pc_prise_off"
 
 
-@tool("pc_off_plug", "Éteint le PC proprement, attend, puis coupe la multiprise du PC et des écrans (prise Tapo). "
+@tool("pc_plug_on", "Remet sous tension la multiprise du PC et des écrans (prise Tapo) : le PC démarre seul si le BIOS est "
+      "réglé sur « Power On » après coupure secteur (docs/INSTALL_SERVEUR_HA.md §10.4).", Level.N1)
+def pc_plug_on() -> dict:
+    if ha.state(PLUG).get("state") not in ("on", "off"):  # « unavailable » : on le dit au lieu d'un faux « c'est fait »
+        raise ha.HAError("prise du PC injoignable")
+    ha.call_service("switch", "turn_on", PLUG)
+    return {"prise": "on"}
+
+
+@tool("pc_off_plug","Éteint le PC proprement, attend, puis coupe la multiprise du PC et des écrans (prise Tapo). "
       "Jarvis est coupé jusqu'au rallumage de la prise. Pour éteindre le PC seul, utiliser `power`.", Level.N2)
 def pc_off_plug() -> dict:
     # Appelé sans repasser par la garde : si le propriétaire relève `power` au-dessus de cet outil, on refuse.

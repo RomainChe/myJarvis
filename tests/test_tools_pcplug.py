@@ -8,6 +8,42 @@ from jarvis.tools.pc import session
 from pcbase import PcBase, no, yes
 
 
+class PcPlugOnTest(PcBase):
+    def setUp(self):
+        super().setUp()
+        self.state = mock.patch.object(ha, "state", return_value={"state": "off"}).start()
+        self.call = mock.patch.object(ha, "call_service").start()
+        self.addCleanup(mock.patch.stopall)
+
+    def test_niveau(self):
+        self.assertEqual(REGISTRY["pc_plug_on"].level, Level.N1)
+
+    def test_nominal(self):
+        self.assertEqual(self.run_tool("pc_plug_on"), {"prise": "on"})
+        self.call.assert_called_once_with("switch", "turn_on", "switch.prise_pc")
+
+    def test_prise_injoignable(self):
+        self.state.return_value = {"state": "unavailable"}
+        with self.assertRaises(ha.HAError):
+            self.run_tool("pc_plug_on")
+        self.call.assert_not_called()
+
+    def test_entree_invalide(self):
+        with self.assertRaises(ValueError):
+            self.run_tool("pc_plug_on", {"delay": 1})
+        self.call.assert_not_called()
+
+    def test_permission_refusee(self):
+        self.assert_refused_if_level_raised("pc_plug_on", {})
+
+    def test_regle_du_routeur(self):
+        from jarvis.core.router import Router
+        router = Router()
+        for text in ("allume la prise du PC", "Jarvis, rallume le PC", "allume mon pc principal"):
+            self.assertEqual(router.route(text), ("pc_plug_on", {}), text)
+        self.assertIsNone(router.route("allume la prise"))  # une seule prise aujourd'hui, mais pas d'ambiguïté plus tard
+
+
 class PcOffPlugTest(PcBase):
     def setUp(self):
         super().setUp()

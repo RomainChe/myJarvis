@@ -175,6 +175,15 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : `python -m jarvis run power_cancel`.
 - **Notes** : `System32\shutdown.exe /a` par chemin absolu. Sans intention du routeur. Testé avec des mocks.
 
+## pc_plug_on
+
+- **Description** : remet sous tension la multiprise du PC et des écrans (prise Tapo) ; le PC démarre seul si son BIOS est sur « Power On ».
+- **Niveau** : N1 (réversible).
+- **Paramètres** : aucun.
+- **Retour** : `prise` : `on`.
+- **Exemple** : « allume la prise du PC », « rallume le PC » (routeur, sans LLM) ou `python -m jarvis run pc_plug_on`.
+- **Notes** : `jarvis/tools/home/pcplug.py`, entité `switch.prise_pc`. Prise `unavailable` = erreur explicite, rien n'est envoyé. Utile PC éteint seulement si le Core tourne ailleurs que sur ce PC. Testé avec des mocks, jamais en réel.
+
 ## pc_off_plug
 
 - **Description** : éteint le PC proprement, attend, puis coupe la multiprise du PC et des écrans (prise Tapo P110 via Home Assistant).

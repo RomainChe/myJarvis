@@ -61,6 +61,10 @@
     "patterns": ["([eé]teins|[eé]teindre|coupe|couper) l['’ ]?[eé]cran( du pc)?", "(mets|met) l['’ ]?[eé]cran en veille"]
   },
   {
+    "tool": "pc_plug_on",
+    "patterns": ["(allume|allumer|rallume|rallumer|d[ée]marre|d[ée]marrer) (la prise (du pc|de l['’ ]?ordi(nateur)?)|(le|mon) pc( principal)?|l['’ ]?ordi(nateur)?)"]
+  },
+  {
     "tool": "tv_on",
     "patterns": ["(allume|allumer) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"]
   },

@@ -79,6 +79,7 @@ LABELS = {
     "screen_off": ("Éteindre les écrans", "Le PC reste allumé."),
     "lock_session": ("Verrouiller la session", "Verrouille la session Windows."),
     "power": ("Veille, redémarrage, arrêt", "Alimentation du PC, avec délai d'annulation."),
+    "pc_plug_on": ("Allumer la prise du PC", "Remet la multiprise sous tension : le PC démarre seul."),
     "pc_off_plug": ("Éteindre le PC et sa prise", "Arrêt du PC, puis coupe la multiprise (PC et écrans)."),
     "power_cancel": ("Annuler l'arrêt", "Annule un redémarrage ou un arrêt en attente."),
     "mail_recent": ("Résumer les mails", "Lit expéditeur, objet et début des mails récents, en lecture seule."),
