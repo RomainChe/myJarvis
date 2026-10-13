@@ -78,6 +78,8 @@ LABELS = {
     "screenshot": ("Capture d'écran", "Enregistre tous les écrans dans Images/Jarvis."),
     "screen_off": ("Éteindre les écrans", "Le PC reste allumé."),
     "lock_session": ("Verrouiller la session", "Verrouille la session Windows."),
+    "driverwatch_accept": ("Accepter la mise à jour des pilotes", "Valide la proposition de DriverWatch (autorisation Windows demandée)."),
+    "driverwatch_update_all": ("Mettre à jour tous les pilotes", "DriverWatch met à jour les pilotes en retard."),
     "power": ("Veille, redémarrage, arrêt", "Alimentation du PC, avec délai d'annulation."),
     "pc_plug_on": ("Allumer la prise du PC", "Remet la multiprise sous tension : le PC démarre seul."),
     "pc_off_plug": ("Éteindre le PC et sa prise", "Arrêt du PC, puis coupe la multiprise (PC et écrans)."),

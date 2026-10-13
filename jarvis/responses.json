@@ -75,6 +75,14 @@
       "ok": ["Session verrouillée."],
       "error": ["Impossible de verrouiller la session."]
     },
+    "driverwatch_accept": {
+      "ok": ["C'est accepté : autorisez la demande Windows."],
+      "error": ["Impossible de lancer DriverWatch."]
+    },
+    "driverwatch_update_all": {
+      "ok": ["Mise à jour des pilotes lancée : autorisez la demande Windows."],
+      "error": ["Impossible de lancer DriverWatch."]
+    },
     "clipboard_write": {
       "ok": ["Copié."],
       "error": ["Impossible d'écrire dans le presse-papiers."]
