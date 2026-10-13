@@ -23,10 +23,13 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 
 ## Lots
 
-### Lot 0 : installation du mini-PC (guide à réécrire : Linux + Docker, plus HAOS)
+### Lot 0 : installation du mini-PC (Debian + Docker, plus HAOS)
 - Debian (installation minimale, SSH par clé, mises à jour automatiques de sécurité), Docker, Home Assistant
   Container, Tailscale. Sauvegarde HA de la VM actuelle : restauration à vérifier sur Container (pas de Supervisor).
 - IP fixe Bbox, BIOS « Power On ». Capteur Tapo, script `pc_prise_off` devient inutile au lot 6.
+- **Guide réécrit le 2026-10-13** : docs/INSTALL_SERVEUR_HA.md §1–9 (Debian minimal, SSH par clé, ufw, mises à jour
+  automatiques, Docker, HA Container en réseau host, Tailscale, critères de fin §9.4). **Reste : l'installation réelle,
+  et vérifier la restauration manuelle de la sauvegarde HAOS (§7.3).**
 
 ### Lot 1 : le Core démarre sans outils Windows
 - `chat.py`, `__main__.py`, `server.py`, `games.py`, `pcplug.py` : import de `tools.pc` conditionnel ; `system_status`
