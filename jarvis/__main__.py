@@ -142,6 +142,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=_purge, args=(audit,), daemon=True).start()
         mic = start_mic(audit)
         threading.Thread(target=_reminders, args=(audit, mic), daemon=True).start()
+        threading.Thread(target=_voyages_watch, args=(audit,), daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
               + " (Ctrl+C pour arrêter)", file=sys.stderr)
@@ -305,6 +306,21 @@ def level_cmd(argv: list[str]) -> int:
         return 0
     print("Usage : level list | level set <outil> <0-3>")
     return 2
+
+
+def _voyages_watch(audit) -> None:
+    """Toutes les heures : vol Japon sous 650 € (escales respectées) -> push générique, sans prix ni itinéraire."""
+    import time
+    from jarvis.core import doctor, voyages
+    body = {"title": "Jarvis", "body": f"Un vol pour le Japon est passé sous {voyages.DEAL_BELOW} €. Ouvre le tableau de bord."}
+    while True:
+        time.sleep(60)  # le serveur démarre d'abord
+        try:
+            if voyages.check_deal(lambda: doctor.notify_all(str(DB_PATH), body)):
+                audit.log("pwa:voyages", "voyages_deal", {}, 0, "auto", "notification envoyée")
+        except Exception:  # noqa: BLE001 (réseau, git, push : réessai à la prochaine heure)
+            pass
+        time.sleep(voyages.FETCH_EVERY_S)
 
 
 def _reminders(audit, mic) -> None:

@@ -884,6 +884,7 @@ function clearDigest() {
   $('dg-fin-show').hidden = false;
   for (const id of ['dg-social', 'dg-fin', 'dg-veille-state']) $(id).textContent = '';
   $('dg-veille').replaceChildren();
+  $('dg-voyage').hidden = true;
 }
 $('dg-fin-show').addEventListener('click', async () => {
   const run = digestRun;
@@ -905,7 +906,7 @@ async function loadDigest() {
   clearDigest();
   if (!token || !wide.matches) return;
   const run = digestRun;
-  const [so, ve] = await Promise.allSettled([getData('/api/social'), getData('/api/veille')]);
+  const [so, ve, vo] = await Promise.allSettled([getData('/api/social'), getData('/api/veille'), getData('/api/voyages')]);
   if (run !== digestRun || views.chat.hidden) return;
   const yt = so.value?.youtube;
   if (yt && !yt.error) {
@@ -913,6 +914,21 @@ async function loadDigest() {
     const d7 = yt.delta?.d7;
     $('dg-social').textContent = `YouTube${d7 ? ` · 7 j : ${d7.subs >= 0 ? '+' : ''}${d7.subs}` : ''}`;
   } else $('dg-social').textContent = so.status === 'rejected' ? 'Indisponible.' : 'Statistiques YouTube indisponibles.';
+  const deal = vo.value?.deal; // bon plan Japon (sous 650 €, escales respectées) : carré affiché seulement s'il existe
+  $('dg-voyage').hidden = !deal;
+  if (deal) {
+    const day = (d) => new Date(`${d}T00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const stops = deal.stops ? ` · ${deal.stops} escale${deal.stops > 1 ? 's' : ''}` : ' · direct';
+    $('dg-voy-price').textContent = eur(deal.price);
+    $('dg-voy-info').textContent = `${deal.origin} → ${deal.dest} · ${day(deal.depart_date)} → ${day(deal.return_date)}${stops}`;
+    const ok = typeof deal.link === 'string' && URL.canParse(deal.link) && new URL(deal.link).protocol === 'https:';
+    $('dg-voy-link').replaceChildren(...(ok ? [(() => {
+      const li = el('li'), a = el('a', '', "Voir l'offre");
+      a.href = deal.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      li.append(a, el('span', 'muted', new URL(deal.link).hostname));
+      return li;
+    })()] : []));
+  }
   const next = so.value?.scheduled?.[0];
   if (next) $('dg-social').textContent += ` · prochaine : ${fmtDate(next.at)}`;
   const issue = ve.value?.issues?.[0];
