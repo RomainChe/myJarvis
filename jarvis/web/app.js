@@ -755,7 +755,10 @@ async function loadVoyages() {
       if (sub) s.append(el('p', 'muted', sub));
       return s;
     };
-    list.replaceChildren(...r.data.searches.map((s, i) => {
+    const sync = r.data.sync_error ? r.data.sync_error
+      : r.data.synced_at ? `Synchronisé avec GitHub le ${new Date(r.data.synced_at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`
+      : 'Copie locale (non synchronisée avec GitHub)';
+    list.replaceChildren(el('p', 'muted', sync), ...r.data.searches.map((s, i) => {
       const d = el('details', 'panel hud');
       d.open = i === 0; // la recherche la plus récente = destination en cours
       d.append(el('summary', '', `${s.name} · ${eur(s.best.price)}`));
