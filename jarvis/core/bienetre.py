@@ -31,15 +31,18 @@ on_run = None  # rappel (ok: bool) après chaque relance : branché sur le journ
 
 def project_dir(path: Path = CONFIG) -> Path:
     try:
-        return Path(json.loads(Path(path).read_text(encoding="utf-8"))["dir"])
+        d = Path(json.loads(Path(path).read_text(encoding="utf-8"))["dir"])
     except (OSError, ValueError, KeyError, TypeError):
         return DEFAULT_DIR
+    return d if d.is_absolute() else DEFAULT_DIR
 
 
 def _files(root: Path) -> list[tuple[str, Path]]:
     """(jour, fichier) des bilans, du plus ancien au plus récent ; liens symboliques et noms inattendus écartés."""
     folder, out = root / "historique", []
     try:
+        if not folder.resolve().is_relative_to(root.resolve()):  # jonction Windows vers un autre dossier
+            return []
         for f in folder.iterdir():
             m = NAME.match(f.name)
             if m and f.is_file() and not f.is_symlink():
@@ -86,7 +89,7 @@ def run(root: Path) -> bool:
     env = {k: os.environ[k] for k in ENV_KEYS if k in os.environ}
     env["PYTHONIOENCODING"] = "utf-8"
     r = subprocess.run([_python(root), "-m", "bienetre"], cwd=root, env=env, timeout=RUN_TIMEOUT_S,
-                       stdin=subprocess.DEVNULL, capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     return r.returncode == 0
 
 

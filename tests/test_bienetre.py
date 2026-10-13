@@ -84,6 +84,8 @@ class BienetreTest(unittest.TestCase):
         cfg.write_text('{"dir": "D:/x"}', encoding="utf-8")
         self.assertEqual(bienetre.project_dir(cfg), Path("D:/x"))
         self.assertEqual(bienetre.project_dir(cfg.with_name("absent.json")), bienetre.DEFAULT_DIR)
+        cfg.write_text('{"dir": "relatif/x"}', encoding="utf-8")
+        self.assertEqual(bienetre.project_dir(cfg), bienetre.DEFAULT_DIR)  # chemin relatif refusé
 
 
 class BienetreRouteTest(ServerBase):

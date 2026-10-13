@@ -31,6 +31,16 @@ class FilesBase(PcBase):
             self.addCleanup(patcher.stop)
 
 
+class BienetreProtectedTest(FilesBase):
+    def test_projet_bien_etre_protege(self):  # son code est relancé chaque jour par le Core
+        proj = self.root / "bien-etre-pc"
+        proj.mkdir()
+        (proj / "f.txt").write_text("x")
+        with mock.patch("jarvis.core.bienetre.project_dir", return_value=proj):
+            with self.assertRaises(ValueError):
+                files._existing(str(proj / "f.txt"))
+
+
 class DeleteFileTest(FilesBase):
     def test_niveau(self):
         self.assertEqual(REGISTRY["delete_file"].level, Level.N2)
