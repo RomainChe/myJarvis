@@ -144,6 +144,12 @@
     "patterns": ["(annule|supprime|arr[eê]te|stoppe|efface)( le| mon| ce)? (minuteur|timer|chrono|rappel|r[eé]veil) (n[°o] ?)?{id}"]
   },
   {
+    "tool": "voyage_prix",
+    "phrases": ["prix des vols", "le prix des vols", "prix du vol", "combien coute le vol", "combien coute le voyage",
+                "ou en sont les vols", "ou en est le vol", "meilleur prix du vol", "meilleur prix des vols", "prix du voyage",
+                "le point sur les vols", "ou en sont les prix des vols"]
+  },
+  {
     "tool": "briefing",
     "phrases": ["briefing", "le briefing", "mon briefing", "briefing du matin", "mon briefing du matin", "le point du matin",
                 "fais moi le briefing", "resume de la journee", "quoi de neuf aujourd hui"]

@@ -1,4 +1,5 @@
-"""Changer de destination dans flight-price-tracker (Phase 6 point 10, étape 3) : `voyage_destination` (N2, `taint_blocked`).
+"""Voyages (Phase 6 point 10) : `voyage_prix` (N0, étape 4 : voix et chat) lit le meilleur prix ; `voyage_destination` (N2,
+`taint_blocked`, étape 3) change de destination dans flight-price-tracker.
 
 Changer de destination = nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées
 (leur historique reste dans `data/prices.csv`, indexé par `name`) ; jamais un renommage. Le fichier est construit à partir de
@@ -24,6 +25,39 @@ MAX_ORIGINS, MAX_STAYS, MAX_STAY_DAYS, MAX_AHEAD_DAYS, MAX_ALERT = 10, 5, 90, 40
 CHECK = "import sys; from tracker.config import load_config; load_config(sys.argv[1])"
 CHECK_TIMEOUT_S, PUSH_TIMEOUT_S = 60, 60
 AUTHOR, AUTHOR_EMAIL = "JARVIS", "jarvis@users.noreply.github.com"
+
+
+def _fmt_day(iso: str) -> str:
+    try:
+        return f"{date.fromisoformat(iso):%d/%m}"
+    except ValueError:
+        return iso
+
+
+def summary(snap: dict) -> str:
+    """Phrase courte et parlable : meilleur prix de la recherche la plus récente, tendance, plus bas de la période."""
+    if not snap["configured"] or not snap["searches"]:
+        return "Je n'ai aucun relevé de prix de vols pour l'instant."
+    s = snap["searches"][0]
+    b = s["best"]
+    out = f"{s['name']} : {b['price']:.0f} € depuis {b['origin']}"
+    if b["depart_date"] and b["return_date"]:
+        out += f", du {_fmt_day(b['depart_date'])} au {_fmt_day(b['return_date'])}"
+    if b["stops"] is not None:
+        out += ", direct" if b["stops"] == 0 else f", {b['stops']} escale(s)"
+    out += f" (relevé du {_fmt_day(s['last_run'])})."
+    if s["previous"] is not None and abs(b["price"] - s["previous"]) >= 1:
+        diff = b["price"] - s["previous"]
+        out += f" {'Hausse' if diff > 0 else 'Baisse'} de {abs(diff):.0f} € depuis le relevé précédent."
+    if s["lowest"] < b["price"]:
+        out += f" Le plus bas observé : {s['lowest']:.0f} €."
+    return out
+
+
+@tool("voyage_prix", "Meilleur prix actuel des vols suivis par flight-price-tracker (recherche la plus récente) : prix, départ, dates, "
+                     "escales, tendance.", Level.N0, external=True)
+def voyage_prix() -> str:
+    return summary(voyages.snapshot())
 
 
 def _place(value: str, label: str) -> str:

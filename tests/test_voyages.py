@@ -116,5 +116,30 @@ class VoyagesRouteTest(ServerBase):
         self.assertEqual((status, body), (200, {"configured": True, "searches": []}))
 
 
+class VoyagePrixTest(unittest.TestCase):
+    def setUp(self):
+        voyages._sync.update(at=0.0, ok=None, error=None)
+
+    def test_resume_parlable(self):
+        from jarvis.tools.voyages import summary
+        s = voyages.snapshot(project(HEAD + row("2026-10-03", "Japon", "CDG", 800) + row("2026-10-04", "Japon", "CDG", 870)))
+        out = summary(s)
+        self.assertIn("Japon : 870 € depuis CDG, du 05/05 au 22/05, 1 escale(s)", out)
+        self.assertIn("Hausse de 70 €", out)
+        self.assertIn("plus bas observé : 800 €", out)
+
+    def test_sans_releve(self):
+        from jarvis.tools.voyages import summary
+        self.assertIn("aucun relevé", summary({"configured": False, "searches": []}))
+
+    def test_outil_n0_et_routeur_sans_llm(self):
+        from jarvis.core.router import Router
+        from jarvis.core.tools import REGISTRY, Level
+        import jarvis.tools.voyages  # noqa: F401
+        self.assertEqual(REGISTRY["voyage_prix"].level, Level.N0)
+        for phrase in ("prix des vols", "où en sont les vols", "combien coûte le vol"):
+            self.assertEqual(Router().route(phrase), ("voyage_prix", {}), phrase)
+
+
 if __name__ == "__main__":
     unittest.main()

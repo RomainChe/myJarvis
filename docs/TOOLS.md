@@ -347,6 +347,13 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - Annonce : le journal dit ce qui a été fait (`voix + push`, `push`, `non remis`). Voix hors ligne, muette ou occupée > 20 s : push seul, le texte est perdu (supprimé avant l'annonce). Les sauvegardes de la base contiennent les rappels en attente (texte inclus) : base locale, propriétaire seul.
 - Analyse des durées et heures : `parse_duration`, `parse_when` (« 7h » déjà passé = demain ; pas de « midi » ni de jours de semaine).
 
+## voyage_prix (`jarvis/tools/voyages.py`)
+
+- **Description** : meilleur prix de la recherche la plus récente de flight-price-tracker : prix, ville de départ, dates, escales, hausse ou baisse depuis le relevé précédent, plus bas observé. Même lecture que l'onglet Voyages (`voyages.snapshot`).
+- **Niveau** : N0, `external` (le CSV vient d'un dépôt public : le texte est une donnée). Routeur sans LLM : « prix des vols », « où en sont les vols ».
+- **Paramètres** : aucun. **Exemple** : « Jarvis, prix des vols » → « Japon 2027-05-05 : 870 € depuis Paris, du 05/05 au 22/05, 1 escale(s) (relevé du 04/10). Baisse de 30 € … ».
+- **Notes** : changer de destination reste `voyage_destination` (N2) : par le chat avec confirmation dans la PWA, jamais à la voix.
+
 ## voyage_destination (`jarvis/tools/voyages.py`)
 
 - **Description** : change la destination suivie par flight-price-tracker : nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées (en pause, historique gardé), commit `config : …` puis push sur `main`.
