@@ -32,6 +32,7 @@ from jarvis.core.portfolio import view as portfolio_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
 from jarvis.core import bienetre as bienetre_core
+from jarvis.core import conso as conso_core
 from jarvis.core import voyages as voyages_core
 from jarvis.core.voyages import hotel_snapshot, snapshot as voyages_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
@@ -125,6 +126,10 @@ class Destination(BaseModel):  # formulaire de l'onglet Voyages ; contenu revali
     return_date: str = Field(max_length=10)
     origins: str = Field(max_length=400)
     alert_below: StrictInt = Field(ge=0, le=20_000)
+
+
+class Tarif(BaseModel):  # prix du kWh saisi dans l'onglet Consommation
+    price_kwh: float = Field(gt=0, le=conso_core.MAX_PRICE)
 
 
 class Confirm(BaseModel):
@@ -431,6 +436,22 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         job = chat.start(auth[0], f"voyage_destination {body.destination}", ("voyage_destination", body.model_dump()))
         return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
+
+    @app.get("/api/conso")
+    def conso_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return conso_core.snapshot()  # lecture N0 du cache local : pas de ligne au journal (comme /api/voyages)
+
+    @app.put("/api/conso/tarif")
+    def conso_tarif(body: Tarif, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        audit.log(f"pwa:{auth[0]}", "conso_tarif", {}, 1, "auto", "prix du kWh modifié")  # le montant reste hors journal
+        conso_core.save_price(body.price_kwh)
+        return {"price_kwh": conso_core.load_price()}
 
     @app.get("/api/finance")
     def finance_state(request: Request):

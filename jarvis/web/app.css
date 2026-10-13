@@ -525,3 +525,10 @@ h2.with-logo { display: flex; align-items: center; gap: var(--j-space-2); }
   .strip.yt .stat { padding: var(--j-space-5) var(--j-space-6); }
   .strip.yt .big { font-size: 2.25rem; }
 }
+
+/* Consommation : histogramme CSS des 30 derniers jours */
+#conso-strip { margin-bottom: var(--j-space-3); }
+.conso-chart { padding: var(--j-space-4); margin-bottom: var(--j-space-3); }
+.conso-bars { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+.conso-bar { flex: 1; background: var(--j-color-accent); border-radius: 2px 2px 0 0; min-width: 3px; }
+#conso-form { padding: var(--j-space-4); display: grid; gap: var(--j-space-2); }

@@ -155,7 +155,7 @@ $('enroll-form').addEventListener('submit', (e) => {
 });
 
 // ---- Navigation ------------------------------------------------------------------------------
-const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social'), finance: $('view-finance'), veille: $('view-veille'), voyages: $('view-voyages'), bienetre: $('view-bienetre') };
+const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social'), finance: $('view-finance'), veille: $('view-veille'), voyages: $('view-voyages'), conso: $('view-conso'), bienetre: $('view-bienetre') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
@@ -169,6 +169,7 @@ function show(name) {
   if (name === 'finance') loadFinance(); else clearFinance();
   if (name === 'veille') loadVeille();
   if (name === 'voyages') loadVoyages();
+  if (name === 'conso') loadConso();
   if (name === 'bienetre') loadBienetre(); else clearTimeout(bienetreTimer);
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
@@ -795,6 +796,56 @@ async function loadBienetre() {
   }
 }
 
+// ---- Consommation : kWh de la prise du PC (cache local du Core, chiffres seulement) ----
+const kwh = (n) => (Number.isFinite(n) ? `${n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh` : 'indisponible');
+function consoSub(p, label) {
+  const parts = [];
+  if (p.eur != null) parts.push(`≈ ${eur(p.eur)}`);
+  if (p.prev_kwh != null) parts.push(`${label} : ${kwh(p.prev_kwh)}`);
+  if (p.partial) parts.push(`mesuré sur ${p.hours} h seulement`);
+  return parts.join(' · ');
+}
+async function loadConso() {
+  const err = $('conso-error'), state = $('conso-state'), strip = $('conso-strip'), bars = $('conso-bars');
+  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; strip.replaceChildren(); bars.replaceChildren();
+  try {
+    const r = await api('/api/conso');
+    if (!r.ok || !r.data) throw new Error('bad');
+    if (views.conso.hidden) return;
+    const d = r.data;
+    state.hidden = d.configured;
+    state.textContent = d.configured ? '' : "Aucune mesure : la prise du PC n'a pas encore été échantillonnée (donnée indisponible).";
+    for (const [key, title, label] of [['jour', "Aujourd'hui", 'hier'], ['semaine', '7 jours', '7 jours avant'], ['mois', '30 jours', '30 jours avant']]) {
+      const p = d.periods[key], s = el('section', 'panel hud stat');
+      s.append(el('h2', '', title), el('p', 'big', kwh(p.kwh)));
+      const sub = consoSub(p, label);
+      if (sub) s.append(el('p', 'muted', sub));
+      strip.append(s);
+    }
+    const max = Math.max(0.001, ...d.series.map((x) => x.kwh));
+    for (const x of d.series) {
+      const b = el('span', 'conso-bar');
+      b.style.height = `${Math.max(3, Math.round((x.kwh / max) * 100))}%`;
+      b.title = `${x.day} : ${kwh(x.kwh)}`;
+      bars.append(b);
+    }
+    $('conso-source').textContent = d.source;
+    $('conso-price').value = d.price_kwh ?? '';
+  } catch (e) {
+    state.hidden = true; err.hidden = false;
+    err.textContent = unavailable('Consommation indisponible', e);
+  }
+}
+$('conso-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const out = $('conso-result');
+  try {
+    const r = await api('/api/conso/tarif', { method: 'PUT', body: { price_kwh: Number($('conso-price').value) } });
+    out.textContent = r.ok ? 'Prix enregistré.' : 'Prix refusé (entre 0 et 5 €).';
+    if (r.ok) loadConso();
+  } catch { out.textContent = 'Enregistrement impossible.'; }
+});
+
 // ---- Voyages : prix suivis par flight-price-tracker (CSV écrit par son workflow : donnée, texte seul, liens https) ----
 async function loadVoyages() {
   const err = $('voyages-error'), state = $('voyages-state'), list = $('voyages-list');
@@ -943,6 +994,7 @@ function clearDigest() {
   $('dg-veille').replaceChildren();
   $('dg-voyage').hidden = true;
   $('dg-hotel').hidden = true;
+  $('dg-conso').hidden = true;
 }
 $('dg-fin-show').addEventListener('click', async () => {
   const run = digestRun;
@@ -964,7 +1016,7 @@ async function loadDigest() {
   clearDigest();
   if (!token || !wide.matches) return;
   const run = digestRun;
-  const [so, ve, vo] = await Promise.allSettled([getData('/api/social'), getData('/api/veille'), getData('/api/voyages')]);
+  const [so, ve, vo, co] = await Promise.allSettled([getData('/api/social'), getData('/api/veille'), getData('/api/voyages'), getData('/api/conso')]);
   if (run !== digestRun || views.chat.hidden) return;
   const yt = so.value?.youtube;
   if (yt && !yt.error) {
@@ -986,6 +1038,12 @@ async function loadDigest() {
       li.append(a, el('span', 'muted', new URL(deal.link).hostname));
       return li;
     })()] : []));
+  }
+  const today = co.value?.periods?.jour; // carré affiché seulement s'il existe une mesure du jour
+  $('dg-conso').hidden = today?.kwh == null;
+  if (today?.kwh != null) {
+    $('dg-conso-kwh').textContent = kwh(today.kwh);
+    $('dg-conso-info').textContent = ["aujourd'hui", today.eur != null ? `≈ ${eur(today.eur)}` : '', today.partial ? 'mesure partielle' : ''].filter(Boolean).join(' · ');
   }
   const hotels = vo.value?.hotels; // dernier relevé d'hôtels (hotel-price-tracker) : carré affiché seulement s'il existe
   $('dg-hotel').hidden = !hotels?.configured;

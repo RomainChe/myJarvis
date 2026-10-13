@@ -45,6 +45,7 @@
     <button class="tab" type="button" data-view="finance" aria-keyshortcuts="Alt+4"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg><span>Finances</span></button>
     <button class="tab" type="button" data-view="veille" aria-keyshortcuts="Alt+5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h7M8 13h7"/></svg><span>Veille IA</span></button>
     <button class="tab" type="button" data-view="voyages" aria-keyshortcuts="Alt+6"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 16l20-6-20-6 3 6-3 6z"/><path d="M5 10h8"/></svg><span>Voyages</span></button>
+    <button class="tab" type="button" data-view="conso"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg><span>Conso</span></button>
     <button class="tab" type="button" data-view="bienetre" aria-keyshortcuts="Alt+7"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.600-7 10-7 10z"/></svg><span>Bien-être</span></button>
     <button class="tab" type="button" data-view="devices" aria-keyshortcuts="Alt+8"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Appareils</span></button>
     <button class="tab" type="button" data-view="audit" aria-keyshortcuts="Alt+9"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg><span>Journal</span></button>
@@ -82,6 +83,11 @@
         <p id="dg-voy-price" class="big"></p>
         <p id="dg-voy-info" class="muted"></p>
         <ul id="dg-voy-link" class="plain digest-links"></ul>
+      </section>
+      <section id="dg-conso" class="panel hud" hidden>
+        <h2>Conso · PC</h2>
+        <p id="dg-conso-kwh" class="big"></p>
+        <p id="dg-conso-info" class="muted"></p>
       </section>
       <section id="dg-hotel" class="panel hud" hidden>
         <h2>Hôtels · Japon</h2>
@@ -170,6 +176,24 @@
     <p id="bienetre-error" class="error" hidden></p>
     <p id="bienetre-state" class="muted">Chargement…</p>
     <div id="bienetre-list" class="bienetre"></div>
+  </section>
+
+  <section id="view-conso" class="view" aria-labelledby="t-conso" hidden>
+    <h1 id="t-conso" class="title">Consommation</h1>
+    <p id="conso-error" class="error" hidden></p>
+    <p id="conso-state" class="muted">Chargement…</p>
+    <div id="conso-strip" class="strip"></div>
+    <section class="panel hud conso-chart" aria-label="kWh par jour sur 30 jours">
+      <h2>30 derniers jours · kWh par jour</h2>
+      <div id="conso-bars" class="conso-bars" role="img" aria-label="Histogramme de la consommation quotidienne du PC"></div>
+      <p id="conso-source" class="muted"></p>
+    </section>
+    <form id="conso-form" class="panel hud" autocomplete="off">
+      <label for="conso-price">Prix du kWh (€, saisi par vous : aucune lecture de contrat)</label>
+      <input id="conso-price" type="number" min="0.01" max="5" step="0.0001" inputmode="decimal" required>
+      <p id="conso-result" class="muted" role="status"></p>
+      <button class="btn primary" type="submit">Enregistrer</button>
+    </form>
   </section>
 
   <section id="view-voyages" class="view" aria-labelledby="t-voyages" hidden>
