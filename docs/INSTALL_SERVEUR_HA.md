@@ -4,7 +4,7 @@ Objectif : un mini-PC dédié qui fait tourner Home Assistant OS (HAOS), branch�
 en usage normal. Le Core de Jarvis reste sur le PC pour l'instant (LLM sur le GPU) ; il parle à HA par le réseau.
 
 Durée : 1 h 30 environ. Matériel : le mini-PC, son alimentation, un câble Ethernet, un écran + clavier USB le temps
-de l'installation, ta clé USB (8 Go ou plus : **son contenu sera effacé**).
+de l'installation, ta clé USB Ventoy préparée (§2.2).
 
 > Dépôt public : ne note ici ni IP, ni mot de passe, ni jeton. Tout cela va dans `.env`, le coffre de l'OS ou HA.
 
@@ -36,11 +36,18 @@ configuration.
 HAOS ne s'installe pas directement depuis une clé HAOS : l'image HAOS flashée sur une clé démarre, mais **depuis la
 clé**. Pour l'installer sur le SSD du mini-PC, on démarre un Linux « live » qui écrit l'image sur le disque.
 
-1. Télécharge **Ubuntu Desktop** (LTS) depuis ubuntu.com et vérifie la somme SHA-256 indiquée sur la page.
-2. Écris l'ISO sur ta clé avec **Rufus** (schéma de partition **GPT**, système cible **UEFI**) ou balenaEtcher.
-3. Télécharge l'image HAOS : github.com/home-assistant/operating-system/releases → fichier
-   `haos_generic-x86-64-<version>.img.xz` (la plus récente stable). Vérifie le SHA-256 affiché par GitHub à côté du
-   fichier. Copie-la sur une **seconde** clé ou garde-la pour la télécharger depuis Ubuntu (§4, il y a Internet).
+La clé du propriétaire (lecteur `D:` du PC) est **déjà prête**, avec **Ventoy** : la clé démarre sur un menu qui
+liste les fichiers `.iso` posés dessus. Elle contient :
+
+- `debian-live-13.7.0-amd64-standard.iso` : le Linux live (sans interface graphique, tout se fait au clavier) ;
+- `haos_generic-x86-64-18.3.img.xz` : l'image HAOS, déjà téléchargée. Pas besoin d'Internet pour l'installer.
+
+Rien à écrire ni à effacer. Pour la refaire ou la mettre à jour :
+
+1. Installe **Ventoy** sur la clé (ventoy.net, Ventoy2Disk.exe ; **efface la clé**). Le mode GPT/UEFI convient.
+2. Copie sur la partition « Ventoy » un ISO de live Linux (Debian live `standard` ou Ubuntu Desktop) et l'image
+   `haos_generic-x86-64-<version>.img.xz` (github.com/home-assistant/operating-system/releases, dernière stable).
+3. Vérifie le SHA-256 de chaque fichier avec la valeur publiée par la source (`Get-FileHash` sous PowerShell).
 
 ## 3. Réglages du BIOS du mini-PC
 
@@ -59,31 +66,40 @@ Enregistre (F10) et quitte.
 
 ## 4. Installer HAOS sur le SSD
 
-1. Branche la clé Ubuntu et l'Ethernet. Démarre dessus (menu de démarrage : **Échap puis F9** sur HP) → **Try Ubuntu**.
-2. Ouvre un navigateur, télécharge l'image HAOS (§2.2, étape 3) et vérifie son SHA-256 :
+1. Branche la clé et l'Ethernet. Démarre dessus (menu de démarrage : **Échap puis F9** sur HP). Le menu Ventoy
+   s'affiche : choisis `debian-live-13.7.0-amd64-standard.iso` → **Normal mode** → première entrée « Debian GNU/Linux
+   Live ». Le live arrive sur une console texte, déjà connectée (utilisateur `user`, `sudo` sans mot de passe).
+2. Clavier français (le live démarre en QWERTY) et montage de la clé :
 
    ```bash
-   cd ~/Downloads
-   sha256sum haos_generic-x86-64-*.img.xz     # compare avec la valeur de la page GitHub
+   sudo loadkeys fr
+   sudo mkdir -p /mnt/v && sudo mount -L Ventoy /mnt/v
+   ls /mnt/v                                   # tu dois voir haos_generic-x86-64-18.3.img.xz
    ```
 
-3. Repère **le bon disque** (le SSD interne, pas la clé) :
+3. Vérifie l'image (somme à comparer avec celle de la page GitHub de la release) :
 
    ```bash
-   lsblk -o NAME,SIZE,MODEL,TRAN
+   sha256sum /mnt/v/haos_generic-x86-64-*.img.xz
    ```
 
-   Le SSD interne est en général `nvme0n1` (NVMe) ou `sda` (SATA) ; la clé a `TRAN = usb`. **Vérifie deux fois** :
-   la commande suivante efface le disque cible.
-
-4. Écris l'image (remplace `nvme0n1` si besoin) :
+4. Repère **le bon disque** (le SSD interne, pas la clé) :
 
    ```bash
-   xzcat haos_generic-x86-64-*.img.xz | sudo dd of=/dev/nvme0n1 bs=4M conv=fsync status=progress
+   lsblk -o NAME,SIZE,MODEL,TRAN,LABEL
+   ```
+
+   Le SSD interne est en général `nvme0n1` (NVMe) ou `sda` (SATA) ; la clé a `TRAN = usb` et les labels `Ventoy` /
+   `VTOYEFI`. **Vérifie deux fois** : la commande suivante efface le disque cible.
+
+5. Écris l'image (remplace `nvme0n1` si besoin ; `of=` = le **disque entier**, pas une partition `…p1`) :
+
+   ```bash
+   xzcat /mnt/v/haos_generic-x86-64-*.img.xz | sudo dd of=/dev/nvme0n1 bs=4M conv=fsync status=progress
    sync
    ```
 
-5. Éteins (`sudo poweroff`), **retire la clé**, rallume.
+6. Éteins (`sudo poweroff`), **retire la clé**, rallume.
 
 ## 5. Premier démarrage de HAOS
 
@@ -209,7 +225,8 @@ Points importants :
 
 | Symptôme | Piste |
 |---|---|
-| Le mini-PC ne démarre pas sur la clé | Mode UEFI ; Secure Boot désactivé ; clé écrite en GPT/UEFI |
+| Le mini-PC ne démarre pas sur la clé | Mode UEFI ; Secure Boot désactivé (Ventoy n'est pas signé) ; bon périphérique USB choisi dans le menu de démarrage |
+| `mount -L Ventoy` échoue | `lsblk -o NAME,SIZE,LABEL` : monte la grande partition de la clé à la main (`sudo mount /dev/sdX1 /mnt/v`) |
 | `homeassistant.local` introuvable | Utilise l'IP affichée à l'écran ; vérifie le câble Ethernet ; attends 5 min |
 | Écran noir après l'écriture de l'image | Normal sur HAOS : pas d'interface graphique, utilise le navigateur |
 | `ha check` : 401 / 403 | Jeton recopié incomplet ou révoqué : recrée-le (§7) |
