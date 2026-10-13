@@ -739,22 +739,44 @@ async function loadVeille() {
 }
 
 // ---- Voyages : prix suivis par flight-price-tracker (CSV écrit par son workflow : donnée, texte seul, liens https) ----
+const day = (d) => new Date(`${d}T00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+const stat = (title, big, sub) => {
+  const s = el('section', 'panel hud stat');
+  s.append(el('h2', '', title), el('p', 'big', big));
+  if (sub) s.append(el('p', 'muted', sub));
+  return s;
+};
+// Hôtels (hotel-price-tracker) : même donnée que le carré du dashboard, détail par étape. Texte seul.
+function renderHotels(h) {
+  const box = $('hotels-list');
+  box.replaceChildren();
+  if (!h?.configured) return;
+  const cur = h.devise === 'EUR' ? '€' : h.devise, n = (v) => `${Math.round(v)} ${cur}`;
+  const d = el('details', 'panel hud');
+  d.open = true;
+  d.append(el('summary', '', `Hôtels · ${n(h.total_recommande)}`));
+  const strip = el('div', 'strip');
+  strip.append(stat('Total recommandé', n(h.total_recommande), h.complet ? 'hébergement + trajets' : 'hébergement + trajets · incomplet'),
+    stat('Moins cher', n(h.total_moins_cher)), stat('Dernier relevé', day(h.date)));
+  d.append(strip);
+  const pick = (label, o) => o && el('p', 'voy-offer', `${label} : ${o.hotel} · ${o.note10}/10 · ${n(o.nuit)} la nuit · ${n(o.total)}`);
+  for (const e of h.etapes ?? []) {
+    const when = e.chk_in && e.chk_out ? ` · ${day(e.chk_in)} → ${day(e.chk_out)}` : '';
+    d.append(el('h3', 'voy-h', `${e.ville}${when}${e.nuits ? ` · ${e.nuits} nuit${e.nuits > 1 ? 's' : ''}` : ''}`),
+      ...[pick('Recommandé', e.recommande), pick('Moins cher', e.moins_cher)].filter(Boolean));
+  }
+  box.append(d);
+}
 async function loadVoyages() {
   const err = $('voyages-error'), state = $('voyages-state'), list = $('voyages-list');
-  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren();
+  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren(); $('hotels-list').replaceChildren();
   try {
     const r = await api('/api/voyages');
     if (!r.ok || !r.data) throw new Error('bad');
     if (views.voyages.hidden) return; // vue quittée pendant le chargement
+    renderHotels(r.data.hotels);
     if (!r.data.searches.length) { state.textContent = r.data.configured ? 'Aucun prix relevé.' : 'Projet flight-price-tracker introuvable.'; return; }
     state.hidden = true;
-    const day = (d) => new Date(`${d}T00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-    const stat = (title, big, sub) => {
-      const s = el('section', 'panel hud stat');
-      s.append(el('h2', '', title), el('p', 'big', big));
-      if (sub) s.append(el('p', 'muted', sub));
-      return s;
-    };
     const sync = r.data.sync_error ? r.data.sync_error
       : r.data.synced_at ? `Synchronisé avec GitHub le ${new Date(r.data.synced_at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`
       : 'Copie locale (non synchronisée avec GitHub)';
