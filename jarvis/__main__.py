@@ -58,6 +58,9 @@ from jarvis.core.host import HAS_PC_TOOLS
 
 if HAS_PC_TOOLS:
     import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC ; absents d'un Core sans PC)
+else:  # Core sur le mini-PC : mêmes outils, exécutés par l'agent PC (JARVIS_AGENT_URL)
+    from jarvis.core import agentlink
+    agentlink.register_proxies()
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")
 

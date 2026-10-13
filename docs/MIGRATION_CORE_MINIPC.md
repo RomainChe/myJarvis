@@ -61,6 +61,11 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 - Le journal d'audit du Core fait foi ; l'agent garde sa trace locale.
 - **Revue Sécurité obligatoire avant tout essai réel** (nouvelle surface réseau, exécution de commandes).
 
+- **Fait le 2026-10-13** (branche `feat/agent-pc`) : `jarvis/agent.py` (`serve`, `catalog`), `jarvis/core/agentlink.py`
+  (signature, rejeu, proxys), `jarvis/pc_catalog.json`. Le Core sans outils PC enregistre les proxys si
+  `JARVIS_AGENT_URL` est posé. Essai réel sur boucle locale OK ; revue Sécurité soldée (docs/DECISIONS.md).
+  **Reste** : service Windows de l'agent, pare-feu limité au mini-PC, essai entre deux machines (lot 5).
+
 ### Lot 4 : voix, jeu, Claude Code
 - Micro, réveil, Whisper, Piper restent sur le PC (agent) : voix indisponible PC éteint.
 - Mode jeu : l'agent signale « jeu en cours » au Core, qui décharge/évite le LLM (Ollama est sur le PC).
