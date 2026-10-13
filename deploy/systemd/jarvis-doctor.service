@@ -1,0 +1,11 @@
+[Unit]
+Description=JARVIS garde-fou (relance le Core muet)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/jarvis
+EnvironmentFile=-%h/.config/jarvis/env
+ExecStart=%h/jarvis/deploy/creds.sh run %h/venv/bin/python -m jarvis doctor --watch
+SuccessExitStatus=1
+NoNewPrivileges=yes
+PrivateTmp=yes

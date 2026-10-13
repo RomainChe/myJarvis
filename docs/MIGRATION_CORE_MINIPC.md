@@ -77,6 +77,25 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 - Nom Tailscale : donner au mini-PC **l'ancien nom du PC** (renommer le PC d'abord) pour garder la même origine
   `*.ts.net` : passkeys WebAuthn, abonnements push et appareils enrôlés en dépendent. Sinon : ré-enrôler les appareils.
 - Services systemd : `serve`, `doctor --watch`, `backup`, `purge`. Retour arrière documenté.
+- **Préparé le 2026-10-13** (`feat/systemd`, `deploy/`), essai réel sous systemd 257 (WSL Debian 13) : unités
+  utilisateur `jarvis-core`, `jarvis-doctor` (+ timer 1 min), `jarvis-backup` (+ timer 03:30, sauvegarde puis
+  `--verify`), `jarvis-purge` (+ timer 04:00) ; `deploy/env.example` (réglages sans secret) ; `deploy/windows/agent-task.ps1`
+  (tâche de l'agent + pare-feu limité au mini-PC, syntaxe vérifiée, jamais exécuté).
+  **Identifiants** : `LoadCredentialEncrypted=` échoue en service utilisateur (« Failed to determine local credential
+  key: Permission denied », clé hôte en lecture root) ; `deploy/creds.sh` déchiffre via `systemd-creds decrypt --user`
+  vers un dossier 0700 de `$XDG_RUNTIME_DIR`, supprimé à l'arrêt. Vérifié : le Core reçoit `ha_token`, arrêt propre.
+  **Reste** : revue Sécurité (script de pare-feu, `creds.sh`), essai sur le mini-PC et entre deux machines.
+- Installation (mini-PC, dépôt dans `~/jarvis`, venv dans `~/venv`) :
+  1. Sur le PC : `python -m jarvis secret export <dossier hors dépôt>` ; copier le dossier sur le mini-PC (Tailscale/scp).
+  2. `deploy/creds.sh import <dossier>` (chiffre puis supprime les fichiers), `cp deploy/env.example ~/.config/jarvis/env`
+     et le remplir (`chmod 600`).
+  3. `cp deploy/systemd/* ~/.config/systemd/user/ && systemctl --user daemon-reload`, `loginctl enable-linger $USER`,
+     `systemctl --user enable --now jarvis-core.service jarvis-doctor.timer jarvis-backup.timer jarvis-purge.timer`.
+  4. Vérifier : `python -m jarvis doctor`.
+- Maintenance : arrêter `jarvis-doctor.timer` avant d'arrêter le Core (le garde-fou le relance sinon en < 1 min).
+- Retour arrière : `systemctl --user disable --now` des quatre unités sur le mini-PC, puis relancer la tâche
+  « JARVIS - core » sur le PC (un seul Core actif à la fois, principe 3) ; `jarvis.db` du mini-PC, plus récent,
+  est à recopier sur le PC après `scripts.backup --verify`.
 
 ### Lot 6 : règles d'alimentation (remplace le script HA)
 - `pc_off_plug` orchestré par le Core : confirmation N2 → arrêt par l'agent → attente de chute de puissance

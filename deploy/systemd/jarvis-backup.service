@@ -1,0 +1,11 @@
+[Unit]
+Description=JARVIS sauvegarde de la base puis vérification
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/jarvis
+EnvironmentFile=-%h/.config/jarvis/env
+ExecStart=%h/venv/bin/python -m scripts.backup
+ExecStart=%h/venv/bin/python -m scripts.backup --verify
+NoNewPrivileges=yes
+PrivateTmp=yes
