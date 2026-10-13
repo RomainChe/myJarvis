@@ -35,7 +35,13 @@ from jarvis.core.social import snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
 from jarvis.core.push import Push, subject_from_env
 from jarvis.core.webauthn import Passkeys
-from jarvis.tools.pc.system import system_status
+from jarvis.core.host import HAS_PC_TOOLS
+
+if HAS_PC_TOOLS:
+    from jarvis.tools.pc.system import system_status
+else:
+    def system_status():  # Core sans PC : le tableau n'affiche pas l'encart système (l'agent PC le fournira, lot 3)
+        raise OSError("outils PC absents")
 
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192

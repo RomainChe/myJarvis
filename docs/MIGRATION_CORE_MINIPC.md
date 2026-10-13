@@ -34,6 +34,12 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 - Tests : `skipUnless(sys.platform == "win32")` sur les ~12 fichiers d'outils PC ; ~18 fichiers redeviennent verts
   une fois l'import corrigé.
 - **Critère : `python -m unittest discover -s tests` vert sous Linux (WSL ou le mini-PC).**
+- **Fait le 2026-10-13** (branche `feat/core-portable`) : `jarvis/core/host.py` (`HAS_PC_TOOLS`, `JARVIS_PC_TOOLS=0` pour
+  forcer), imports conditionnels dans `chat.py`, `__main__.py`, `server.py`, `games.py`, `pcplug.py` ;
+  `tests/test_core_portable.py` simule un Core sans `jarvis.tools.pc` (import bloqué) ; 8 fichiers de tests d'outils PC
+  sautés hors Windows. 919 tests verts sous Windows. **Reste : l'essai réel sous Linux** (WSL n'est pas installé ici) ;
+  `test_chat`, `test_levels`, `test_llm`, `test_router`, `test_scenes_qa` importent `jarvis.tools.pc` et risquent de
+  réclamer les outils PC : à trancher à ce premier essai.
 
 ### Lot 2 : réglages par environnement
 - `JARVIS_OLLAMA_URL` (aujourd'hui `llm.py:15`, en dur), `doctor.py` (schtasks → systemd), uptime `/proc/uptime`.

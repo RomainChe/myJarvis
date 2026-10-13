@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 import numpy as np
@@ -362,6 +363,7 @@ class TestRun(unittest.TestCase):
     def test_erreur_materielle_message_fixe(self):
         class BadSD:
             def InputStream(self, **kw):
+                m.stop()
                 raise OSError("Logitech PRO X introuvable")
         tmp = Path(tempfile.mkdtemp())
         m = Mic(lambda a: None, speaker=FakeSpeaker(), flag=tmp / "off", sd=BadSD(), wake_loader=lambda: FakeWake())
@@ -369,6 +371,30 @@ class TestRun(unittest.TestCase):
         m.run()
         self.assertEqual(m.error, micmod.ERR_MSG)
         self.assertNotIn("Logitech", m.error)
+
+    def test_flux_perdu_rouvert(self):  # bug du 2026-10-13 : micro débranché/rebranché -> boucle morte jusqu'au redémarrage
+        opened = []
+        class Stream:
+            def __init__(self): self.reads = 0
+            def start(self): pass
+            def close(self): pass
+            def read(self, n):
+                self.reads += 1
+                if len(opened) == 1:
+                    raise OSError("périphérique perdu")
+                m.stop()
+                return np.zeros((n, 1), np.int16), False
+        class SD:
+            def InputStream(self, **kw):
+                opened.append(Stream())
+                return opened[-1]
+        tmp = Path(tempfile.mkdtemp())
+        m = Mic(lambda a: None, speaker=FakeSpeaker(), flag=tmp / "off", sd=SD(), wake_loader=lambda: FakeWake())
+        m._load = lambda: setattr(m, "_wake", FakeWake())
+        with unittest.mock.patch.object(micmod, "RETRY_S", 0):
+            m.run()
+        self.assertEqual(len(opened), 2)
+        self.assertIsNone(m.error)
 
 
 if __name__ == "__main__":

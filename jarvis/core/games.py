@@ -22,6 +22,9 @@ def steam_app_id() -> int:
 
 
 def process_names() -> set[str]:
+    from jarvis.core.host import HAS_PC_TOOLS
+    if not HAS_PC_TOOLS:  # Core sans PC : aucun jeu à détecter ici
+        return set()
     from jarvis.tools.pc.system import all_processes  # import local : le cœur ne charge pas les outils au démarrage
     return {name.lower() for name, _ in all_processes()}
 

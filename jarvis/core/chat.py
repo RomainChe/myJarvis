@@ -15,10 +15,13 @@ import jarvis.tools.assist  # noqa: F401  (enregistre minuteurs, rappels et brie
 import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
-import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 from jarvis.core.audit import Audit
 from jarvis.core import levels, memory, reminders
+from jarvis.core.host import HAS_PC_TOOLS
+
+if HAS_PC_TOOLS:
+    import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC ; absents d'un Core sans PC)
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute

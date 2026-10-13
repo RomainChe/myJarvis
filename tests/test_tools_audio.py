@@ -1,5 +1,10 @@
-import ctypes
+import sys
 import unittest
+
+if sys.platform != "win32":  # outils PC Windows : testés sur le PC principal seulement
+    raise unittest.SkipTest("outils PC Windows")
+
+import ctypes
 from unittest import mock
 
 from jarvis.core.tools import REGISTRY, Level
