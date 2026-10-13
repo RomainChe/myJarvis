@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from pydantic import BaseModel, Field, StrictBool
+from pydantic import BaseModel, Field, StrictBool, StrictInt
 
 from jarvis.core import levels
 from jarvis.core.audit import Audit
@@ -113,6 +113,16 @@ class Assertion(BaseModel):
     clientDataJSON: str = B64
     authenticatorData: str = B64
     signature: str = B64
+
+
+class Destination(BaseModel):  # formulaire de l'onglet Voyages ; contenu revalidé par l'outil voyage_destination
+    destination: str = Field(max_length=40)
+    depart_from: str = Field(max_length=10)
+    depart_to: str = Field(max_length=10)
+    stay_days: str = Field(max_length=40)
+    return_date: str = Field(max_length=10)
+    origins: str = Field(max_length=400)
+    alert_below: StrictInt = Field(ge=0, le=20_000)
 
 
 class Confirm(BaseModel):
@@ -409,6 +419,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         return voyages_snapshot()
+
+    @app.post("/api/voyages/destination", status_code=202)
+    def voyages_destination(body: Destination, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        job = chat.start(auth[0], f"voyage_destination {body.destination}", ("voyage_destination", body.model_dump()))
+        return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
 
     @app.get("/api/finance")
     def finance_state(request: Request):

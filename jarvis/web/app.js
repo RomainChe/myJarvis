@@ -218,29 +218,29 @@ async function sendChat(text) {
     $('chat-input').focus();
   }
 }
-async function pollJob(job) {
+async function pollJob(job, say = addMsg) {
   const seen = new Set();
   const deadline = Date.now() + 5 * 60 * 1000;
   while (Date.now() < deadline) {
     const r = await api(`/api/chat/${encodeURIComponent(job)}`);
-    if (!r.ok || !r.data) { addMsg('fail', 'La réponse est introuvable.'); return; }
+    if (!r.ok || !r.data) { say('fail', 'La réponse est introuvable.'); return; }
     const p = r.data.pending;
     if (p && p.id && !seen.has(p.id)) {
       seen.add(p.id);
-      await handlePending(p);
+      await handlePending(p, say);
       continue;
     }
     if (r.data.status === 'done') {
-      addMsg('jarvis', typeof r.data.answer === 'string' && r.data.answer ? r.data.answer : 'Terminé.');
+      say('jarvis', typeof r.data.answer === 'string' && r.data.answer ? r.data.answer : 'Terminé.');
       return;
     }
     await wait(700);
   }
-  addMsg('fail', 'Jarvis ne répond pas.');
+  say('fail', 'Jarvis ne répond pas.');
 }
-async function handlePending(p) {
+async function handlePending(p, say = addMsg) {
   const choice = await confirmDialog(p);
-  if (choice === 'expired') { addMsg('note', 'Demande expirée, rien n\'a été fait.'); return; }
+  if (choice === 'expired') { say('note', 'Demande expirée, rien n\'a été fait.'); return; }
   let approve = choice === 'approve';
   let assertion;
   if (approve && p.webauthn) { // N3 : la clé d'accès signe le défi de CETTE demande
@@ -248,8 +248,8 @@ async function handlePending(p) {
     if (!assertion) { approve = false; toast('Clé d\'accès non validée : action annulée.'); }
   }
   const r = await api(`/api/confirm/${encodeURIComponent(p.id)}`, { method: 'POST', body: { approve, assertion } });
-  if (r.status === 404) addMsg('note', 'Demande expirée, rien n\'a été fait.');
-  else if (!approve) addMsg('note', 'Annulé, rien n\'a été fait.');
+  if (r.status === 404) say('note', 'Demande expirée, rien n\'a été fait.');
+  else if (!approve) say('note', 'Annulé, rien n\'a été fait.');
 }
 $('chat-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -790,6 +790,29 @@ async function loadVoyages() {
     err.textContent = unavailable('Voyages indisponibles', e);
   }
 }
+$('voy-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (busy) { toast('Jarvis est occupé avec une autre demande.'); return; }
+  const out = $('voy-result'), say = (_kind, text) => { out.textContent = text; };
+  const v = (id) => $(id).value.trim();
+  say('note', 'Envoi…');
+  setBusy(true);
+  $('voy-submit').disabled = true;
+  try {
+    const r = await api('/api/voyages/destination', { method: 'POST', body: {
+      destination: v('voy-dest'), origins: v('voy-origins'), depart_from: v('voy-from'), depart_to: v('voy-to'),
+      stay_days: v('voy-stays'), return_date: v('voy-back'), alert_below: Math.trunc(Number(v('voy-alert'))) || 0 } });
+    if (r.status === 429) { say('note', 'Jarvis est occupé avec une autre demande.'); return; }
+    if (!r.ok || !r.data || !r.data.job) { say('fail', 'Formulaire refusé : vérifie les champs.'); return; }
+    await pollJob(r.data.job, say);
+    if (!views.voyages.hidden) loadVoyages();
+  } catch (err) {
+    if (err.message === 'network') say('fail', 'PC injoignable.');
+  } finally {
+    setBusy(false);
+    $('voy-submit').disabled = false;
+  }
+});
 
 // ---- Œil de Jarvis : anneaux ondulants de particules autour d'une sphère de points (canvas, décoratif) ---------
 // Animé seulement quand le dashboard est visible ; une seule image fixe si l'utilisateur réduit les animations.

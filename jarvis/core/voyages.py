@@ -50,10 +50,10 @@ def _offer(row: dict) -> dict | None:
     return o
 
 
-def _git(root: Path, *args: str) -> bytes:
-    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    return subprocess.run([*GIT, "-C", str(root), *args], capture_output=True, check=True, timeout=GIT_TIMEOUT_S, env=env,
-                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+def _git(root: Path, *args: str, input: bytes | None = None, env: dict | None = None, timeout: float = GIT_TIMEOUT_S) -> bytes:
+    env = {**os.environ, **(env or {}), "GIT_TERMINAL_PROMPT": "0"}
+    return subprocess.run([*GIT, "-C", str(root), *args], input=input, capture_output=True, check=True, timeout=timeout,
+                          env=env, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
 
 
 def sync(root: Path, now: float | None = None) -> dict:

@@ -158,6 +158,28 @@
     <p id="voyages-error" class="error" hidden></p>
     <p id="voyages-state" class="muted">Chargement…</p>
     <div id="voyages-list" class="voyages"></div>
+    <details class="panel hud voy-change">
+      <summary>Changer de destination</summary>
+      <form id="voy-form" autocomplete="off">
+        <p class="muted">Nouvelle recherche suivie chaque jour ; les recherches en cours passent en pause (historique gardé). Confirmation demandée avant le push sur GitHub.</p>
+        <label for="voy-dest">Destination (ville ou pays)</label>
+        <input id="voy-dest" type="text" maxlength="40" required placeholder="Corée du Sud">
+        <label for="voy-origins">Villes de départ (France ou Barcelone)</label>
+        <input id="voy-origins" type="text" maxlength="400" required value="Barcelone, Paris, Marseille, Lyon, Nice, Toulouse">
+        <div class="voy-row">
+          <div><label for="voy-from">Départ au plus tôt</label><input id="voy-from" type="date" required></div>
+          <div><label for="voy-to">Départ au plus tard</label><input id="voy-to" type="date" required></div>
+        </div>
+        <div class="voy-row">
+          <div><label for="voy-stays">Durées de séjour (jours)</label><input id="voy-stays" type="text" maxlength="40" inputmode="numeric" placeholder="10, 14"></div>
+          <div><label for="voy-back">ou retour fixe</label><input id="voy-back" type="date"></div>
+        </div>
+        <label for="voy-alert">Alerte sous (€ par personne, 0 = aucune)</label>
+        <input id="voy-alert" type="number" min="0" max="20000" step="1" value="0" required>
+        <p id="voy-result" class="muted" role="status"></p>
+        <button id="voy-submit" class="btn primary" type="submit">Suivre cette destination</button>
+      </form>
+    </details>
   </section>
 
   <section id="view-finance" class="view" aria-labelledby="t-finance" hidden>

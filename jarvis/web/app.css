@@ -417,6 +417,12 @@ h2.section { margin-top: var(--j-space-4); }
 .voy-h { margin: var(--j-space-4) 0 var(--j-space-2); font: 500 var(--j-text-xs)/1.2 var(--j-font-tech); letter-spacing: .12em; text-transform: uppercase; color: var(--j-color-muted); }
 .voy-offer { margin: 0; overflow-wrap: anywhere; }
 .voy-offer a { color: var(--j-color-accent); }
+.voy-change { margin-top: var(--j-space-3); padding: var(--j-space-4); }
+.voy-change summary { cursor: pointer; font: 600 var(--j-text-sm)/1.3 var(--j-font-tech); color: var(--j-color-accent); }
+#voy-form { display: grid; gap: var(--j-space-1); }
+.voy-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--j-space-3); }
+.voy-row > div { display: grid; gap: var(--j-space-1); }
+#voy-submit { margin-top: var(--j-space-2); justify-self: start; }
 .voy-origins { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--j-space-2); }
 .voy-origins li { display: flex; justify-content: space-between; gap: var(--j-space-2); padding: var(--j-space-2) var(--j-space-3); border: 1px solid var(--j-color-border); border-radius: 8px; font: 500 var(--j-text-sm)/1.3 var(--j-font-tech); }
 

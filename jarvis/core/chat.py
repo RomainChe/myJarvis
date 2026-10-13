@@ -16,6 +16,7 @@ import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
+import jarvis.tools.voyages  # noqa: F401  (enregistre le changement de destination)
 from jarvis.core.audit import Audit
 from jarvis.core import levels, memory, reminders
 from jarvis.core.host import HAS_PC_TOOLS
@@ -88,6 +89,7 @@ class Job:
     deadline: float = field(default_factory=lambda: _now() + JOB_MAX_S)
     strong: bool = False  # posé par _confirm quand l'assertion N3 est vérifiée, consommé une fois par strong_auth
     aborted: bool = False  # un refus ou une expiration : le LLM ne peut pas harceler de nouvelles confirmations
+    call: tuple[str, dict] | None = None  # outil et arguments d'un formulaire de la PWA, sans routeur ni LLM
 
 
 class Chat:
@@ -103,8 +105,12 @@ class Chat:
         self.jobs: dict[str, Job] = {}
         self.router = Router()
 
-    def start(self, device: int, text: str) -> str | None:
-        """Identifiant de la demande, ou None si une autre est en cours."""
+    def start(self, device: int, text: str, call: tuple[str, dict] | None = None) -> str | None:
+        """Identifiant de la demande, ou None si une autre est en cours.
+
+        `call` : outil choisi par un formulaire de la PWA (nom fixé par la route, jamais par le client), exécuté comme
+        une phrase du routeur ; `text` ne sert alors qu'au journal.
+        """
         if not 0 < len(text) <= TEXT_MAX:
             raise ValueError("texte invalide")
         if not self.busy.acquire(blocking=False):
@@ -113,7 +119,7 @@ class Chat:
         try:
             self.audit.log(f"pwa:{device}", "chat", {"len": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest()},
                            None, "auto", None)
-            job = Job(secrets.token_urlsafe(12), device)
+            job = Job(secrets.token_urlsafe(12), device, call=call)
             with self.lock:
                 while len(self.jobs) >= JOBS_MAX:  # les plus anciennes sont terminées : une seule tourne à la fois
                     del self.jobs[next(iter(self.jobs))]
@@ -201,7 +207,7 @@ class Chat:
         strong = lambda tool, args: self._strong(job)  # noqa: E731
         answer = "Erreur interne"
         try:
-            routed = self.router.route(text)
+            routed = job.call or self.router.route(text)
             if routed is None:
                 answer = ask(text, audit=self.audit, confirm=confirm, strong_auth=strong, source=f"{source}/llm")
             else:

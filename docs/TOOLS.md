@@ -329,6 +329,15 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - Annonce : le journal dit ce qui a été fait (`voix + push`, `push`, `non remis`). Voix hors ligne, muette ou occupée > 20 s : push seul, le texte est perdu (supprimé avant l'annonce). Les sauvegardes de la base contiennent les rappels en attente (texte inclus) : base locale, propriétaire seul.
 - Analyse des durées et heures : `parse_duration`, `parse_when` (« 7h » déjà passé = demain ; pas de « midi » ni de jours de semaine).
 
+## voyage_destination (`jarvis/tools/voyages.py`)
+
+- **Description** : change la destination suivie par flight-price-tracker : nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées (en pause, historique gardé), commit `config : …` puis push sur `main`.
+- **Niveau** : N2 (confirmation), `taint_blocked`. Refusé à la voix (plafond N1).
+- **Paramètres** : `destination` (ville, pays ou IATA), `depart_from` / `depart_to` (AAAA-MM-JJ, début au plus tôt demain, fin dans les 400 jours), `stay_days` (ex. `"10,14"`, 1 à 5 durées de 1 à 90 j) **ou** `return_date` (l'autre vide), `origins` (villes séparées par des virgules, 1 à 10), `alert_below` (€, 0 = aucun).
+- **Retour** : phrase avec le nom de la recherche (`<destination> <depart_from>`) et le commit poussé.
+- **Exemple** : onglet Voyages → « Changer de destination » (route `POST /api/voyages/destination`, confirmation N2 dans la PWA).
+- **Notes** : `git fetch`, puis `config.yaml` lu dans `origin/main` ; commit par la plomberie (`hash-object`, index temporaire, `commit-tree`) et `push origin <sha>:refs/heads/main` sans `--force` : ni la copie de travail ni la branche locale du propriétaire ne bougent. Validation avant le commit par le `load_config` du projet (son `.venv`) : départs hors France/Barcelone et destinations inconnues refusés avec le message du projet. Champs bornés par des motifs (lettres, espaces, tirets, apostrophes) : ni e-mail ni secret dans le dépôt public ; valeurs écrites en chaînes JSON (YAML entre guillemets). Push refusé (le workflow a commité entre-temps) : une seconde tentative sur le nouvel `origin/main`. Ne recopie pas les filtres de l'ancienne recherche (escales, durée des escales).
+
 ## Commande `say` (voix, Phase 4 étape 3)
 
 - **Commande** : `python -m jarvis say "texte"` (pas un outil du registre, aucune route HTTP). Lit le texte avec Piper (`fr_FR-tom-medium`, `length_scale` 1,05), source `voix`, texte tronqué à `ANSWER_MAX`.
