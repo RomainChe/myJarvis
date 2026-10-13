@@ -155,7 +155,7 @@ $('enroll-form').addEventListener('submit', (e) => {
 });
 
 // ---- Navigation ------------------------------------------------------------------------------
-const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social'), finance: $('view-finance'), veille: $('view-veille') };
+const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('view-settings'), audit: $('view-audit'), social: $('view-social'), finance: $('view-finance'), veille: $('view-veille'), voyages: $('view-voyages') };
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
@@ -168,14 +168,15 @@ function show(name) {
   if (name === 'social') loadSocial();
   if (name === 'finance') loadFinance(); else clearFinance();
   if (name === 'veille') loadVeille();
+  if (name === 'voyages') loadVoyages();
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
-// Raccourcis clavier (bureau) : Alt+1..7 suit l'ordre du menu, « / » met le focus sur la saisie du chat.
+// Raccourcis clavier (bureau) : Alt+1..8 suit l'ordre du menu, « / » met le focus sur la saisie du chat.
 const tabOrder = [...document.querySelectorAll('.tab')].map((t) => t.dataset.view);
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
-  if (e.altKey && /^[1-7]$/.test(e.key)) { e.preventDefault(); show(tabOrder[Number(e.key) - 1]); return; }
+  if (e.altKey && /^[1-8]$/.test(e.key)) { e.preventDefault(); show(tabOrder[Number(e.key) - 1]); return; }
   if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
     e.preventDefault(); show('chat'); $('chat-input').focus();
   }
@@ -734,6 +735,56 @@ async function loadVeille() {
   } catch (e) {
     state.hidden = true; err.hidden = false;
     err.textContent = unavailable('Veille indisponible', e);
+  }
+}
+
+// ---- Voyages : prix suivis par flight-price-tracker (CSV écrit par son workflow : donnée, texte seul, liens https) ----
+async function loadVoyages() {
+  const err = $('voyages-error'), state = $('voyages-state'), list = $('voyages-list');
+  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren();
+  try {
+    const r = await api('/api/voyages');
+    if (!r.ok || !r.data) throw new Error('bad');
+    if (views.voyages.hidden) return; // vue quittée pendant le chargement
+    if (!r.data.searches.length) { state.textContent = r.data.configured ? 'Aucun prix relevé.' : 'Projet flight-price-tracker introuvable.'; return; }
+    state.hidden = true;
+    const day = (d) => new Date(`${d}T00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const stat = (title, big, sub) => {
+      const s = el('section', 'panel hud stat');
+      s.append(el('h2', '', title), el('p', 'big', big));
+      if (sub) s.append(el('p', 'muted', sub));
+      return s;
+    };
+    list.replaceChildren(...r.data.searches.map((s, i) => {
+      const d = el('details', 'panel hud');
+      d.open = i === 0; // la recherche la plus récente = destination en cours
+      d.append(el('summary', '', `${s.name} · ${eur(s.best.price)}`));
+      const delta = s.previous == null ? 'Premier relevé' : s.best.price === s.previous ? 'Stable depuis le relevé précédent'
+        : `${s.best.price < s.previous ? '▼' : '▲'} ${eur(Math.abs(s.best.price - s.previous))} depuis le relevé précédent`;
+      const strip = el('div', 'strip');
+      strip.append(stat('Meilleur prix', eur(s.best.price), delta), stat('Plus bas observé', eur(s.lowest), `${s.history.length} relevé(s)`),
+        stat('Dernier relevé', day(s.last_run)));
+      const b = s.best, offer = el('p', 'voy-offer');
+      const stops = b.stops == null ? '' : b.stops ? ` · ${b.stops} escale${b.stops > 1 ? 's' : ''}` : ' · direct';
+      const dur = b.duration_min ? ` · ${Math.floor(b.duration_min / 60)} h ${String(b.duration_min % 60).padStart(2, '0')}` : '';
+      offer.append(el('strong', '', `${b.origin} → ${b.dest}`), el('span', '', ` · ${day(b.depart_date)} → ${day(b.return_date)}${b.airlines ? ` · ${b.airlines}` : ''}${stops}${dur} · ${b.source}`));
+      if (b.link && URL.canParse(b.link) && new URL(b.link).protocol === 'https:') {
+        const a = el('a', '', "Voir l'offre");
+        a.href = b.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        offer.append(el('br'), a, el('span', 'muted', ` · ${new URL(b.link).hostname}`));
+      }
+      const by = el('ul', 'plain voy-origins');
+      for (const o of s.by_origin) {
+        const li = el('li');
+        li.append(el('span', '', o.origin), el('span', 'voy-price', eur(o.price)));
+        by.append(li);
+      }
+      d.append(strip, el('h3', 'voy-h', 'Meilleure offre'), offer, el('h3', 'voy-h', 'Par aéroport de départ'), by);
+      return d;
+    }));
+  } catch (e) {
+    state.hidden = true; err.hidden = false;
+    err.textContent = unavailable('Voyages indisponibles', e);
   }
 }
 

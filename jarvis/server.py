@@ -31,6 +31,7 @@ from jarvis.core.crypto import view as crypto_view
 from jarvis.core.portfolio import view as portfolio_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
+from jarvis.core.voyages import snapshot as voyages_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
 from jarvis.core.push import Push, subject_from_env
@@ -401,6 +402,13 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         return with_youtube(social_snapshot(), youtube)
+
+    @app.get("/api/voyages")
+    def voyages_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return voyages_snapshot()
 
     @app.get("/api/finance")
     def finance_state(request: Request):

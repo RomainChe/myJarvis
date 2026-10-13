@@ -75,11 +75,11 @@ class WebStaticTest(unittest.TestCase):
             self.assertNotIn(dead, html + js + (WEB_DIR / "app.css").read_text(encoding="utf-8"))
 
     def test_ordre_du_menu_et_raccourcis(self):
-        # Ordre voulu par le propriétaire (2026-10-08) ; Alt+n suit cet ordre dans app.js.
+        # Ordre voulu par le propriétaire (2026-10-08, Voyages ajouté le 2026-10-13) ; Alt+n suit cet ordre dans app.js.
         html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
         tabs = re.findall(r'data-view="(\w+)" aria-keyshortcuts="Alt\+(\d)"', html)
-        self.assertEqual([v for v, _ in tabs], ["chat", "settings", "social", "finance", "veille", "devices", "audit"])
-        self.assertEqual([int(n) for _, n in tabs], list(range(1, 8)))
+        self.assertEqual([v for v, _ in tabs], ["chat", "settings", "social", "finance", "veille", "voyages", "devices", "audit"])
+        self.assertEqual([int(n) for _, n in tabs], list(range(1, 9)))
 
     def test_service_worker_ne_met_pas_l_api_en_cache(self):
         sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
