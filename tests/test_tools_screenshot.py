@@ -1,6 +1,11 @@
+import sys
+import unittest
+
+if sys.platform != "win32":  # outils PC Windows : testés sur le PC principal seulement
+    raise unittest.SkipTest("outils PC Windows")
+
 import struct
 import tempfile
-import unittest
 import zlib
 from pathlib import Path
 from unittest import mock

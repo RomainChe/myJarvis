@@ -1,4 +1,9 @@
+import sys
 import unittest
+
+if sys.platform != "win32":  # outils PC Windows : testés sur le PC principal seulement
+    raise unittest.SkipTest("outils PC Windows")
+
 from unittest import mock
 
 from jarvis.core import ha

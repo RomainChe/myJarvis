@@ -53,7 +53,10 @@ import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
-import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
+from jarvis.core.host import HAS_PC_TOOLS
+
+if HAS_PC_TOOLS:
+    import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC ; absents d'un Core sans PC)
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")
 

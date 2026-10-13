@@ -8,7 +8,10 @@ Utile seulement si HA tourne sur le mini-PC : dans la VM du PC, le script serait
 from jarvis.core import ha
 from jarvis.core.levels import effective
 from jarvis.core.tools import REGISTRY, Level, tool
-from jarvis.tools.pc import session
+from jarvis.core.host import HAS_PC_TOOLS
+
+if HAS_PC_TOOLS:
+    from jarvis.tools.pc import session
 
 PLUG = "switch.prise_pc"
 SCRIPT = "script.pc_prise_off"
@@ -26,6 +29,8 @@ def pc_plug_on() -> dict:
 @tool("pc_off_plug","Éteint le PC proprement, attend, puis coupe la multiprise du PC et des écrans (prise Tapo). "
       "Jarvis est coupé jusqu'au rallumage de la prise. Pour éteindre le PC seul, utiliser `power`.", Level.N2)
 def pc_off_plug() -> dict:
+    if not HAS_PC_TOOLS:  # l'arrêt passera par l'agent PC (docs/MIGRATION_CORE_MINIPC.md, lot 6) : jamais en local
+        raise RuntimeError("arrêt du PC indisponible depuis ce Core (agent PC requis)")
     # Appelé sans repasser par la garde : si le propriétaire relève `power` au-dessus de cet outil, on refuse.
     if effective(REGISTRY["power"]) > effective(REGISTRY["pc_off_plug"]):
         raise ValueError("`power` dépasse le niveau de cet outil : à exécuter séparément avec confirmation")
