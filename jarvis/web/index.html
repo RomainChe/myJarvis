@@ -45,8 +45,9 @@
     <button class="tab" type="button" data-view="finance" aria-keyshortcuts="Alt+4"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg><span>Finances</span></button>
     <button class="tab" type="button" data-view="veille" aria-keyshortcuts="Alt+5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h7M8 13h7"/></svg><span>Veille IA</span></button>
     <button class="tab" type="button" data-view="voyages" aria-keyshortcuts="Alt+6"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 16l20-6-20-6 3 6-3 6z"/><path d="M5 10h8"/></svg><span>Voyages</span></button>
-    <button class="tab" type="button" data-view="devices" aria-keyshortcuts="Alt+7"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Appareils</span></button>
-    <button class="tab" type="button" data-view="audit" aria-keyshortcuts="Alt+8"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg><span>Journal</span></button>
+    <button class="tab" type="button" data-view="bienetre" aria-keyshortcuts="Alt+7"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.600-7 10-7 10z"/></svg><span>Bien-être</span></button>
+    <button class="tab" type="button" data-view="devices" aria-keyshortcuts="Alt+8"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Appareils</span></button>
+    <button class="tab" type="button" data-view="audit" aria-keyshortcuts="Alt+9"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg><span>Journal</span></button>
   </nav>
 
   <section id="view-chat" class="view console" aria-labelledby="t-chat">
@@ -162,6 +163,13 @@
     <p id="veille-error" class="error" hidden></p>
     <p id="veille-state" class="muted">Chargement…</p>
     <div id="veille-list" class="veille"></div>
+  </section>
+
+  <section id="view-bienetre" class="view" aria-labelledby="t-bienetre" hidden>
+    <h1 id="t-bienetre" class="title">Bien-être du PC</h1>
+    <p id="bienetre-error" class="error" hidden></p>
+    <p id="bienetre-state" class="muted">Chargement…</p>
+    <div id="bienetre-list" class="bienetre"></div>
   </section>
 
   <section id="view-voyages" class="view" aria-labelledby="t-voyages" hidden>
