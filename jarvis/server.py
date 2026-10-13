@@ -31,6 +31,7 @@ from jarvis.core.crypto import view as crypto_view
 from jarvis.core.portfolio import view as portfolio_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
+from jarvis.core import bienetre as bienetre_core
 from jarvis.core import voyages as voyages_core
 from jarvis.core.voyages import snapshot as voyages_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
@@ -447,6 +448,16 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         log_read(auth[0], "bank_read", "comptes bancaires, Ledger et portefeuille lus")
         binance.refresh_if_stale()  # historique Binance relu en tâche de fond au plus une fois par jour
         return {"bank": bank_view(), "crypto": binance.enrich(crypto_view()), "portfolio": portfolio_view()}
+
+    bienetre_core.on_run = lambda ok: audit.log("serve", "bienetre_run", {}, 0, "auto", "ok" if ok else "échec")
+
+    @app.get("/api/bienetre")
+    def bienetre_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        log_read(auth[0], "bienetre_read", "bilan de santé du PC lu")
+        return bienetre_core.snapshot()
 
     @app.get("/api/veille")
     def veille_state(request: Request):

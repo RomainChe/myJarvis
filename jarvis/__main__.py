@@ -142,6 +142,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         mic = start_mic(audit)
         threading.Thread(target=_reminders, args=(audit, mic), daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
+        threading.Thread(target=_bienetre, daemon=True).start()
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
               + " (Ctrl+C pour arrêter)", file=sys.stderr)
         server.run()
@@ -341,6 +342,18 @@ def _reminders(audit, mic) -> None:
         return " + ".join(done) or "non remis (ni voix ni push)"
 
     reminders.run(announce, at)
+
+
+def _bienetre() -> None:
+    """Bilan de santé du PC relancé chaque jour (onglet Bien-être) : un contrôle toutes les 30 min."""
+    import time
+    from jarvis.core import bienetre
+    while True:
+        try:
+            bienetre.refresh_if_stale()
+        except Exception:  # noqa: BLE001 (le serveur ne dépend pas du bilan)
+            pass
+        time.sleep(1800)
 
 
 def _purge(audit) -> None:
