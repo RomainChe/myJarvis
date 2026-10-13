@@ -1,8 +1,11 @@
 """Ollama : le LLM propose des appels d'outils, la garde de permissions décide (stdlib uniquement)."""
 import http.client
+import ipaddress
 import json
+import os
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 from typing import Callable
 
 from . import games, memory
@@ -12,7 +15,24 @@ from .levels import effective
 from .permissions import Refused, as_data, execute
 from .tools import REGISTRY, Level, Tool, masked
 
-OLLAMA = "http://127.0.0.1:11434"
+
+
+def ollama_url(raw: str | None) -> str:
+    """JARVIS_OLLAMA_URL : le prompt complet y part en clair, donc boucle locale ou Tailscale seulement."""
+    url = (raw or "http://127.0.0.1:11434").strip().rstrip("/")
+    u = urlsplit(url)
+    host = u.hostname or ""
+    try:
+        ip = ipaddress.ip_address(host)
+        ok = ip.is_loopback or ip in ipaddress.ip_network("100.64.0.0/10")
+    except ValueError:
+        ok = host == "localhost" or host.endswith(".ts.net")
+    if u.scheme not in ("http", "https") or not ok or u.username or u.path or u.query or u.fragment:
+        raise ValueError("JARVIS_OLLAMA_URL : http(s)://hôte[:port] avec boucle locale, IP Tailscale ou *.ts.net")
+    return url
+
+
+OLLAMA = ollama_url(os.environ.get("JARVIS_OLLAMA_URL"))
 MODEL = "qwen3:14b"
 # 8192 : le prompt système ne doit pas être tronqué par les schémas d'outils et les résultats <data>.
 OPTIONS = {"temperature": 0, "num_ctx": 8192}

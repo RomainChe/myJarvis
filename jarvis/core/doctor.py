@@ -7,12 +7,14 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import time
 import urllib.request
 from pathlib import Path
 
 STATE = Path.home() / ".jarvis" / "watchdog.json"
 TASK = "JARVIS - core"
+UNIT = "jarvis-core.service"
 GRACE_S = 90  # un Core relancé a ce temps pour écouter avant qu'on le relance encore
 COOLDOWN_S = 30 * 60
 DISK_MIN_GB = 5
@@ -31,6 +33,9 @@ def http_up(url: str, timeout: float = 5) -> bool:
 
 
 def restart_task() -> None:
+    if sys.platform != "win32":  # service systemd utilisateur (docs/MIGRATION_CORE_MINIPC.md lot 2)
+        subprocess.run(["/usr/bin/systemctl", "--user", "restart", UNIT], check=False)
+        return
     for action in ("/End", "/Run"):
         subprocess.run([str(SYSTEM32 / "schtasks.exe"), action, "/TN", TASK], cwd=SYSTEM32,
                        creationflags=0x08000000, check=False)
