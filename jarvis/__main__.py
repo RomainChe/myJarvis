@@ -37,7 +37,7 @@ os.environ["HF_HUB_OFFLINE"] = "1"  # (9) avant tout import voix : aucun accès 
 import keyring.errors
 import segno
 
-from jarvis.core import ha, levels, reminders
+from jarvis.core import ha, levels, memory, reminders
 from jarvis.core.audit import Audit
 from jarvis.core.devices import CODE_TTL_S, Devices
 from jarvis.core.llm import LLMUnavailable, ask
@@ -411,6 +411,7 @@ def main(argv: list[str]) -> int:
         return 0
     levels.load(audit)
     reminders.load(audit)
+    memory.load(audit)
     if argv in (["finance", "fetch"], ["veille", "fetch"]):
         from jarvis.core import finance, finance_fetch, veille
         what, fetch = (("finance_fetch", lambda: finance_fetch.fetch_reports()) if argv[0] == "finance" else

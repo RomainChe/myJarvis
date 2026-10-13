@@ -18,7 +18,7 @@ import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 from jarvis.core.audit import Audit
-from jarvis.core import levels, reminders
+from jarvis.core import levels, memory, reminders
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
@@ -94,6 +94,7 @@ class Chat:
         self.passkeys = passkeys
         levels.load(audit)  # le serveur applique toujours les niveaux réglés par le propriétaire
         reminders.load(audit)
+        memory.load(audit)
         self.busy = Lease()  # un seul appel à la fois (un seul LLM local) : le reste reçoit « occupé »
         self.lock = threading.Lock()
         self.jobs: dict[str, Job] = {}
