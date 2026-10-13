@@ -32,7 +32,7 @@ from jarvis.core.portfolio import view as portfolio_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
 from jarvis.core import voyages as voyages_core
-from jarvis.core.voyages import snapshot as voyages_snapshot
+from jarvis.core.voyages import hotel_snapshot, snapshot as voyages_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
 from jarvis.core.push import Push, subject_from_env
@@ -421,7 +421,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return voyages_snapshot()
+        return {**voyages_snapshot(), "hotels": hotel_snapshot()}
 
     @app.post("/api/voyages/destination", status_code=202)
     def voyages_destination(body: Destination, request: Request):

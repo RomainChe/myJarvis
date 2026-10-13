@@ -90,6 +90,7 @@ LABELS = {
     "social_schedule": ("Planning des publications", "Liste les vidéos programmées de lol-clipper."),
     "social_reschedule": ("Décaler une publication", "Change l'heure de mise en ligne d'une vidéo programmée de lol-clipper."),
     "voyage_prix": ("Prix des vols", "Meilleur prix suivi par flight-price-tracker, tendance, départ et dates."),
+    "hotel_itineraire": ("Prix des hôtels", "Total d'hébergement du voyage suivi par hotel-price-tracker, hôtel recommandé par ville."),
     "voyage_destination": ("Changer de destination", "Nouvelle recherche de vols suivie par flight-price-tracker (push sur GitHub)."),
     "tv_status": ("État de la TV", "Allumée, appli en cours, volume."),
     "tv_on": ("Allumer la TV", "TV du salon."),

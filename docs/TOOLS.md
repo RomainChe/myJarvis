@@ -354,6 +354,13 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Paramètres** : aucun. **Exemple** : « Jarvis, prix des vols » → « Japon 2027-05-05 : 870 € depuis Paris, du 05/05 au 22/05, 1 escale(s) (relevé du 04/10). Baisse de 30 € … ».
 - **Notes** : changer de destination reste `voyage_destination` (N2) : par le chat avec confirmation dans la PWA, jamais à la voix.
 
+## hotel_itineraire (`jarvis/tools/voyages.py`)
+
+- **Description** : dernier relevé d'hébergement de hotel-price-tracker (`historique/resume.json`, écrit et commité par son workflow) : total recommandé et moins cher (hébergement + trajets), hôtel recommandé par ville. JARVIS ne recalcule rien. Même lecture que le carré « Hôtels · Japon » du dashboard (`/api/voyages`, clé `hotels`).
+- **Niveau** : N0, `external` (JSON d'un dépôt public : donnée). Routeur sans LLM : « prix des hôtels », « où en sont les hôtels », « combien coûte l'hébergement ».
+- **Paramètres** : aucun. **Exemple** : « Jarvis, prix des hôtels » → « Hébergement du 06/05 au 22/05 : 2345 € recommandé, 2100 € le moins cher, trajets compris (relevé du 13/10). Osaka : … ».
+- **Notes** : dossier du clone = clé `hotel_dir` de `~/.jarvis/voyages.json` (défaut `~/Desktop/WebstormProject/hotel-price-tracker`). `git fetch origin main` au plus une fois par heure puis `git show origin/main:historique/resume.json`, comme pour les vols ; fichier borné à 64 Ko, champs tronqués, nombres validés ; un champ illisible écarte l'hôtel, un total illisible = « aucun relevé ».
+
 ## voyage_destination (`jarvis/tools/voyages.py`)
 
 - **Description** : change la destination suivie par flight-price-tracker : nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées (en pause, historique gardé), commit `config : …` puis push sur `main`.
