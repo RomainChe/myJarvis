@@ -2,7 +2,10 @@ import importlib.util
 import unittest
 from pathlib import Path
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:  # extra `voice` absent (Core du mini-PC)
+    raise unittest.SkipTest("numpy absent")
 
 _spec = importlib.util.spec_from_file_location(
     "record_owner", Path(__file__).resolve().parents[1] / "scripts" / "wakeword" / "record_owner.py")

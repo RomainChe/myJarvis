@@ -18,13 +18,9 @@ import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 from jarvis.core.audit import Audit
 from jarvis.core import levels, memory, reminders
-from jarvis.core.host import HAS_PC_TOOLS
+from jarvis.core.host import load_pc_tools
 
-if HAS_PC_TOOLS:
-    import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC ; absents d'un Core sans PC)
-else:  # Core sur le mini-PC : mêmes outils, exécutés par l'agent PC (JARVIS_AGENT_URL)
-    from jarvis.core import agentlink
-    agentlink.register_proxies()
+load_pc_tools()  # outils PC réels, ou proxys vers l'agent PC sur le mini-PC
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute

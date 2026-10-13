@@ -162,9 +162,8 @@ def _proxy(name: str, with_describe: bool, e: dict) -> None:
 
 
 def register_proxies(catalog: Path = CATALOG) -> int:
-    """Enregistre les outils PC du catalogue, exécutés par l'agent. Rien sans `JARVIS_AGENT_URL`. Idempotent."""
-    if not agent_url():
-        return 0
+    """Enregistre les outils PC du catalogue, exécutés par l'agent. Idempotent. Sans `JARVIS_AGENT_URL`, chaque appel
+    échoue clairement (« agent PC non configuré ») : le catalogue du routeur reste valide sur tout Core."""
     todo = [e for e in json.loads(catalog.read_text(encoding="utf-8")) if e["name"] not in REGISTRY]
     for e in todo:
         _proxy(e["name"], e["describe"], e)

@@ -4,6 +4,7 @@ import io
 import socket
 import subprocess
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 import urllib.error
@@ -277,6 +278,7 @@ class GamesTest(unittest.TestCase):
         self.assertFalse(games.is_gaming({"leagueclient.exe", "riotclientservices.exe", "javaw.exe"},
                                          javaw=["javaw -jar idea.jar"]))
 
+    @unittest.skipUnless(sys.platform == "win32", "Toolhelp : Windows seulement")
     def test_process_names_sans_lancer_de_programme(self):
         """Bonus : plus de tasklist.exe (~360 ms par demande) : les noms viennent de l'API Toolhelp."""
         import os

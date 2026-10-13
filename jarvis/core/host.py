@@ -11,6 +11,15 @@ from urllib.parse import urlsplit
 HAS_PC_TOOLS = sys.platform == "win32" and os.environ.get("JARVIS_PC_TOOLS") != "0"
 
 
+def load_pc_tools() -> None:
+    """Enregistre les outils PC : les vrais (PC principal) ou leurs proxys vers l'agent PC (Core sur le mini-PC)."""
+    if HAS_PC_TOOLS:
+        import jarvis.tools.pc  # noqa: F401
+    else:
+        from jarvis.core import agentlink
+        agentlink.register_proxies()
+
+
 def trusted_host(host: str) -> bool:
     """Boucle locale, `localhost`, IP Tailscale (100.64.0.0/10) ou `*.ts.net` : seuls hôtes où un secret ou un prompt part en clair."""
     try:

@@ -1,6 +1,8 @@
 import unittest
 
-import jarvis.tools.pc  # noqa: F401  (outils réels : delete_file, clipboard_read, open_app...)
+from jarvis.core.host import load_pc_tools
+
+load_pc_tools()  # outils réels sous Windows, proxys de l'agent ailleurs
 from jarvis.core import levels
 from jarvis.core.audit import Audit
 from jarvis.core.permissions import Refused, execute

@@ -10,7 +10,9 @@ from unittest import mock
 from jarvis.core import ha, llm
 from jarvis.core.router import Router
 from jarvis.core.tools import REGISTRY, Level, _registry
-import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC pour le catalogue du routeur)
+from jarvis.core.host import load_pc_tools
+
+load_pc_tools()  # outils réels sous Windows, proxys de l'agent ailleurs
 from jarvis.tools.home import scenes, tv
 from pcbase import PcBase
 from test_llm import FakeOllama, call, reply, yes

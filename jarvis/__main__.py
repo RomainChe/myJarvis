@@ -54,13 +54,9 @@ import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
-from jarvis.core.host import HAS_PC_TOOLS
+from jarvis.core.host import load_pc_tools
 
-if HAS_PC_TOOLS:
-    import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC ; absents d'un Core sans PC)
-else:  # Core sur le mini-PC : mêmes outils, exécutés par l'agent PC (JARVIS_AGENT_URL)
-    from jarvis.core import agentlink
-    agentlink.register_proxies()
+load_pc_tools()  # outils PC réels, ou proxys vers l'agent PC sur le mini-PC
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")
 
