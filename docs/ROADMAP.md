@@ -3,6 +3,7 @@
 Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et** du propriétaire.
 
 ## État actuel (à lire en reprise de session)
+- **Essai Linux fait le 2026-10-13** (WSL2 Debian dans `~/jarvis`, venv `~/venv`) : suite verte, Core démarre. Pour rejouer : `git pull` depuis `/mnt/c/...` puis `~/venv/bin/python -m unittest discover -s tests`. Reste de la migration : lots 4 à 6 (docs/MIGRATION_CORE_MINIPC.md).
 - **Migration mini-PC, lot 3 fait le 2026-10-13** (`feat/agent-pc`) : agent PC signé HMAC (`python -m jarvis.agent serve`) + proxys côté Core ; revue Sécurité soldée. Reste : service Windows, pare-feu, essai à deux machines. Voir docs/MIGRATION_CORE_MINIPC.md.
 - **Migration mini-PC, lot 2 fait le 2026-10-13** (`feat/core-env`) : `JARVIS_OLLAMA_URL` (boucle locale/Tailscale), secrets par `$CREDENTIALS_DIRECTORY` puis coffre, `secret export`, watchdog systemd, uptime Linux. Revue Sécurité soldée. Détail et reste : docs/MIGRATION_CORE_MINIPC.md.
 - **Bug voix corrigé le 2026-10-13** : `Mic.run` sortait pour de bon à la première erreur du flux micro (périphérique perdu, veille) ; le Core restait sans micro jusqu'au redémarrage (constaté : micro lâché à 09:34). Il referme et rouvre maintenant toutes les `RETRY_S` (3 s), PortAudio relancé hors lecture. 920 tests. Revue Sécurité à faire (pas de changement de permission).

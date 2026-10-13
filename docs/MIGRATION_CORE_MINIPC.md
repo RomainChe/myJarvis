@@ -37,7 +37,7 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 - **Fait le 2026-10-13** (branche `feat/core-portable`) : `jarvis/core/host.py` (`HAS_PC_TOOLS`, `JARVIS_PC_TOOLS=0` pour
   forcer), imports conditionnels dans `chat.py`, `__main__.py`, `server.py`, `games.py`, `pcplug.py` ;
   `tests/test_core_portable.py` simule un Core sans `jarvis.tools.pc` (import bloqué) ; 8 fichiers de tests d'outils PC
-  sautés hors Windows. 919 tests verts sous Windows. **Reste : l'essai réel sous Linux** (WSL n'est pas installé ici) ;
+  sautés hors Windows. 919 tests verts sous Windows. **Essai réel sous Linux fait le 2026-10-13** (WSL2 Debian 13, Python 3.13) : suite verte (724 tests, 22 sautés : outils Windows et extra `voice`), `serve` démarre, PWA en 200, API protégée. Corrigés : `JARVIS_BRIEFING_AT` absente plantait le thread des rappels ; proxys désormais toujours enregistrés (`host.load_pc_tools`) pour que le catalogue du routeur reste valide ; `.pyc` périmé masquant un drapeau affaibli dans le contrôle de l'outil Claude Code (`-B`). À noter :
   `test_chat`, `test_levels`, `test_llm`, `test_router`, `test_scenes_qa` importent `jarvis.tools.pc` et risquent de
   réclamer les outils PC : à trancher à ce premier essai.
 
