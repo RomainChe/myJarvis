@@ -31,6 +31,7 @@ from jarvis.core.crypto import view as crypto_view
 from jarvis.core.portfolio import view as portfolio_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
+from jarvis.core import voyages as voyages_core
 from jarvis.core.voyages import snapshot as voyages_snapshot
 from jarvis.core.social import snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
@@ -412,6 +413,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         return with_youtube(social_snapshot(), youtube)
+
+    voyages_core.on_fetch = lambda ok: audit.log("pwa:voyages", "voyages_sync", {}, 0, "auto", "ok" if ok else "échec")
 
     @app.get("/api/voyages")
     def voyages_state(request: Request):

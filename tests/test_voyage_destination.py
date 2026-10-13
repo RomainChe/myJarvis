@@ -137,6 +137,13 @@ class CommitTest(unittest.TestCase):
         self.assertEqual(git(self.remote, "show", "main:prices.csv"), "relevé")
         self.assertIn("Corée du Sud", git(self.remote, "show", "main:config.yaml"))
 
+    def test_identite_forcee_et_repetition_sans_doublon(self):
+        tool.voyage_destination(**ARGS)
+        self.assertEqual(git(self.remote, "log", "-1", "--format=%an <%ae>", "main"), "JARVIS <jarvis@users.noreply.github.com>")
+        head = git(self.remote, "rev-parse", "main")
+        self.assertIn("déjà suivi", tool.voyage_destination(**ARGS))  # push abouti mais expiré : le réessai ne double pas
+        self.assertEqual(git(self.remote, "rev-parse", "main"), head)
+
     def test_validation_refusee_rien_pousse(self):
         before = git(self.remote, "rev-parse", "main")
         with mock.patch.object(tool, "_validate", side_effect=ValueError("configuration refusée")), self.assertRaises(ValueError):

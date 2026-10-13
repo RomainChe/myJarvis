@@ -60,9 +60,11 @@ class VoyagesTest(unittest.TestCase):
         def git(_root, *args):
             calls.append(args[0])
             return remote if args[0] == "show" else b""
-        with mock.patch.object(voyages, "_git", side_effect=git):
+        seen = []
+        with mock.patch.object(voyages, "_git", side_effect=git), mock.patch.object(voyages, "on_fetch", seen.append):
             s = voyages.snapshot(root)
             voyages.snapshot(root)
+        self.assertEqual(seen, [True])  # un fetch, un rappel d'audit
         self.assertEqual((s["searches"][0]["last_run"], s["sync_error"]), ("2026-10-13", None))
         self.assertIsNotNone(s["synced_at"])
         self.assertEqual(calls, ["fetch", "show", "show"])  # second appel dans l'heure : pas de fetch

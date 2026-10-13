@@ -6,7 +6,8 @@ Lit `data/prices.csv` du clone local de flight-price-tracker (écrit chaque jour
 Le contenu du CSV est une donnée : champs tronqués, prix numériques, liens https seulement. Pas d'audit : lecture N0.
 Étape 2 : le workflow pousse sur GitHub, le clone local vieillit. `git fetch origin main` au plus une fois par heure (à
 l'ouverture de l'onglet), puis lecture de `origin/main:data/prices.csv` par `git show` : ni checkout ni merge (la copie
-de travail du propriétaire n'est jamais touchée), hooks désactivés, aucun code du projet exécuté. Sans git : fichier local.
+de travail du propriétaire n'est jamais touchée), hooks désactivés. La lecture n'exécute aucun code du projet (seule la
+validation de `voyage_destination`, étape 3, lance le `.venv` du tracker). Sans git : fichier local.
 """
 import csv
 import json
@@ -56,6 +57,9 @@ def _git(root: Path, *args: str, input: bytes | None = None, env: dict | None = 
                           env=env, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
 
 
+on_fetch = None  # rappel (ok: bool) après chaque `git fetch` tenté : branché sur le journal d'audit par le serveur
+
+
 def sync(root: Path, now: float | None = None) -> dict:
     """`git fetch origin main` si la dernière tentative date de plus d'une heure ; renvoie l'état de la synchronisation."""
     now = time.time() if now is None else now
@@ -67,6 +71,8 @@ def sync(root: Path, now: float | None = None) -> dict:
                 _sync.update(ok=now, error=None)
             except (OSError, subprocess.SubprocessError):
                 _sync["error"] = "échec de la synchronisation avec GitHub"  # détail non montré : chemins, URL
+            if on_fetch:
+                on_fetch(_sync["error"] is None)
         return {"synced_at": datetime.fromtimestamp(_sync["ok"]).isoformat(timespec="minutes") if _sync["ok"] else None,
                 "sync_error": _sync["error"]}
 

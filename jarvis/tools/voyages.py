@@ -23,6 +23,7 @@ PLACE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ' -]{1,39}")  
 MAX_ORIGINS, MAX_STAYS, MAX_STAY_DAYS, MAX_AHEAD_DAYS, MAX_ALERT = 10, 5, 90, 400, 20_000
 CHECK = "import sys; from tracker.config import load_config; load_config(sys.argv[1])"
 CHECK_TIMEOUT_S, PUSH_TIMEOUT_S = 60, 60
+AUTHOR, AUTHOR_EMAIL = "JARVIS", "jarvis@users.noreply.github.com"
 
 
 def _place(value: str, label: str) -> str:
@@ -112,13 +113,14 @@ def _validate(root: Path, text: str) -> None:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as h:
             h.write(text)
         done = subprocess.run([str(python), "-c", CHECK, path], cwd=root, capture_output=True, timeout=CHECK_TIMEOUT_S,
-                              env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+                              env={k: os.environ[k] for k in ("PATH", "SYSTEMROOT", "TEMP", "TMP") if k in os.environ}
+                                  | {"PYTHONIOENCODING": "utf-8"},
                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     finally:
         os.unlink(path)
     if done.returncode:
         last = (done.stderr.decode("utf-8", "replace").strip().splitlines() or ["?"])[-1]
-        raise ValueError(f"configuration refusée par le projet : {last.split(': ', 1)[-1][:200]}")
+        raise ValueError(f"configuration refusée par le projet : {last.split(': ', 1)[-1].replace(str(Path.home()), '~')[:200]}")
 
 
 def _commit(root: Path, base: str, text: str, message: str) -> str:
@@ -128,7 +130,9 @@ def _commit(root: Path, base: str, text: str, message: str) -> str:
         voyages._git(root, "read-tree", base, env=env)
         voyages._git(root, "update-index", "--cacheinfo", f"100644,{blob},config.yaml", env=env)
         tree = voyages._git(root, "write-tree", env=env).decode().strip()
-    return voyages._git(root, "commit-tree", tree, "-p", base, "-m", message).decode().strip()
+    who = {"GIT_AUTHOR_NAME": AUTHOR, "GIT_COMMITTER_NAME": AUTHOR, "GIT_AUTHOR_EMAIL": AUTHOR_EMAIL,  # jamais l'identité git du PC
+           "GIT_COMMITTER_EMAIL": AUTHOR_EMAIL}
+    return voyages._git(root, "commit-tree", tree, "-p", base, "-m", message, env=who).decode().strip()
 
 
 def _describe(destination, depart_from, depart_to, stay_days, return_date, origins, alert_below) -> str:
@@ -157,6 +161,8 @@ def voyage_destination(destination, depart_from, depart_to, stay_days, return_da
             text = voyages._git(root, "show", f"{base}:config.yaml").decode("utf-8")
         except (OSError, subprocess.SubprocessError, UnicodeDecodeError):
             raise ValueError("GitHub injoignable ou config.yaml illisible : rien n'a été modifié") from None
+        if f"- name: {json.dumps(spec['name'], ensure_ascii=False)}" in (l.strip() for l in text.splitlines()):
+            return f"« {spec['name']} » est déjà suivi : rien à pousser."  # push expiré mais abouti, ou même demande refaite
         new = edit(text, spec)
         _validate(root, new)
         try:
