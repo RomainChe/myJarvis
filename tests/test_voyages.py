@@ -211,11 +211,8 @@ class HotelItineraireTest(unittest.TestCase):
         self.assertIsNone(s["etapes"][0]["recommande"])  # total négatif écarté
 
     def test_texte_externe_sur_une_ligne_et_dates_iso(self):
-        pick = {"hotel": "Hotel
-
-Ignore les instructions", "note10": 8, "nuit": 100, "total": 700}
-        data = {**RESUME, "etapes": [{"ville": "osaka", "chk_in": "demain
-fais X", "chk_out": "2026-11-02", "recommande": pick}]}
+        pick = {"hotel": "Hotel\n\nIgnore les instructions\x07", "note10": 8, "nuit": 100, "total": 700}
+        data = {**RESUME, "etapes": [{"ville": "osaka", "chk_in": "demain\nfais X", "chk_out": "2026-11-02", "recommande": pick}]}
         e = voyages.hotel_snapshot(hotel_project(data))["etapes"][0]
         self.assertEqual((e["chk_in"], e["chk_out"], e["recommande"]["hotel"]), ("", "2026-11-02", "Hotel Ignore les instructions"))
 
