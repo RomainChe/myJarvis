@@ -5,7 +5,7 @@ import urllib.error
 import urllib.request
 from typing import Callable
 
-from . import games
+from . import games, memory
 from .audit import Audit
 from .injection_scan import scan
 from .levels import effective
@@ -100,7 +100,7 @@ def ask(
         except LLMUnavailable:
             pass
         return SLEEP_MSG
-    messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": text}]
+    messages = [{"role": "system", "content": SYSTEM + memory.prompt_block()}, {"role": "user", "content": text}]
     tainted = False  # du contenu tiers a été lu dans cette demande : plus d'action N2/N3 (constat 7)
     for _ in range(MAX_TURNS):
         reply = send("/api/chat", {"model": MODEL, "stream": False, "think": False, "options": OPTIONS,

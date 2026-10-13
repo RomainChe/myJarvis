@@ -1,4 +1,4 @@
-"""Minuteurs, rappels et briefing du matin (Phase 7, pistes 2 et 4).
+"""Minuteurs, rappels, briefing du matin et mémoire (Phase 7, pistes 2, 3 et 4).
 
 Le texte d'un rappel n'apparaît jamais dans un résultat d'outil : le journal est en ajout seul. Le briefing ne lit que
 des sources non sensibles (météo, publications lol-clipper, veille IA, nombre de rappels) : mails et finances sont N2 et
@@ -6,7 +6,7 @@ privés, ils ne sortiraient pas à voix haute devant la TV ou un visiteur.
 """
 from datetime import date, datetime
 
-from jarvis.core import reminders, social, veille
+from jarvis.core import memory, reminders, social, veille
 from jarvis.core.tools import Level, tool
 from jarvis.tools.home import weather
 
@@ -107,3 +107,24 @@ def build_briefing(now: datetime | None = None) -> str:
       Level.N0, external=True)
 def briefing() -> str:
     return build_briefing()
+
+
+@tool("memory_set", "Retient un fait sur le propriétaire (préférence, habitude) : `text`, une phrase courte.",
+      Level.N1, taint_blocked=True, hidden=("text",), text=str)
+def memory_set(text: str) -> str:
+    return f"C'est noté (souvenir {memory.add(text)})."
+
+
+@tool("memory_list", "Liste ce que Jarvis a retenu sur le propriétaire (id et texte).", Level.N0, private=True)
+def memory_list() -> str:
+    rows = memory.facts()
+    return "\n".join(f"#{i} {t}" for i, t in rows) if rows else "Je n'ai rien retenu."
+
+
+@tool("memory_forget", "Oublie un souvenir : `about` = un mot du souvenir ou son numéro.", Level.N1,
+      taint_blocked=True, hidden=("about",), about=str)
+def memory_forget(about: str) -> str:
+    n = memory.forget(about)
+    if not n:
+        raise ValueError("aucun souvenir ne correspond")
+    return f"{n} souvenir(s) oublié(s)."

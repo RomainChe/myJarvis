@@ -138,5 +138,18 @@
     "tool": "briefing",
     "phrases": ["briefing", "le briefing", "mon briefing", "briefing du matin", "mon briefing du matin", "le point du matin",
                 "fais moi le briefing", "resume de la journee", "quoi de neuf aujourd hui"]
+  },
+  {
+    "tool": "memory_set",
+    "patterns": ["(souviens[- ]toi|retiens|note|m[eé]morise)( bien)? (que |qu['’]|d['’]|de )?{text}"]
+  },
+  {
+    "tool": "memory_list",
+    "phrases": ["que sais tu sur moi", "qu est ce que tu sais sur moi", "mes souvenirs", "qu est ce que tu as retenu",
+                "liste de tes souvenirs"]
+  },
+  {
+    "tool": "memory_forget",
+    "patterns": ["(oublie|efface le souvenir|supprime le souvenir)( que| qu['’]| le souvenir| mon souvenir)? {about}"]
   }
 ]

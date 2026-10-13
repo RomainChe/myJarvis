@@ -300,6 +300,12 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 | `reminder_cancel` | N1, `taint_blocked` | `id` (0 = le plus proche) | id annulé | « annule le minuteur », « annule le rappel 3 » |
 | `briefing` | N0, `external` | aucun | date, météo, rappels du jour (nombre et heure, jamais le texte), publications lol-clipper du jour, 2 titres de la veille IA | « briefing du matin » |
 
+| `memory_set` | N1, `taint_blocked` | `text` (une phrase, 200 car. au plus ; 30 souvenirs au plus) | « C'est noté (souvenir N) » | « souviens-toi que je suis allergique aux noix » |
+| `memory_list` | N0, privé | aucun | `#id texte` par souvenir (résultat jamais journalisé en clair) | « que sais-tu sur moi » |
+| `memory_forget` | N1, `taint_blocked` | `about` (un mot du souvenir ou son numéro) | nombre oublié | « oublie les noix » |
+
+- **Mémoire** (`jarvis/core/memory.py`, table `memory` de la base du journal) : les souvenirs sont ajoutés au prompt système entre `<data>` (donnée, jamais un ordre). Le texte n'est jamais journalisé (paramètres masqués, liste privée). Écriture refusée au LLM après lecture de contenu externe. **Donnée personnelle** : base locale, sauvegardes comprises. Pas d'écran PWA pour l'instant.
+
 - **Briefing sans mails ni finances** : `mail_recent` est N2 et privé, les finances sont privées ; lus à voix haute, ils sortiraient devant la TV ou un visiteur. Une source en panne est omise, le reste est dit.
 - **Briefing automatique** : `JARVIS_BRIEFING_AT=07:30` (HH:MM, `.env`). Un rappel de type `briefing` se réarme chaque jour ; lu par la voix du PC + push « ton briefing est prêt ». Un briefing manqué de plus de 2 h (PC éteint) n'est pas lu.
 - Annonce : le journal dit ce qui a été fait (`voix + push`, `push`, `non remis`). Voix hors ligne, muette ou occupée > 20 s : push seul, le texte est perdu (supprimé avant l'annonce). Les sauvegardes de la base contiennent les rappels en attente (texte inclus) : base locale, propriétaire seul.
