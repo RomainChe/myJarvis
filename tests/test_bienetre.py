@@ -53,6 +53,20 @@ class BienetreTest(unittest.TestCase):
         self.assertEqual(max(len(i["conseil"]) for i in s["items"]), 500)
         self.assertEqual(s["at"], "2026-10-13T08:00")
 
+    def test_fichiers_aberrants_ne_font_pas_planter_la_route(self):
+        # Régression QA : date/heure impossibles dans le nom, statut non hachable, BOM, impact booléen.
+        root = project({"2026-13-45_996199.json": [c("OK")], "2026-10-12_080000.json": [c("OK", point="a")],
+                        "2026-10-13_080000.json": "﻿" + json.dumps([c(["OK"]), dict(c("OK"), impact=True)])})
+        with mock.patch.object(bienetre, "refresh_if_stale"):
+            s = bienetre.snapshot(root)
+        self.assertEqual(s["at"], "2026-10-13T08:00")
+        self.assertEqual([i["impact"] for i in s["items"]], [1])
+
+    def test_erreur_inattendue_de_la_relance_signalee(self):
+        root = project({})
+        bienetre.refresh_if_stale(root, today=date(2026, 10, 13), runner=lambda r: 1 / 0, start=lambda f: f(), now=time.time())
+        self.assertEqual(bienetre._state["error"], "le bilan n'a pas pu être lancé")
+
     def test_projet_absent(self):
         s = bienetre.snapshot(Path(tempfile.mkdtemp()) / "nope")
         self.assertEqual((s["configured"], s["items"], s["counts"]), (False, [], None))

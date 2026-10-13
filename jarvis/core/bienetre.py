@@ -37,6 +37,13 @@ def project_dir(path: Path = CONFIG) -> Path:
     return d if d.is_absolute() else DEFAULT_DIR
 
 
+def _stamp(m: re.Match) -> datetime | None:
+    try:
+        return datetime.strptime(m.group(1) + m.group(2), "%Y-%m-%d%H%M%S")
+    except ValueError:  # 2026-13-45_996199.json : le nom ne décrit aucune date
+        return None
+
+
 def _files(root: Path) -> list[tuple[str, Path]]:
     """(jour, fichier) des bilans, du plus ancien au plus récent ; liens symboliques et noms inattendus écartés."""
     folder, out = root / "historique", []
@@ -45,7 +52,7 @@ def _files(root: Path) -> list[tuple[str, Path]]:
             return []
         for f in folder.iterdir():
             m = NAME.match(f.name)
-            if m and f.is_file() and not f.is_symlink():
+            if m and _stamp(m) and f.is_file() and not f.is_symlink():
                 out.append((m.group(1), f))
     except OSError:
         return []
@@ -56,18 +63,18 @@ def _load(f: Path) -> list[dict] | None:
     try:
         with f.open("rb") as h:
             raw = h.read(MAX_BYTES + 1)
-        data = json.loads(raw.decode("utf-8")) if len(raw) <= MAX_BYTES else None
+        data = json.loads(raw.decode("utf-8-sig")) if len(raw) <= MAX_BYTES else None
     except (OSError, ValueError):
         return None
     if not isinstance(data, list):
         return None
     items = []
     for c in data[:MAX_ITEMS]:
-        if not isinstance(c, dict) or c.get("statut") not in STATUSES:
+        if not isinstance(c, dict) or not isinstance(c.get("statut"), str) or c["statut"] not in STATUSES:
             continue
         item = {k: str(c.get(k) or "")[:n] for k, n in FIELDS.items()}
         item["statut"] = c["statut"]
-        item["impact"] = c["impact"] if c.get("impact") in (1, 2, 3) else 1
+        item["impact"] = c["impact"] if type(c.get("impact")) is int and c["impact"] in (1, 2, 3) else 1
         items.append(item)
     items.sort(key=lambda i: (STATUSES[i["statut"]], -i["impact"]))
     return items
@@ -112,7 +119,7 @@ def refresh_if_stale(root: Path | None = None, now: float | None = None, today: 
         try:
             ok = runner(root)
             _state["error"] = None if ok else "le bilan a échoué"
-        except (OSError, subprocess.SubprocessError):
+        except Exception:  # noqa: BLE001 (OSError, délai dépassé, ou autre : l'onglet le dit, le serveur continue)
             _state["error"] = "le bilan n'a pas pu être lancé"
         finally:
             _state["running"] = False
@@ -133,7 +140,7 @@ def snapshot(root: Path | None = None) -> dict:
         if items is None:
             continue
         m = NAME.match(files[i][1].name)
-        base.update(at=datetime.strptime(m.group(1) + m.group(2), "%Y-%m-%d%H%M%S").isoformat(timespec="minutes"),
+        base.update(at=_stamp(m).isoformat(timespec="minutes"),
                     items=items, counts=_counts(items))
         for day, f in reversed(files[:i]):  # point de comparaison : dernier bilan d'un jour précédent
             if day != m.group(1):
