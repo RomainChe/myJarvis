@@ -61,6 +61,11 @@
     "patterns": ["([eé]teins|[eé]teindre|coupe|couper) l['’ ]?[eé]cran( du pc)?", "(mets|met) l['’ ]?[eé]cran en veille"]
   },
   {
+    "tool": "driverwatch_accept",
+    "patterns": ["((oui|ok|d['’ ]?accord|vas[- ]y|go),? )?(accepte|accepter|valide|valider|confirme|confirmer|lance|lancer) (la |cette |les )?(mises? [àa] jour|maj|installation)( des| de mes| de)?( pilotes| drivers)?",
+                 "((oui|ok|vas[- ]y|go),? )+(mets|met|installe|fais)( les| la)?( pilotes| drivers)?( [àa] jour)?"]
+  },
+  {
     "tool": "pc_plug_on",
     "patterns": ["(allume|allumer|rallume|rallumer|d[ée]marre|d[ée]marrer) (la prise (du pc|de l['’ ]?ordi(nateur)?)|(le|mon) pc( principal)?|l['’ ]?ordi(nateur)?)"]
   },

@@ -1,0 +1,283 @@
+[
+ {
+  "name": "clipboard_read",
+  "description": "Lit le texte du presse-papiers (peut contenir des mots de passe).",
+  "level": 2,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": true,
+  "external": true,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "clipboard_write",
+  "description": "Copie un texte dans le presse-papiers (remplace son contenu).",
+  "level": 1,
+  "params": {
+   "text": "str"
+  },
+  "hidden": [
+   "text"
+  ],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": true,
+  "owner_only": false
+ },
+ {
+  "name": "close_app",
+  "description": "Ferme proprement (demande de fermeture aux fenêtres) une application de la liste blanche.",
+  "level": 1,
+  "params": {
+   "name": "str"
+  },
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "delete_file",
+  "description": "Envoie un fichier ou dossier du dossier utilisateur à la corbeille (récupérable).",
+  "level": 2,
+  "params": {
+   "path": "str"
+  },
+  "hidden": [],
+  "describe": true,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "driverwatch_accept",
+  "description": "Accepte la proposition de mise à jour de pilotes affichée par DriverWatch au démarrage (équivaut à appuyer sur Entrée dans sa console). Windows demandera l'autorisation (UAC).",
+  "level": 1,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": true,
+  "owner_only": false
+ },
+ {
+  "name": "driverwatch_update_all",
+  "description": "Demande à DriverWatch de mettre à jour tous les pilotes qui en ont besoin (en retard). Un point de restauration est créé et Windows demandera l'autorisation (UAC).",
+  "level": 2,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "kill_process",
+  "description": "Termine de force le processus `pid`, qui doit porter le nom `name` (ex. notepad.exe).",
+  "level": 2,
+  "params": {
+   "pid": "int",
+   "name": "str"
+  },
+  "hidden": [],
+  "describe": true,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "list_processes",
+  "description": "Les 50 processus qui utilisent le plus de mémoire.",
+  "level": 0,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": true,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "lock_session",
+  "description": "Verrouille la session Windows.",
+  "level": 1,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": true,
+  "owner_only": false
+ },
+ {
+  "name": "media_control",
+  "description": "Commande multimédia : action parmi play_pause, next, previous, stop.",
+  "level": 1,
+  "params": {
+   "action": "str"
+  },
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "move_file",
+  "description": "Déplace ou renomme un fichier ou dossier du dossier utilisateur vers `dst` (dossier existant, ou nouveau chemin) ; n'écrase jamais.",
+  "level": 2,
+  "params": {
+   "src": "str",
+   "dst": "str"
+  },
+  "hidden": [],
+  "describe": true,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "mute",
+  "description": "Coupe le son du PC (muted=true) ou le rétablit (muted=false).",
+  "level": 1,
+  "params": {
+   "muted": "bool"
+  },
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "open_app",
+  "description": "Ouvre une application de la liste blanche (apps.json), par son nom.",
+  "level": 1,
+  "params": {
+   "name": "str"
+  },
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "power",
+  "description": "Veille, redémarrage ou arrêt du PC (action : sleep, restart, shutdown). Redémarrage et arrêt coupent Jarvis et Home Assistant.",
+  "level": 2,
+  "params": {
+   "action": "str"
+  },
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "power_cancel",
+  "description": "Annule un redémarrage ou un arrêt en attente (délai de 10 s de `power`).",
+  "level": 1,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": true,
+  "owner_only": false
+ },
+ {
+  "name": "run_script",
+  "description": "Lance un script (.ps1, .bat, .cmd) du dossier scripts, par son nom, sans argument.",
+  "level": 2,
+  "params": {
+   "name": "str"
+  },
+  "hidden": [],
+  "describe": true,
+  "private": true,
+  "external": true,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "screen_off",
+  "description": "Éteint les écrans (le PC reste allumé ; un mouvement de souris les rallume).",
+  "level": 1,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": true,
+  "owner_only": false
+ },
+ {
+  "name": "screenshot",
+  "description": "Capture tous les écrans dans un PNG du dossier ~/.jarvis/captures (purgé après 7 jours) et renvoie son chemin.",
+  "level": 2,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": true,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "search_files",
+  "description": "Cherche les fichiers et dossiers dont le nom contient `name` sous `folder` (50 résultats max).",
+  "level": 0,
+  "params": {
+   "name": "str",
+   "folder": "str"
+  },
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": true,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "set_volume",
+  "description": "Règle le volume principal du PC (0 à 100).",
+  "level": 1,
+  "params": {
+   "level": "int"
+  },
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
+  "name": "system_status",
+  "description": "État du PC : CPU, RAM, disque système, GPU NVIDIA si présent.",
+  "level": 0,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ }
+]

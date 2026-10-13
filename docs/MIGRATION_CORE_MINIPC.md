@@ -45,6 +45,13 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 - `JARVIS_OLLAMA_URL` (aujourd'hui `llm.py:15`, en dur), `doctor.py` (schtasks → systemd), uptime `/proc/uptime`.
 - Secrets : `keyring` sans bureau Linux → backend fichier chiffré ou variables d'environnement d'un service systemd
   (`LoadCredential`), décision de sécurité. Script d'export/import des secrets (valeurs jamais affichées).
+- **Fait le 2026-10-13** (branche `feat/core-env`) : `JARVIS_OLLAMA_URL` (`llm.ollama_url`, schéma http(s) exigé) ;
+  `doctor.restart_task` relance `jarvis-core.service` (`systemctl --user`) hors Windows ; `dashboard.uptime_s` lit
+  `/proc/uptime` ; `secrets.get_secret` lit d'abord `$CREDENTIALS_DIRECTORY/<nom>` (D14 : identifiants systemd
+  chiffrés), sinon le coffre de l'OS (sans coffre : `NoKeyringError`, déjà gérée). `python -m jarvis secret export
+  <dossier>` écrit un fichier 0600 par secret pour `systemd-creds encrypt` (noms seuls affichés ; dossier hors dépôt, à supprimer après le chiffrement ; sous Windows 0600 est sans effet : dossier privé de l'utilisateur). Revue Sécurité : URL Ollama limitée à boucle locale / Tailscale. Pas d'import :
+  sous Linux, le dossier d'identifiants est le coffre. **Reste** : unités systemd (`jarvis-core`, `doctor --watch`,
+  `backup`, `purge`) au lot 5, essai réel sous Linux.
 
 ### Lot 3 : agent PC (service Windows sur le PC principal)
 - Expose les outils `jarvis/tools/pc/*` en HTTP authentifié (signature HMAC + horodatage + nonce, secret dans le
@@ -53,6 +60,11 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
   jamais une action « supposée faite ».
 - Le journal d'audit du Core fait foi ; l'agent garde sa trace locale.
 - **Revue Sécurité obligatoire avant tout essai réel** (nouvelle surface réseau, exécution de commandes).
+
+- **Fait le 2026-10-13** (branche `feat/agent-pc`) : `jarvis/agent.py` (`serve`, `catalog`), `jarvis/core/agentlink.py`
+  (signature, rejeu, proxys), `jarvis/pc_catalog.json`. Le Core sans outils PC enregistre les proxys si
+  `JARVIS_AGENT_URL` est posé. Essai réel sur boucle locale OK ; revue Sécurité soldée (docs/DECISIONS.md).
+  **Reste** : service Windows de l'agent, pare-feu limité au mini-PC, essai entre deux machines (lot 5).
 
 ### Lot 4 : voix, jeu, Claude Code
 - Micro, réveil, Whisper, Piper restent sur le PC (agent) : voix indisponible PC éteint.

@@ -1,18 +1,27 @@
 """Ollama : le LLM propose des appels d'outils, la garde de permissions décide (stdlib uniquement)."""
 import http.client
 import json
+import os
 import urllib.error
 import urllib.request
 from typing import Callable
 
 from . import games, memory
 from .audit import Audit
+from .host import trusted_base_url
 from .injection_scan import scan
 from .levels import effective
 from .permissions import Refused, as_data, execute
 from .tools import REGISTRY, Level, Tool, masked
 
-OLLAMA = "http://127.0.0.1:11434"
+
+
+def ollama_url(raw: str | None) -> str:
+    """JARVIS_OLLAMA_URL : le prompt complet y part en clair, donc boucle locale ou Tailscale seulement."""
+    return trusted_base_url((raw or "http://127.0.0.1:11434").strip().rstrip("/"), "JARVIS_OLLAMA_URL")
+
+
+OLLAMA = ollama_url(os.environ.get("JARVIS_OLLAMA_URL"))
 MODEL = "qwen3:14b"
 # 8192 : le prompt système ne doit pas être tronqué par les schémas d'outils et les résultats <data>.
 OPTIONS = {"temperature": 0, "num_ctx": 8192}

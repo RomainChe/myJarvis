@@ -310,5 +310,16 @@ class GamesTest(unittest.TestCase):
             self.assertEqual(games.extra_games(), set())
 
 
+class OllamaUrlTest(unittest.TestCase):
+    def test_defaut_slash_final_et_schema_invalide(self):
+        self.assertEqual(llm.ollama_url(None), "http://127.0.0.1:11434")
+        self.assertEqual(llm.ollama_url(" http://pc.ts.net:11434/ "), "http://pc.ts.net:11434")
+        self.assertEqual(llm.ollama_url("http://100.101.102.103:11434"), "http://100.101.102.103:11434")
+        for bad in ("file:///etc/passwd", "http://8.8.8.8:11434", "http://evil.example.com", "http://u:p@localhost",
+                    "http://localhost/x"):
+            with self.assertRaises(ValueError, msg=bad):
+                llm.ollama_url(bad)
+
+
 if __name__ == "__main__":
     unittest.main()

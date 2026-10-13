@@ -23,6 +23,9 @@ from jarvis.core.host import HAS_PC_TOOLS
 
 if HAS_PC_TOOLS:
     import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC ; absents d'un Core sans PC)
+else:  # Core sur le mini-PC : mêmes outils, exécutés par l'agent PC (JARVIS_AGENT_URL)
+    from jarvis.core import agentlink
+    agentlink.register_proxies()
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute

@@ -175,6 +175,24 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : `python -m jarvis run power_cancel`.
 - **Notes** : `System32\shutdown.exe /a` par chemin absolu. Sans intention du routeur. Testé avec des mocks.
 
+## driverwatch_accept
+
+- **Description** : accepte la proposition de mise à jour de pilotes que DriverWatch affiche au démarrage du PC (équivaut à Entrée dans sa console).
+- **Niveau** : N1, `taint_blocked`. L'installation reste protégée par DriverWatch (point de restauration, signature) et par l'UAC de Windows.
+- **Paramètres** : aucun.
+- **Retour** : `driverwatch` : `accepté`.
+- **Exemple** : « accepte la mise à jour des pilotes », « oui, vas-y mets à jour » (routeur, sans LLM, voix comprise).
+- **Notes** : `jarvis/tools/pc/drivers.py` lance `python -m driverwatch accept` ; le dossier se règle par `JARVIS_DRIVERWATCH_DIR`. Sans console en attente, le signal est ignoré. Testé avec des mocks.
+
+## driverwatch_update_all
+
+- **Description** : demande à DriverWatch de mettre à jour tout de suite tous les pilotes en retard (`python -m driverwatch update-all`).
+- **Niveau** : N2 (confirmation dans l'app ; refusé à la voix, plafond N0/N1).
+- **Paramètres** : aucun.
+- **Retour** : `driverwatch` : `mise à jour lancée` (le travail continue en arrière-plan, UAC demandé).
+- **Exemple** : « mets à jour tous les pilotes » (LLM, puis confirmation) ou `python -m jarvis run driverwatch_update_all`.
+- **Notes** : aucune règle du routeur (le catalogue ne vise aucun N2, S12/C4). Un échec sur un pilote n'arrête pas les suivants ; le résultat est dans l'historique de DriverWatch. Testé avec des mocks.
+
 ## pc_plug_on
 
 - **Description** : remet sous tension la multiprise du PC et des écrans (prise Tapo) ; le PC démarre seul si son BIOS est sur « Power On ».

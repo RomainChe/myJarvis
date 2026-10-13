@@ -6,6 +6,7 @@
     python -m jarvis doctor [--watch]     bilan de santé ; --watch relance le Core s'il est muet (chaque minute)
     python -m jarvis purge [--dry-run]    conservation : captures 7 j, finance et veille 120 j, journal archivé après 12 mois
     python -m jarvis secret set|check <nom>
+    python -m jarvis secret export <dossier>   (un fichier 0600 par secret, pour systemd-creds)
     python -m jarvis ha check
     python -m jarvis veille fetch                      (copie les envois « [Veille ...] » du compte mail dans ~/.jarvis/veille/, lecture seule)
     python -m jarvis finance fetch                     (copie les rapports « [Dépenses] » du compte mail dans ~/.jarvis/finance/, lecture seule)
@@ -44,7 +45,7 @@ from jarvis.core.llm import LLMUnavailable, ask
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.push import Push, subject_from_env
 from jarvis.core.router import Router
-from jarvis.core.secrets import get_secret, set_secret
+from jarvis.core.secrets import export_all, get_secret, set_secret
 from jarvis.core.tools import Tool
 from jarvis.core.webauthn import Passkeys
 from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
@@ -57,6 +58,9 @@ from jarvis.core.host import HAS_PC_TOOLS
 
 if HAS_PC_TOOLS:
     import jarvis.tools.pc  # noqa: F401  (enregistre les outils PC ; absents d'un Core sans PC)
+else:  # Core sur le mini-PC : mêmes outils, exécutés par l'agent PC (JARVIS_AGENT_URL)
+    from jarvis.core import agentlink
+    agentlink.register_proxies()
 
 DB_PATH = Path(os.environ.get("JARVIS_DB") or Path.home() / ".jarvis" / "jarvis.db")
 
@@ -356,11 +360,13 @@ def main(argv: list[str]) -> int:
         print(__doc__)
         return 2
     if argv[0] == "secret":  # avant le journal : pas besoin de la base, et la valeur n'est jamais affichée
-        if len(argv) != 3 or argv[1] not in ("set", "check"):
+        if len(argv) != 3 or argv[1] not in ("set", "check", "export"):
             print(__doc__)
             return 2
         try:
-            if argv[1] == "set":
+            if argv[1] == "export":
+                print("Exportés :", ", ".join(export_all(Path(argv[2]))) or "aucun")
+            elif argv[1] == "set":
                 set_secret(argv[2], getpass.getpass(f"Valeur de {argv[2]} (invisible) : "))
                 print("Enregistré dans le coffre Windows.")
             else:
