@@ -51,6 +51,11 @@ class WatchTest(unittest.TestCase):
             self.assertTrue(Path(call.args[0][0]).is_absolute())
             self.assertEqual(Path(call.args[0][0]).name, "schtasks.exe")
 
+    def test_systemd_hors_windows(self):
+        with mock.patch.object(doctor.sys, "platform", "linux"), mock.patch.object(doctor.subprocess, "run") as run:
+            doctor.restart_task()
+        run.assert_called_once_with(["/usr/bin/systemctl", "--user", "restart", doctor.UNIT], check=False)
+
     def test_core_vivant_ne_fait_rien(self):
         self.assertEqual(self.watch(lambda: True), "ok")
         self.restart.assert_not_called()

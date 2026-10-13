@@ -8,6 +8,7 @@ toutes les quelques secondes.
 import json
 import math
 import socket
+import sys
 import threading
 import time
 import urllib.request
@@ -96,13 +97,15 @@ def ping_ms() -> int | None:
 
 
 def uptime_s() -> int | None:
-    """Temps écoulé depuis le démarrage de Windows (GetTickCount64), None si indisponible."""
+    """Temps écoulé depuis le démarrage (Windows : GetTickCount64 ; Linux : /proc/uptime), None si indisponible."""
     try:
+        if sys.platform != "win32":
+            return int(float(open("/proc/uptime").read().split()[0]))
         import ctypes
         fn = ctypes.windll.kernel32.GetTickCount64
         fn.restype = ctypes.c_ulonglong
         return int(fn() // 1000)
-    except (AttributeError, OSError):
+    except (AttributeError, OSError, ValueError, IndexError):
         return None
 
 

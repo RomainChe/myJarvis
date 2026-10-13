@@ -1,4 +1,7 @@
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import keyring
@@ -57,6 +60,35 @@ class TestSecrets(unittest.TestCase):
 
     def test_cli_secret_inconnu(self):
         self.assertEqual(cli.main(["secret", "check", "nimporte"]), 2)
+
+    def test_identifiant_systemd_prime_sur_le_coffre(self):
+        secrets.set_secret("ha_token", "coffre")
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "ha_token").write_text("systemd\n")
+            with mock.patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": d}):
+                self.assertEqual(secrets.get_secret("ha_token"), "systemd")
+                self.assertEqual(secrets.get_secret("bank_key"), None)  # absent du dossier : coffre
+
+    def test_export_ecrit_les_fichiers_sans_afficher_les_valeurs(self):
+        secrets.set_secret("ha_token", "TOP-SECRET")
+        with tempfile.TemporaryDirectory() as d, mock.patch("builtins.print") as out:
+            self.assertEqual(cli.main(["secret", "export", d]), 0)
+            self.assertEqual((Path(d) / "ha_token").read_text(), "TOP-SECRET")
+            self.assertFalse((Path(d) / "bank_key").exists())
+        self.assertNotIn("TOP-SECRET", " ".join(str(c) for c in out.call_args_list))
+
+    def test_export_refuse_le_depot_et_remplace_un_fichier_existant(self):
+        secrets.set_secret("ha_token", "TOP-SECRET")
+        with self.assertRaises(ValueError):
+            secrets.export_all(Path(secrets.__file__).resolve().parents[2] / "out")
+        with tempfile.TemporaryDirectory() as d:
+            old = Path(d) / "ha_token"
+            old.write_text("ancien")
+            os.chmod(old, 0o644)
+            secrets.export_all(Path(d))
+            self.assertEqual(old.read_text(), "TOP-SECRET")
+            if os.name == "posix":
+                self.assertEqual(old.stat().st_mode & 0o777, 0o600)
 
 
 if __name__ == "__main__":
