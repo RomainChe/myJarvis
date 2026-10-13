@@ -170,31 +170,15 @@ Renomme les entités dans **Paramètres → Appareils → Entités** si besoin :
 3. Seuil du script = environ 3 × cette valeur, jamais moins de 5 W. PC allumé, tu dois être **bien au-dessus** (30 W
    ou plus au repos). Note les deux valeurs.
 
-### 10.3 Script `script.pc_prise_off`
+### 10.3 Coupure de la prise (orchestrée par le Core)
 
-HA → **Paramètres → Automatisations et scènes → Scripts → Ajouter un script → Modifier en YAML** (identifiant
-`pc_prise_off`) :
+Plus de script HA : `pc_off_plug` est orchestré par le Core du mini-PC (docs/MIGRATION_CORE_MINIPC.md, lot 6). Après
+l'arrêt demandé à l'agent PC, le Core attend que `sensor.prise_pc_current_consumption` passe sous le seuil
+(`JARVIS_PC_IDLE_W`, défaut 10 W : ~3 × la veille mesurée au §10.2, jamais moins de 5 W), laisse 30 s, revérifie, puis
+coupe `switch.prise_pc`. Si le PC ne s'éteint pas en 5 min, ou si la puissance remonte, la prise n'est **pas** coupée.
 
-```yaml
-alias: PC - couper la prise après l'arrêt
-mode: single
-sequence:
-  # Attend que la puissance retombe (PC éteint). Si elle ne retombe pas en 5 min (arrêt annulé ou échoué),
-  # le script s'arrête SANS couper la prise.
-  - wait_template: "{{ states('sensor.prise_pc_current_consumption') | float(999) < 10 }}"
-    timeout: "00:05:00"
-    continue_on_timeout: false
-  - delay: "00:00:30"
-  # Revérifie après 30 s (écriture disque terminée) avant de couper.
-  - condition: template
-    value_template: "{{ states('sensor.prise_pc_current_consumption') | float(999) < 10 }}"
-  - action: switch.turn_off
-    target:
-      entity_id: switch.prise_pc
-```
-
-Remplace `10` par ton seuil (§10.2). **Test à blanc** : PC éteint à la main, lance le script depuis HA : la prise doit
-se couper en ~30 s. PC allumé, lance-le puis laisse passer 5 min : la prise ne doit **pas** être coupée.
+**Test à blanc** : PC allumé, lance « éteins la prise du PC » puis **annule l'arrêt** (`power_cancel`) : la prise doit
+rester sous tension et le journal afficher « prise conservée ». Puis un essai complet, PC éteint par la commande.
 
 ### 10.4 Rallumer le PC
 
@@ -217,7 +201,7 @@ Inconvénient : après une vraie coupure de courant chez toi, le PC démarrera a
 | Phrase (PWA ou terminal) | Outil | Niveau | Ce qui se passe |
 |---|---|---|---|
 | « éteins le PC » | `power` (`shutdown`) | N2 | Confirmation, puis arrêt Windows après 10 s (annulable : `power_cancel`). La prise reste sous tension. |
-| « éteins la prise du PC » | `pc_off_plug` | N2 | Confirmation, puis : (1) HA lance `pc_prise_off`, qui attend ; (2) Windows s'arrête ; (3) HA vérifie que la puissance est tombée, attend 30 s, coupe la prise. |
+| « éteins la prise du PC » | `pc_off_plug` | N2 | Confirmation, puis : (1) l'agent arrête Windows ; (2) le Core attend la chute de puissance, 30 s, revérifie ; (3) il coupe la prise. |
 | « allume la prise du PC » / « rallume le PC » | `pc_plug_on` | N1 | Remet la prise sous tension ; le PC démarre seul (BIOS « Power On », §10.4). Routeur, sans LLM. |
 
 Points importants :
@@ -225,9 +209,8 @@ Points importants :
 - **Pas de routeur** pour ces deux phrases : la revue Sécurité (S12, test C4) interdit toute intention N2/N3 au
   routeur. Elles passent donc par le LLM puis la confirmation, comme prévu pour `power`. Un arrêt à la voix reste
   refusé (plafond N1 de la voix).
-- **Si l'arrêt échoue ou est annulé**, le script ne coupe rien : timeout 5 min, la prise reste sous tension.
-- **HA doit tourner sur le mini-PC.** Tant que HA est dans la VM du PC, `pc_off_plug` arrête le PC mais la prise
-  n'est jamais coupée (le script s'arrête avec la VM). Sans conséquence, mais inutile.
+- **Si l'arrêt échoue ou est annulé**, le Core ne coupe rien : timeout 5 min, la prise reste sous tension.
+- **Le Core doit tourner sur le mini-PC** (et HA aussi) : sur un Core hébergé par le PC, `pc_off_plug` est refusé.
 - **Prise injoignable** (`unavailable`) : `pc_off_plug` refuse et ne lance rien, y compris l'arrêt.
 - Le Core et la voix (Whisper, LLM) s'arrêtent avec le PC : seules les commandes que HA peut traiter seul
   fonctionneraient, et rien ne les reçoit tant que le Core n'est pas relancé.

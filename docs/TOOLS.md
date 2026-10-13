@@ -212,12 +212,12 @@ une donnée : chaque entrée est revalidée à chaque appel.
 
 ## pc_off_plug
 
-- **Description** : éteint le PC proprement, attend, puis coupe la multiprise du PC et des écrans (prise Tapo P110 via Home Assistant).
-- **Niveau** : N2 (confirmation). Coupe Jarvis jusqu'au rallumage de la prise.
+- **Description** : éteint le PC proprement par l'agent PC, attend qu'il soit éteint, puis coupe la multiprise du PC et des écrans (prise Tapo P110 via Home Assistant). Jarvis reste en ligne sur le mini-PC.
+- **Niveau** : N2 (confirmation).
 - **Paramètres** : aucun.
-- **Retour** : `power` : `shutdown`, `prise` : `coupure planifiée`.
+- **Retour** : `power` : `shutdown`, `prise` : `coupure planifiée` (la coupure vient ensuite, en tâche de fond).
 - **Exemple** : « éteins la prise du PC » (LLM puis confirmation) ou `python -m jarvis run pc_off_plug`.
-- **Notes** : `jarvis/tools/home/pcplug.py`. Entités attendues : `switch.prise_pc` et `script.pc_prise_off` (script HA : attend la chute de puissance, 30 s, revérifie, coupe ; il ne coupe rien si l'arrêt échoue, voir docs/INSTALL_SERVEUR_HA.md §10). Le script est lancé AVANT l'arrêt ; prise `unavailable` = rien n'est lancé ; refusé si `power` est relevé au-dessus de cet outil. Sans intention du routeur (S12/C4). Utile seulement si HA tourne sur le mini-PC. Testé avec des mocks, jamais en réel.
+- **Notes** : `jarvis/tools/home/pcplug.py`, entités `switch.prise_pc` et `sensor.prise_pc_current_consumption` (plus de script HA). Avant tout : prise joignable et puissance lisible, sinon rien n'est lancé ; refusé si ce Core tourne sur le PC (il s'arrêterait avec lui) ou si `power` est relevé au-dessus de cet outil. L'arrêt passe par l'agent (échec = rien n'est coupé). Puis, en fond : attend la chute de puissance sous `JARVIS_PC_IDLE_W` (défaut 10 W, bornes 5-100 ; mesure de veille : INSTALL_SERVEUR_HA §10.2) pendant 5 min au plus, laisse 30 s, revérifie, coupe ; l'issue (« prise coupée » ou « prise conservée : … ») est écrite au journal (source `pcplug`). Sans intention du routeur (S12/C4). Testé avec des mocks, jamais en réel.
 
 ## clipboard_write
 

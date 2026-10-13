@@ -102,6 +102,7 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 - `pc_off_plug` orchestré par le Core : confirmation N2 → arrêt par l'agent → attente de chute de puissance
   (capteur Tapo) → 30 s → revérification → coupure. Plus de script HA ; si l'arrêt échoue, rien n'est coupé.
 - `pc_plug_on` (N1, déjà codé) devient pleinement utile PC éteint.
+- **Fait le 2026-10-13** (`feat/pc-off-plug`) : `pcplug.py` réécrit. L'outil refuse si la prise ou la mesure est illisible, demande l'arrêt à l'agent (`power`, échec = rien n'est coupé), puis un thread de fond attend la chute de puissance (5 min), 30 s, revérifie, coupe et journalise l'issue. Refusé sur un Core hébergé par le PC. `script.pc_prise_off` peut être supprimé de HA. **Reste** : revue Sécurité, essai réel (HA et agent sur le mini-PC).
 
 ## Points ouverts (décisions du propriétaire / Sécurité)
 

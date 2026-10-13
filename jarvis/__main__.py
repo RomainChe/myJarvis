@@ -52,6 +52,7 @@ from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
 import jarvis.tools.assist  # noqa: F401  (enregistre minuteurs, rappels et briefing)
 import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
+from jarvis.tools.home import pcplug
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 from jarvis.core.host import load_pc_tools
@@ -416,6 +417,7 @@ def main(argv: list[str]) -> int:
         return 0
     levels.load(audit)
     reminders.load(audit)
+    pcplug.load(audit)
     memory.load(audit)
     if argv in (["finance", "fetch"], ["veille", "fetch"]):
         from jarvis.core import finance, finance_fetch, veille
