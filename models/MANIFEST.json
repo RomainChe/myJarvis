@@ -12,9 +12,9 @@
     },
     {
       "path": "openwakeword/jarvis_fr.onnx",
-      "size": 205431,
-      "sha256": "677df88082f0340e9e3d3073048231a73dc53155d160588ed5ef612c8c1c5114",
-      "licence": "modèle entraîné localement (données synthétiques Piper)",
+      "size": 415225,
+      "sha256": "d46557fac3b88f091fe5a1860849884e4ce1ab70b5a8d276e501dea015359b98",
+      "licence": "modèle entraîné localement (voix du propriétaire, clonage XTTS-v2 et voix Piper)",
       "source": "entraîné localement, sans URL (scripts/wakeword)"
     },
     {

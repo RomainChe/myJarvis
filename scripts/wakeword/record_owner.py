@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-RATE, WINDOW_S, MARGIN_S, MAX_S = 16000, 2.0, 0.1, 1.5
+RATE, WINDOW_S, MARGIN_S, MAX_S = 16000, 3.0, 0.1, 2.0
 OUT = Path(os.environ.get("LOCALAPPDATA", ".")) / "jarvis-wakeword" / "data" / "owner"
 STYLES = ["normal", "plus fort", "plus doucement", "vite", "lentement", "en tournant la tête", "fatigué, mou",
           "comme une question", "en souriant", "normal"]
@@ -50,9 +50,14 @@ def _session(sd, label, words, device):
         print(f"  [{i}/{len(words)}]  >>>  {word}", flush=True)
         a = sd.rec(int(WINDOW_S * RATE), samplerate=RATE, channels=1, dtype="int16", device=device)
         sd.wait()
-        clip = trim(a[:, 0], _spans(a[:, 0]))
-        if clip is None:
-            print("      (rien entendu ou trop long : ignoré)")
+        spans = _spans(a[:, 0])
+        clip = trim(a[:, 0], spans)
+        if clip is None:  # gardé en entier dans rejetes/ pour être écouté, jamais utilisé pour l'entraînement
+            rej = folder.parent / "rejetes"
+            rej.mkdir(exist_ok=True)
+            _save(rej / f"{label}_{stamp}_{i:03d}.wav", a[:, 0])
+            print("      (rien détecté)" if not spans else
+                  f"      (trop long : {(spans[-1]['end'] - spans[0]['start']) / RATE:.1f} s) -> rejetes/")
             continue
         _save(folder / f"{stamp}_{i:03d}.wav", clip)
         kept += 1
@@ -65,7 +70,7 @@ def main(n=100):
     raw = os.environ.get("JARVIS_AUDIO_IN")
     device = int(raw) if raw and raw.isdigit() else raw
     per_style = max(1, n // len(STYLES))
-    print(f"Partie 1 : dis « Jarvis » à chaque >>> ({per_style * len(STYLES)} fois, 2 s chacun).")
+    print(f"Partie 1 : dis « Jarvis » à chaque >>> ({per_style * len(STYLES)} fois, 3 s chacun).")
     for style in STYLES:
         input(f"\nStyle : {style}. Entrée pour commencer...")
         _session(sd, "positive", [f"Jarvis  ({style})"] * per_style, device)
