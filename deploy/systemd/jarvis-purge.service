@@ -1,0 +1,10 @@
+[Unit]
+Description=JARVIS purge de conservation
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/jarvis
+EnvironmentFile=-%h/.config/jarvis/env
+ExecStart=%h/venv/bin/python -m jarvis purge
+NoNewPrivileges=yes
+PrivateTmp=yes

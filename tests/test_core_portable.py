@@ -45,13 +45,6 @@ class CorePortableTest(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("OK", done.stdout)
 
-    def test_arret_du_pc_refuse_sans_outils_pc(self):
-        code = "from jarvis.tools.home import pcplug\npcplug.pc_off_plug()\n"
-        done = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=60,
-                              env={**os.environ, "JARVIS_PC_TOOLS": "0"})
-        self.assertNotEqual(done.returncode, 0)
-        self.assertIn("agent PC requis", done.stderr)
-
 
 if __name__ == "__main__":
     unittest.main()

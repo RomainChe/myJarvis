@@ -175,6 +175,12 @@ def ancestors(pid: int, k32=None) -> set[int]:
     return found
 
 
+@tool("game_running", "Un jeu est-il en cours sur le PC ? (mode jeu : le LLM évite la carte graphique)", Level.N0)
+def game_running() -> bool:
+    from jarvis.core import games  # import local : games importe tools.pc.system à l'usage
+    return games.detect()
+
+
 @tool("list_processes", f"Les {MAX_PROCESSES} processus qui utilisent le plus de mémoire.", Level.N0, external=True)
 def list_processes() -> dict:
     k32 = _kernel32()

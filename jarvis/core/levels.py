@@ -64,6 +64,7 @@ def set_level(name: str, level: int, *, strong_auth: bool, source: str = "levels
 # Titre et description courte de chaque outil pour l'écran de réglages (la description du registre s'adresse au LLM).
 LABELS = {
     "system_status": ("État du PC", "Processeur, mémoire, disque et carte graphique."),
+    "game_running": ("Jeu en cours ?", "Dit si un jeu tourne sur le PC (mode jeu du LLM)."),
     "list_processes": ("Processus actifs", "Les programmes qui utilisent le plus de mémoire."),
     "search_files": ("Recherche de fichiers", "Cherche des fichiers par leur nom dans le dossier utilisateur."),
     "open_app": ("Ouvrir une application", "Lance une application de la liste autorisée."),
