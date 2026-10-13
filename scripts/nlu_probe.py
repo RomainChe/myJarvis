@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-import jarvis.tools.dev, jarvis.tools.home, jarvis.tools.mail, jarvis.tools.social, jarvis.tools.pc  # noqa: E401,F401
+import jarvis.tools.assist, jarvis.tools.dev, jarvis.tools.home, jarvis.tools.mail, jarvis.tools.social, jarvis.tools.pc  # noqa: E401,F401
 from jarvis.core import llm
 from jarvis.core.router import Router
 from jarvis.core.tools import REGISTRY
