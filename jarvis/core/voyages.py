@@ -26,6 +26,12 @@ GIT = ["git", "-c", f"core.hooksPath={os.devnull}", "-c", "protocol.allow=never"
 _sync = {"at": 0.0, "ok": None, "error": None}  # dernière tentative de fetch (mémoire du processus)
 _lock = threading.Lock()
 TEXT = ("source", "origin", "dest", "return_from", "depart_date", "return_date", "airlines")
+# Bon plan Japon : sous DEAL_BELOW €, escales dans la règle du tracker. Seules les lignes « Google Flights » comptent :
+# avec des règles d'escales actives (config.yaml du tracker : max_stops, layover_hours) le tracker n'interroge que
+# Google, dont l'attente à chaque escale est vérifiée ; le cache Aviasales ne la détaille pas (hors règle).
+DEAL_BELOW, DEAL_MAX_STOPS, DEAL_SOURCE = 650, 2, "Google Flights"
+JAPAN = {"NRT", "HND", "KIX", "ITM", "NGO", "FUK", "CTS", "OKA", "KMJ", "HIJ", "SDJ", "UKB"}
+ALERT_STATE = Path.home() / ".jarvis" / "voyages-alert.json"
 
 
 def tracker_dir(path: Path = CONFIG) -> Path:
@@ -118,7 +124,11 @@ def snapshot(root: Path | None = None) -> dict:
         o = _offer(row)
         if not name or len(day) != 10 or o is None:
             continue
-        d = days.setdefault(name, {}).setdefault(day, {"best": o, "by_origin": {}})
+        d = days.setdefault(name, {}).setdefault(day, {"best": o, "by_origin": {}, "deal": None})
+        if (o["source"] == DEAL_SOURCE and o["dest"] in JAPAN and o["price"] < DEAL_BELOW
+                and o["stops"] is not None and o["stops"] <= DEAL_MAX_STOPS
+                and (d["deal"] is None or o["price"] < d["deal"]["price"])):
+            d["deal"] = o
         if o["price"] < d["best"]["price"]:
             d["best"] = o
         prev = d["by_origin"].get(o["origin"])
@@ -138,4 +148,27 @@ def snapshot(root: Path | None = None) -> dict:
             "by_origin": sorted(last["by_origin"].values(), key=lambda o: o["price"]),
         })
     searches.sort(key=lambda s: (s["last_run"], -s["best"]["price"]), reverse=True)
-    return {"configured": True, "searches": searches[:MAX_SEARCHES], **state}
+    # Bon plan : meilleur relevé vérifié du dernier jour de relevé seulement (un vieux relevé n'est plus une offre).
+    latest = max((s["last_run"] for s in searches), default=None)
+    deals = [{**days[s["name"]][latest]["deal"], "search": s["name"], "day": latest}
+             for s in searches if s["last_run"] == latest and days[s["name"]][latest]["deal"]]
+    deal = min(deals, key=lambda o: o["price"], default=None)
+    return {"configured": True, "searches": searches[:MAX_SEARCHES], "deal": deal, **state}
+
+
+def check_deal(notify, state: Path = ALERT_STATE, root: Path | None = None) -> dict | None:
+    """Appelle `notify()` une fois par bon plan : nouvel itinéraire, ou même itinéraire devenu moins cher."""
+    deal = snapshot(root).get("deal")
+    if deal is None:
+        return None
+    key = f"{deal['origin']}>{deal['dest']} {deal['depart_date']}/{deal['return_date']}"
+    try:
+        last = json.loads(Path(state).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        last = {}
+    if last.get("key") == key and deal["price"] >= last.get("price", 0):
+        return None
+    notify()
+    Path(state).parent.mkdir(parents=True, exist_ok=True)
+    Path(state).write_text(json.dumps({"key": key, "price": deal["price"]}), encoding="utf-8")
+    return deal

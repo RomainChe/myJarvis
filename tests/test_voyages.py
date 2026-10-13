@@ -48,6 +48,28 @@ class VoyagesTest(unittest.TestCase):
         j = s["searches"][0]
         self.assertEqual((len(s["searches"]), j["best"]["price"], j["best"]["link"]), (1, 900, None))
 
+    def test_bon_plan_japon_sous_650_escales_respectees(self):
+        row2 = lambda day, price, source="Google Flights", stops=1, dest="NRT": (  # noqa: E731
+            f"{day},Japon,{source},aller-retour,BCN,{dest},{dest},BCN,2027-05-05,2027-05-22,{price},ANA,{stops},900,https://x.test/o\n")
+        s = voyages.snapshot(project(HEAD + row2("2026-10-13", 640) + row2("2026-10-13", 600, stops=3)
+                                     + row2("2026-10-13", 500, source="Aviasales / Travelpayouts")
+                                     + row2("2026-10-13", 400, dest="JFK") + row2("2026-10-13", 700)))
+        self.assertEqual((s["deal"]["price"], s["deal"]["stops"], s["deal"]["search"]), (640, 1, "Japon"))
+        self.assertIsNone(voyages.snapshot(project(HEAD + row2("2026-10-13", 650)))["deal"])  # strictement sous 650
+        self.assertIsNone(voyages.snapshot(project(HEAD + row2("2026-10-12", 600) + row2("2026-10-13", 700)))["deal"])  # relevé du jour seulement
+
+    def test_check_deal_notifie_une_fois_puis_si_moins_cher(self):
+        state = Path(tempfile.mkdtemp()) / "alert.json"
+        calls = []
+        def run(price):
+            return voyages.check_deal(lambda: calls.append(price), state, project(HEAD + row("2026-10-13", "Japon", "BCN", price)))
+        self.assertIsNotNone(run(640))
+        self.assertIsNone(run(640))
+        self.assertIsNone(run(645))
+        self.assertIsNotNone(run(600))
+        self.assertIsNone(run(900))  # pas de bon plan
+        self.assertEqual(calls, [640, 600])
+
     def test_absent(self):
         self.assertEqual(voyages.snapshot(Path(tempfile.mkdtemp())),
                          {"configured": False, "searches": [], "synced_at": None, "sync_error": None})
