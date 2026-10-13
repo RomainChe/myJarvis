@@ -16,6 +16,7 @@ import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
+from jarvis.core.agentlink import AgentError
 from jarvis.core.audit import Audit
 from jarvis.core import levels, memory, reminders
 from jarvis.core.host import load_pc_tools
@@ -210,7 +211,7 @@ class Chat:
                 answer = f"<{type(result).__name__}, {len(str(result))} car.>" if REGISTRY[name].private else str(result)
         except Refused:
             answer = "Action refusée."
-        except LLMUnavailable as e:
+        except (LLMUnavailable, AgentError) as e:  # message fixe : « PC injoignable », « clé absente »...
             answer = str(e)
         except ValueError as e:
             answer = str(e)

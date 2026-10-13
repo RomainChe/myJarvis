@@ -123,7 +123,7 @@ class WorkTest(unittest.TestCase):
         git(self.repo, "commit", "-q", "-m", "init")
         self.audit = Audit(":memory:")
         for name, value in (("REPO", self.repo), ("HOME", self.home), ("STATE", self.home / "claude_last.json"),
-                            ("WORK", tmp / "work"), ("SMOKE", [sys.executable, "-c", "import json, a; print(json.dumps(a.TOOLS))"])):
+                            ("WORK", tmp / "work"), ("SMOKE", [sys.executable, "-B", "-c", "import json, a; print(json.dumps(a.TOOLS))"])):
             p = mock.patch.object(dev, name, value)
             p.start()
             self.addCleanup(p.stop)

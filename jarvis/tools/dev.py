@@ -74,7 +74,7 @@ RUNNER = ("import sys, unittest\n"
           "    print(nonce, r.testsRun, len(r.skipped), int(r.wasSuccessful()))\n"
           "main(sys.stdin.readline().strip())\n")
 # Fumée + carte des outils : le serveur s'importe, et niveaux/drapeaux comparés entre main et la branche.
-SMOKE = [sys.executable, "-c", "import json, jarvis.__main__, jarvis.server\n"
+SMOKE = [sys.executable, "-B", "-c", "import json, jarvis.__main__, jarvis.server\n"
          "from jarvis.core.tools import REGISTRY\n"
          "print(json.dumps({n: [int(t.level), t.private, t.external, t.taint_blocked, sorted(t.hidden), t.owner_only]"
          " for n, t in REGISTRY.items()}))"]
