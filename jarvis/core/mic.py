@@ -34,6 +34,7 @@ THRESHOLD = 0.5
 MAX_WAKES_PER_MIN = 4
 MAX_WAKES_PER_DAY = 200  # plafond du journal des réveils (7) : au-delà, réveil refusé jusqu'au lendemain
 MAX_FEED_ERRORS = 5  # erreurs de `feed` d'affilée avant arrêt (11)
+RETRY_S = 3  # flux micro perdu : délai avant réouverture
 MAX_UTTERANCE_S = 15  # tampon borné (14)
 MAX_BLOCKS = MAX_UTTERANCE_S * RATE // BLOCK + 2  # plafond dur, indépendant de l'horloge
 TAIL_S = 1.5  # fenêtre de la passe VAD une fois la parole entendue (coût constant)
@@ -224,12 +225,20 @@ class Mic:
             self._end(None, "silence")
 
     def run(self):
-        """Boucle bloquante jusqu'à `stop()`. Micro coupé = flux fermé (le voyant s'éteint). Erreur -> message fixe."""
-        stream = None
+        """Boucle bloquante jusqu'à `stop()`. Micro coupé = flux fermé (le voyant s'éteint). Erreur -> message fixe.
+
+        Modèle absent : arrêt. Flux perdu (micro débranché, veille, changement de périphérique) : on referme et on
+        réessaie toutes les RETRY_S secondes, PortAudio relancé pour revoir la liste des périphériques.
+        """
         try:
             sd = self._sd or __import__("sounddevice")
             self._load()
-            while not self._stop.is_set():
+        except Exception:
+            self.error = ERR_MSG
+            return
+        stream = None
+        while not self._stop.is_set():
+            try:
                 if self.disabled():
                     if stream is not None:
                         stream.close()
@@ -243,13 +252,27 @@ class Mic:
                                             device=audio_device("JARVIS_AUDIO_IN"))
                     stream.start()
                     self._wake.reset()
+                    self.error = None
                 data, _ = stream.read(BLOCK)
                 self.feed(np.asarray(data, dtype=np.int16).reshape(-1))
-        except Exception:
-            self.error = ERR_MSG
-        finally:
-            if stream is not None:
-                stream.close()
+            except Exception:
+                self.error = ERR_MSG
+                self._buf = None
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except Exception:
+                        pass
+                    stream = None
+                self._stop.wait(RETRY_S)
+                if hasattr(sd, "_terminate") and self.speaker.ignore_until() != float("inf"):  # jamais pendant une lecture
+                    try:
+                        sd._terminate()
+                        sd._initialize()
+                    except Exception:
+                        pass
+        if stream is not None:
+            stream.close()
 
     def stop(self):
         self._stop.set()
