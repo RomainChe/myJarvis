@@ -56,6 +56,7 @@ from jarvis.tools.home import pcplug
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 import jarvis.tools.voyages  # noqa: F401  (enregistre les outils voyages)
+import jarvis.tools.conso  # noqa: F401  (enregistre conso_pc)
 from jarvis.core.host import load_pc_tools
 
 load_pc_tools()  # outils PC réels, ou proxys vers l'agent PC sur le mini-PC
@@ -144,6 +145,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         mic = start_mic(audit)
         threading.Thread(target=_reminders, args=(audit, mic), daemon=True).start()
         threading.Thread(target=_voyages_watch, args=(audit,), daemon=True).start()
+        threading.Thread(target=_conso_watch, daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         threading.Thread(target=_bienetre, daemon=True).start()
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
@@ -323,6 +325,19 @@ def _voyages_watch(audit) -> None:
         except Exception:  # noqa: BLE001 (réseau, git, push : réessai à la prochaine heure)
             pass
         time.sleep(voyages.FETCH_EVERY_S)
+
+
+def _conso_watch() -> None:
+    """Chaque minute : puissance de la prise du PC -> énergie du jour (jarvis/core/conso.py). Lecture seule, rien au journal."""
+    import time
+    from jarvis.core import conso
+    from jarvis.tools.home import pcplug
+    while True:
+        try:
+            conso.sample(pcplug.watts())  # inf (prise illisible) : trou, pas de mesure inventée
+        except Exception:  # noqa: BLE001 (disque, HA : réessai à la minute suivante)
+            pass
+        time.sleep(conso.SAMPLE_S)
 
 
 def _reminders(audit, mic) -> None:
