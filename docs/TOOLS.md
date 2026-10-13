@@ -175,6 +175,15 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : `python -m jarvis run power_cancel`.
 - **Notes** : `System32\shutdown.exe /a` par chemin absolu. Sans intention du routeur. Testé avec des mocks.
 
+## pc_off_plug
+
+- **Description** : éteint le PC proprement, attend, puis coupe la multiprise du PC et des écrans (prise Tapo P110 via Home Assistant).
+- **Niveau** : N2 (confirmation). Coupe Jarvis jusqu'au rallumage de la prise.
+- **Paramètres** : aucun.
+- **Retour** : `power` : `shutdown`, `prise` : `coupure planifiée`.
+- **Exemple** : « éteins la prise du PC » (LLM puis confirmation) ou `python -m jarvis run pc_off_plug`.
+- **Notes** : `jarvis/tools/home/pcplug.py`. Entités attendues : `switch.prise_pc` et `script.pc_prise_off` (script HA : attend la chute de puissance, 30 s, revérifie, coupe ; il ne coupe rien si l'arrêt échoue, voir docs/INSTALL_SERVEUR_HA.md §10). Le script est lancé AVANT l'arrêt ; prise `unavailable` = rien n'est lancé ; refusé si `power` est relevé au-dessus de cet outil. Sans intention du routeur (S12/C4). Utile seulement si HA tourne sur le mini-PC. Testé avec des mocks, jamais en réel.
+
 ## clipboard_write
 
 - **Description** : copie un texte dans le presse-papiers (remplace son contenu).

@@ -79,6 +79,7 @@ LABELS = {
     "screen_off": ("Éteindre les écrans", "Le PC reste allumé."),
     "lock_session": ("Verrouiller la session", "Verrouille la session Windows."),
     "power": ("Veille, redémarrage, arrêt", "Alimentation du PC, avec délai d'annulation."),
+    "pc_off_plug": ("Éteindre le PC et sa prise", "Arrêt du PC, puis coupe la multiprise (PC et écrans)."),
     "power_cancel": ("Annuler l'arrêt", "Annule un redémarrage ou un arrêt en attente."),
     "mail_recent": ("Résumer les mails", "Lit expéditeur, objet et début des mails récents, en lecture seule."),
     "social_schedule": ("Planning des publications", "Liste les vidéos programmées de lol-clipper."),
