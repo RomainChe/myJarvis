@@ -99,3 +99,9 @@
 - **Risque accepté** : `agent_key` compromise = exécution de tout outil PC, N2 compris, sans confirmation. Même domaine de confiance que le Core (jeton HA, confirmation). Atténuations : clé aléatoire (`secrets.token_urlsafe(48)`), écoute sur l'IP Tailscale uniquement, pare-feu Windows limité à l'IP Tailscale du mini-PC (à tester au lot 5), rotation = nouvelle clé sur les deux machines.
 - Dette basse : verrou global tenu pendant un outil lent (`run_script`) ; `~/.jarvis/agent.log` sans rotation (arguments masqués, jamais les résultats) ; réponse limitée à 64 Ko.
 - Catalogue des outils : `jarvis/pc_catalog.json`, régénéré par `python -m jarvis.agent catalog` ; un test (Windows) échoue si un outil PC change sans régénération.
+
+## 2026-10-13 — Onglet Voyages : revue Sécurité (validé sous réserves, conditions remplies)
+- **Risque accepté par le propriétaire (RGPD)** : `voyage_destination` publie la destination, les dates et les villes de départ dans `config.yaml` du dépôt public `flight-price-tracker`, avec un commit visible de tous. Alternative écartée : passer le dépôt en privé.
+- **Corrigés** : (M1) plancher N2 pour `voyage_destination` dans `levels.FLOORS` (ni réglage ni jeton d'appareil ne le descend) ; (M2) plus de villes de départ par défaut dans la PWA, ROADMAP sans plan de voyage ; (B5) tests : destination ou départ commençant par `-`, plancher N2.
+- **Dette basse non traitée** : B1 (`_validate` exécute le `.venv` du tracker avec l'environnement complet ; docstring de `core/voyages.py` à nuancer), B2 (doublon possible si le push aboutit mais expire), B3 (fetch d'un GET non audité), B4 (identité de commit tirée de la config git locale).
+- **À tester en réel** : push avec le Git Credential Manager, `config.yaml` CRLF réel, confirmation par push sur mobile.

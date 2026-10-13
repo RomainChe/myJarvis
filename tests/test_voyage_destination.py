@@ -54,7 +54,8 @@ class SpecTest(unittest.TestCase):
         for kw in ({"origins": "evil@mail.fr"}, {"destination": "x: y"}, {"origins": ""}, {"depart_from": "2026-10-13"},
                    {"depart_to": "2027-05-01"}, {"depart_to": "2028-12-01"}, {"return_date": "2027-07-10"},
                    {"stay_days": ""}, {"stay_days": "0"}, {"stay_days": "a"}, {"alert_below": -1},
-                   {"stay_days": "", "return_date": "2027-06-15"}, {"depart_from": "demain"}):
+                   {"stay_days": "", "return_date": "2027-06-15"}, {"depart_from": "demain"},
+                   {"destination": "-rf"}, {"origins": "Paris, -x"}):
             with self.subTest(kw=kw), self.assertRaises(ValueError):
                 spec(**kw)
 
@@ -153,6 +154,12 @@ class RouteTest(ChatBase):
     def test_outil_n2_bloque_apres_contenu_externe(self):
         t = REGISTRY["voyage_destination"]
         self.assertEqual((t.level, t.taint_blocked), (Level.N2, True))
+
+    def test_plancher_n2_meme_abaisse(self):
+        from jarvis.core import levels
+        self.assertEqual(levels.floor(REGISTRY["voyage_destination"]), Level.N2)
+        with self.assertRaises(ValueError):
+            levels.set_level("voyage_destination", 1, strong_auth=True)
 
     def test_authentification_exigee(self):
         self.assertEqual(self.call("POST", "/api/voyages/destination", ARGS)[0], 401)

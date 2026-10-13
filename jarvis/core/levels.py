@@ -11,6 +11,8 @@ from .tools import REGISTRY, Level, Tool
 # Outils irréversibles ou à fort impact : jamais sous N1 (décision du propriétaire, 2026-10-08 ; avant : N2).
 # Abaissés en N1, ils restent refusés au LLM après du contenu externe (llm.py compare aussi le niveau du registre).
 FLOORS = {name: Level.N1 for name in ("power", "delete_file", "move_file", "kill_process", "run_script")}
+# Pousse sur un dépôt public avec la seule confirmation de l'appareil : jamais sous N2 (revue Sécurité Voyages, M1).
+FLOORS["voyage_destination"] = Level.N2
 SCHEMA = "CREATE TABLE IF NOT EXISTS levels (tool TEXT PRIMARY KEY, level INTEGER NOT NULL CHECK (level BETWEEN 0 AND 3))"
 
 _audit: Audit | None = None
