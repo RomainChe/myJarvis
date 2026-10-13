@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import sys
 import unittest
+
+from jarvis.core.host import load_pc_tools
 from pathlib import Path
 import urllib.error
 import urllib.request
@@ -137,11 +139,11 @@ class LLMTest(unittest.TestCase):
         self.assertEqual(ran, ["power"])
 
     def test_clipboard_write_est_taint_blocked(self):
-        import jarvis.tools.pc  # noqa: F401
+        load_pc_tools()
         self.assertTrue(REGISTRY["clipboard_write"].taint_blocked)
 
     def test_n1_de_session_sont_taint_blocked(self):  # Phase 5 étape 4 (D7)
-        import jarvis.tools.pc  # noqa: F401
+        load_pc_tools()
         for name in ("lock_session", "screen_off", "power_cancel"):
             self.assertTrue(REGISTRY[name].taint_blocked, name)
 
@@ -185,7 +187,7 @@ class LLMTest(unittest.TestCase):
         self.assertIn(llm._NoRedirect, {type(h) for h in llm._opener.handlers})
 
     def test_outils_a_resultat_tiers_marques_external(self):
-        import jarvis.tools.pc  # noqa: F401
+        load_pc_tools()
         for name in ("search_files", "list_processes"):
             self.assertTrue(REGISTRY[name].external, name)
 
@@ -229,7 +231,7 @@ class LLMTest(unittest.TestCase):
         self.assertEqual(result, "<data>erreur : OSError</data>")
 
     def test_schemas_couvrent_le_registre(self):
-        import jarvis.tools.pc  # noqa: F401
+        load_pc_tools()
         by_name = {s["function"]["name"]: s["function"] for s in llm.schemas()}
         self.assertTrue({"llm_ext", "system_status", "search_files"} <= by_name.keys())
         self.assertEqual(by_name["search_files"]["parameters"]["required"], ["name", "folder"])

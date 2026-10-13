@@ -186,6 +186,7 @@ class CliPhraseTest(unittest.TestCase):
         self.assertIn("Ollama ne répond pas", out)
         self.assertEqual(Audit(str(cli.DB_PATH)).last(), [])
 
+    @unittest.skipUnless(sys.platform == "win32", "search_files réel : Windows seulement")
     def test_phrase_reconnue_executee_et_journalisee(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(Path, "home", return_value=Path(tmp)):
             Path(tmp, "Documents").mkdir()

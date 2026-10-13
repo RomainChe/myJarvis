@@ -4,7 +4,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from jarvis.core.mic import Mic
+try:
+    from jarvis.core.mic import Mic
+except ImportError:  # numpy absent (extra `voice`)
+    raise unittest.SkipTest("numpy absent")
 from tests.test_server import ServerBase
 
 

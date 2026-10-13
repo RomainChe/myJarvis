@@ -15,7 +15,9 @@ from pathlib import Path
 
 import jarvis.tools.home  # noqa: F401
 import jarvis.tools.mail  # noqa: F401
-import jarvis.tools.pc  # noqa: F401
+from jarvis.core.host import load_pc_tools
+
+load_pc_tools()
 from jarvis.core import llm
 from jarvis.core.audit import Audit
 from jarvis.core.tools import REGISTRY, Level, _registry

@@ -228,7 +228,7 @@ class GuardTest(ServerBase):
         self.assertEqual(len(self.audit.last(1000)), lines)
 
     def test_port_non_numerique_donne_un_message(self):  # constat 6
-        with mock.patch.dict("os.environ", {"JARVIS_PORT": "abc"}), mock.patch("builtins.print") as out:
+        with mock.patch.dict("os.environ", {"JARVIS_PORT": "abc"}), mock.patch.object(cli, "DB_PATH", ":memory:"),                 mock.patch("builtins.print") as out:
             self.assertEqual(cli.device_or_serve(["serve"], Audit(":memory:")), 2)
         self.assertIn("JARVIS_PORT", str(out.call_args_list))
 
