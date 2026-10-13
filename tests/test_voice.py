@@ -129,7 +129,8 @@ class VoiceTest(unittest.TestCase):
                 with self.assertRaises(Refused):
                     execute("power", {"action": "shutdown"}, source=source, audit=audit, confirm=confirm, strong_auth=strong_auth)
             return "C'est fait."
-        with mock.patch.object(voice_mod, "ask", ask), mock.patch("subprocess.run") as run:
+        with mock.patch.object(voice_mod, "ask", ask), mock.patch("subprocess.run") as run, \
+                mock.patch("jarvis.core.agentlink.call", return_value={}):  # Core sans PC : le N0 passe par l'agent
             self.assertEqual(self.voice.handle("coupe le son et éteins le PC"), voice_mod.N2_MSG)
         self.assertFalse([c for c in run.call_args_list if "shutdown" in str(c)])  # le N0 a tourné (nvidia-smi), pas le N2
         rows = self.rows()

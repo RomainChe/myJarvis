@@ -3,6 +3,7 @@ import dataclasses
 import json
 import tempfile
 import time
+import sys
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -163,6 +164,7 @@ class EndToEndTest(ChatBase):
         from test_llm import FakeOllama
         return mock.patch.object(chat_mod, "ask", partial(llm.ask, send=FakeOllama(*replies), gaming=lambda: False))
 
+    @unittest.skipUnless(sys.platform == "win32", "patche l'outil Windows réel")
     def test_action_n2_apres_contenu_externe_jamais_proposee(self):  # injection : un résultat d'outil réclame une action N2
         from test_llm import call, reply
         from jarvis.core import ha
@@ -176,6 +178,7 @@ class EndToEndTest(ChatBase):
         kill.assert_not_called()
         self.assertIn("contenu externe", str(self.audit.last(20)))
 
+    @unittest.skipUnless(sys.platform == "win32", "patche l'outil Windows réel")
     def test_n2_refuse_ou_approuve_depuis_l_app(self):
         from test_llm import call, reply
         from jarvis.tools.pc import apps
@@ -208,7 +211,7 @@ class N2SurLeWebTest(ChatBase):
 
     def test_tous_les_outils_n2_refuses_ou_expires(self):
         names = [n for n, t in REGISTRY.items()  # seulement les vrais outils : d'autres tests en enregistrent de faux
-                 if t.level >= Level.N2 and t.run.__module__.startswith("jarvis.tools")]
+                 if t.level >= Level.N2 and t.run.__module__.startswith(("jarvis.tools", "jarvis.core.agentlink"))]
         self.assertTrue({"run_script", "clipboard_read", "screenshot", "move_file", "delete_file", "kill_process",
                          "power"} <= set(names))  # un outil N2 abaissé ou retiré ferait échouer ce test
         for name in names:

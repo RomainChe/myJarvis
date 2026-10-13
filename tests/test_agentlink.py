@@ -166,9 +166,9 @@ class ProxyTest(unittest.TestCase):
             self.assertEqual(call.call_args_list[0].args[0], "run")
             self.assertEqual(call.call_args_list[1].args[0], "describe")
 
-    def test_sans_url_aucun_outil(self):
-        with mock.patch.dict("os.environ", {al.URL_ENV: ""}):
-            self.assertEqual(al.register_proxies(), 0)
+    def test_sans_url_l_appel_echoue_clairement(self):
+        with mock.patch.dict("os.environ", {al.URL_ENV: ""}), self.assertRaisesRegex(al.AgentError, "non configuré"):
+            al.call("run", "mute", {"muted": True})
 
     @unittest.skipUnless(sys.platform == "win32", "outils PC : Windows seulement")
     def test_catalogue_a_jour(self):

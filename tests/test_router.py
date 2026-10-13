@@ -1,6 +1,7 @@
 import dataclasses
 import io
 import json
+import sys
 import tempfile
 import time
 import unittest
@@ -9,7 +10,9 @@ from pathlib import Path
 from unittest import mock
 
 import jarvis.__main__ as cli
-import jarvis.tools.pc  # noqa: F401  (enregistre les outils)
+from jarvis.core.host import load_pc_tools
+
+load_pc_tools()  # outils réels sous Windows, proxys de l'agent ailleurs
 from jarvis.core.audit import Audit
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.router import CATALOGUE, Router, normalize
@@ -122,6 +125,7 @@ class RouterTest(unittest.TestCase):
         for text in ("tue les processus", "arrête les processus"):
             self.assertIsNone(self.router.route(text), text)
 
+    @unittest.skipUnless(sys.platform == "win32", "outils PC : Windows seulement")
     def test_qa_slot_nom_de_fichier_preserve(self):
         """QA-R3 : la normalisation abîme le slot : « l'été.txt » -> « l ete.txt », « (1).pdf » -> « 1 pdf »."""
         from jarvis.tools.pc.system import search_files
@@ -131,6 +135,7 @@ class RouterTest(unittest.TestCase):
                 _, args = self.router.route(f"cherche le fichier {name}")
                 self.assertEqual(len(search_files(args["name"], tmp)["results"]), 1, name)
 
+    @unittest.skipUnless(sys.platform == "win32", "outils PC : Windows seulement")
     def test_qa_r4_dossier_en_francais(self):
         from jarvis.tools.pc import system
         with tempfile.TemporaryDirectory() as tmp:
@@ -181,6 +186,7 @@ class CliPhraseTest(unittest.TestCase):
         self.assertIn("Ollama ne répond pas", out)
         self.assertEqual(Audit(str(cli.DB_PATH)).last(), [])
 
+    @unittest.skipUnless(sys.platform == "win32", "search_files réel : Windows seulement")
     def test_phrase_reconnue_executee_et_journalisee(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(Path, "home", return_value=Path(tmp)):
             Path(tmp, "Documents").mkdir()

@@ -10,7 +10,10 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:  # extra `voice` absent (Core du mini-PC)
+    raise unittest.SkipTest("numpy absent")
 
 from jarvis.core import stt
 from jarvis.core.chat import TEXT_MAX

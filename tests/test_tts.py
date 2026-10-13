@@ -9,7 +9,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:  # extra `voice` absent (Core du mini-PC)
+    raise unittest.SkipTest("numpy absent")
 
 from jarvis.core import gpu, tts
 from jarvis.core.audit import Audit

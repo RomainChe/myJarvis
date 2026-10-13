@@ -118,7 +118,7 @@ def _pop_due(now: float) -> list[tuple[int, float, str, str]]:
 
 def briefing_time(raw: str | None = None) -> tuple[int, int] | None:
     """`JARVIS_BRIEFING_AT` (« 07:30 ») ou None. Valeur invalide : ValueError (le serveur démarre sans briefing)."""
-    raw = (os.environ.get("JARVIS_BRIEFING_AT") if raw is None else raw or "").strip()
+    raw = (os.environ.get("JARVIS_BRIEFING_AT", "") if raw is None else raw or "").strip()
     if not raw:
         return None
     m = re.fullmatch(r"(\d{1,2}):(\d{2})", raw)

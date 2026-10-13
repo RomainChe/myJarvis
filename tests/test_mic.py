@@ -5,7 +5,10 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:  # extra `voice` absent (Core du mini-PC)
+    raise unittest.SkipTest("numpy absent")
 
 from jarvis.core import mic as micmod
 from jarvis.core.audit import Audit

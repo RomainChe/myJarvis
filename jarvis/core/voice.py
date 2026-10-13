@@ -8,6 +8,7 @@ import hashlib
 import re
 import threading
 
+from jarvis.core.agentlink import AgentError
 from jarvis.core.chat import ANSWER_MAX, REGISTRY, TEXT_MAX, Chat, ask, execute
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable
@@ -96,6 +97,8 @@ class Voice:
                 answer = "Action refusée."
             except LLMUnavailable as e:
                 answer = str(e)
+            except AgentError:  # PC éteint ou agent muet : message fixe, rien n'a été fait
+                answer = "Le PC ne répond pas."
             except ValueError:  # message fixe : le texte d'origine peut venir du LLM (nom d'outil, arguments)
                 answer = "Demande invalide."
             except Exception as e:  # pas de trace : elle pourrait contenir des arguments ou des noms de fichiers

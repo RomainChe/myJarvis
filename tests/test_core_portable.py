@@ -21,7 +21,14 @@ import jarvis.core.chat, jarvis.server, jarvis.__main__
 from jarvis.core.tools import REGISTRY
 from jarvis.core.router import Router
 from jarvis.core import games
-assert not any(n in REGISTRY for n in ("power", "system_status", "lock_session", "open_app")), sorted(REGISTRY)
+for n in ("power", "system_status", "lock_session", "open_app"):  # proxys de l'agent PC, jamais l'outil Windows
+    assert REGISTRY[n].run.__module__ == "jarvis.core.agentlink", n
+try:
+    REGISTRY["lock_session"].run()
+except Exception as e:
+    assert "non configuré" in str(e), e
+else:
+    raise AssertionError("un proxy sans agent doit échouer")
 assert "tv_on" in REGISTRY and "pc_plug_on" in REGISTRY and "reminder_set" in REGISTRY
 assert games.process_names() == set()
 print("OK")

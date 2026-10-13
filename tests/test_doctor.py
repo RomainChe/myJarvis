@@ -1,3 +1,4 @@
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,6 +45,7 @@ class WatchTest(unittest.TestCase):
                      notify_health=notify_health)
         notify_health.assert_not_called()
 
+    @unittest.skipUnless(sys.platform == "win32", "schtasks : Windows seulement")
     def test_schtasks_par_chemin_absolu(self):
         with mock.patch.object(doctor.subprocess, "run") as run:
             doctor.restart_task()
