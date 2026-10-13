@@ -24,6 +24,14 @@ message clair, aucune action.
 Le routeur renvoie `(outil, paramètres)` ou `None` (la demande ira au LLM). Il propose
 seulement : c'est la garde de permissions qui décide. Latence mesurée par un test : < 50 ms.
 
+## game_running
+
+- **Description** : un jeu tourne-t-il sur le PC ? Sert au mode jeu (le LLM évite la carte graphique).
+- **Niveau** : N0 (lecture). **Paramètres** : aucun. **Retour** : `true` / `false`.
+- **Exemple** : `python -m jarvis run game_running`.
+- **Notes** : Core sur le mini-PC : `games.detect` interroge l'agent par cet outil (cache 5 s ; agent injoignable =
+  `false`, nouvel essai après 30 s). Même détection que sur le PC (`jarvis/core/games.py`).
+
 ## system_status
 
 - **Description** : état du PC (CPU, RAM, disque système, GPU NVIDIA si présent).

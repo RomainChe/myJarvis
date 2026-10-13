@@ -68,7 +68,8 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 
 ### Lot 4 : voix, jeu, Claude Code
 - Micro, réveil, Whisper, Piper restent sur le PC (agent) : voix indisponible PC éteint.
-- Mode jeu : l'agent signale « jeu en cours » au Core, qui décharge/évite le LLM (Ollama est sur le PC).
+- Mode jeu : le Core interroge l'agent (outil N0 `game_running`, cache 5 s, échec = pas de jeu) ; pas de push de
+  l'agent vers le Core. **Fait le 2026-10-13** (`feat/jeu-agent`).
 - Outil `claude_code` : reste sur le PC (CLI et dépôt locaux), via l'agent, `owner_only` inchangé.
 - Option plus tard : petit Whisper sur le mini-PC pour la voix PC éteint (plus lent, moins précis).
 

@@ -80,6 +80,18 @@
   "owner_only": false
  },
  {
+  "name": "game_running",
+  "description": "Un jeu est-il en cours sur le PC ? (mode jeu : le LLM évite la carte graphique)",
+  "level": 0,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
   "name": "kill_process",
   "description": "Termine de force le processus `pid`, qui doit porter le nom `name` (ex. notepad.exe).",
   "level": 2,
