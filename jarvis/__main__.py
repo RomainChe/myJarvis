@@ -37,7 +37,7 @@ os.environ["HF_HUB_OFFLINE"] = "1"  # (9) avant tout import voix : aucun accès 
 import keyring.errors
 import segno
 
-from jarvis.core import ha, levels
+from jarvis.core import ha, levels, reminders
 from jarvis.core.audit import Audit
 from jarvis.core.devices import CODE_TTL_S, Devices
 from jarvis.core.llm import LLMUnavailable, ask
@@ -48,6 +48,7 @@ from jarvis.core.secrets import get_secret, set_secret
 from jarvis.core.tools import Tool
 from jarvis.core.webauthn import Passkeys
 from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
+import jarvis.tools.assist  # noqa: F401  (enregistre minuteurs, rappels et briefing)
 import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
@@ -136,6 +137,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=check_models, args=(audit,), daemon=True).start()
         threading.Thread(target=_purge, args=(audit,), daemon=True).start()
         mic = start_mic(audit)
+        threading.Thread(target=_reminders, args=(audit, mic), daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
               + " (Ctrl+C pour arrêter)", file=sys.stderr)
@@ -301,6 +303,43 @@ def level_cmd(argv: list[str]) -> int:
     return 2
 
 
+def _reminders(audit, mic) -> None:
+    """Annonce minuteurs, rappels et briefing du matin : voix du PC (sauf hors ligne) + push sans le texte."""
+    import time
+    from jarvis.core import doctor
+    from jarvis.tools.assist import build_briefing
+    try:
+        at = reminders.briefing_time()
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        at = None
+    voice = getattr(getattr(mic, "on_utterance", None), "voice", None)  # Listener -> Voice
+
+    def announce(kind: str, label: str, late: float) -> str:
+        if kind == "briefing":
+            spoken, body = build_briefing(), "Ton briefing du matin est prêt : demande « briefing »."
+        else:
+            spoken = ("Minuteur terminé." if kind == "timer" else "Rappel.") + (f" {label}" if label else "")
+            body = "Ton minuteur est terminé." if kind == "timer" else "Un rappel t'attend."
+        done = []
+        try:
+            doctor.notify_all(str(DB_PATH), {"title": "Jarvis", "body": body})
+            done.append("push")
+        except Exception:  # noqa: BLE001 (clé ou réseau : la voix passe quand même)
+            pass
+        if voice is not None and not voice.offline and voice.speaker is not None and not voice.muted:
+            for _ in range(40):  # une réponse en cours se termine d'abord (20 s au plus)
+                if not voice.speaker.is_speaking():
+                    break
+                time.sleep(0.5)
+            if not voice.speaker.is_speaking():
+                voice.say(spoken)
+                done.insert(0, "voix")
+        return " + ".join(done) or "non remis (ni voix ni push)"
+
+    reminders.run(announce, at)
+
+
 def _purge(audit) -> None:
     from jarvis.core import retention
     try:
@@ -371,6 +410,7 @@ def main(argv: list[str]) -> int:
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
     levels.load(audit)
+    reminders.load(audit)
     if argv in (["finance", "fetch"], ["veille", "fetch"]):
         from jarvis.core import finance, finance_fetch, veille
         what, fetch = (("finance_fetch", lambda: finance_fetch.fetch_reports()) if argv[0] == "finance" else

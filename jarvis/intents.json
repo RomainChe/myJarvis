@@ -95,5 +95,48 @@
   {
     "tool": "claude_code_status",
     "phrases": ["ou en est le code", "resultat du code", "compte rendu du code", "etat du code"]
+  },
+  {
+    "tool": "timer_set",
+    "patterns": [
+      "((mets?|lance|d[eé]marre|programme|r[eé]gle) )?(un |le |mon )?(minuteur|chrono|timer)( de| pour| sur| [àa])? {duration} pour {label}",
+      "((mets?|lance|d[eé]marre|programme|r[eé]gle) )?(un |le |mon )?(minuteur|chrono|timer)( de| pour| sur| [àa])? {duration}",
+      "rappelle[- ]moi (de |d['’]|que |pour ){label} dans {duration}"
+    ],
+    "defaults": {"label": ""}
+  },
+  {
+    "tool": "reminder_set",
+    "patterns": [
+      "r[eé]veille[- ]moi {when}",
+      "((mets?|programme|r[eé]gle) )?(un |mon )?r[eé]veil {when}"
+    ],
+    "defaults": {"label": "Réveil"}
+  },
+  {
+    "tool": "reminder_set",
+    "patterns": [
+      "rappelle[- ]moi {when} (de |d['’]|que |pour ){label}",
+      "rappelle[- ]moi (de |d['’]|que |pour ){label} [àa] {when}"
+    ]
+  },
+  {
+    "tool": "reminder_list",
+    "phrases": ["mes rappels", "mes minuteurs", "liste des rappels", "liste des minuteurs", "rappels en cours",
+                "minuteurs en cours", "quels sont mes rappels", "quels sont mes minuteurs"]
+  },
+  {
+    "tool": "reminder_cancel",
+    "patterns": ["(annule|supprime|arr[eê]te|stoppe|efface)( le| mon| ce| un)? (minuteur|timer|chrono|rappel|r[eé]veil)"],
+    "defaults": {"id": 0}
+  },
+  {
+    "tool": "reminder_cancel",
+    "patterns": ["(annule|supprime|arr[eê]te|stoppe|efface)( le| mon| ce)? (minuteur|timer|chrono|rappel|r[eé]veil) (n[°o] ?)?{id}"]
+  },
+  {
+    "tool": "briefing",
+    "phrases": ["briefing", "le briefing", "mon briefing", "briefing du matin", "mon briefing du matin", "le point du matin",
+                "fais moi le briefing", "resume de la journee", "quoi de neuf aujourd hui"]
   }
 ]

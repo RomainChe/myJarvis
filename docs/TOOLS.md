@@ -288,6 +288,23 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 - **Exemples** : « mets le mode cinéma », « lance le mode cinéma sur Netflix » (motifs exacts du routeur) ; `python -m jarvis run scene_cinema app=netflix`.
 - **Notes** : écart au plan (script HA) : l'utilisateur `jarvis` n'est pas administrateur et ne peut pas créer de script HA ; à migrer quand les volets (Shelly) seront posés.
 
+## Minuteurs, rappels et briefing (`jarvis/tools/assist.py`, `jarvis/core/reminders.py`)
+
+Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur le PC (sauf voix « hors ligne ») et push **sans le texte** à tous les appareils. Le texte d'un rappel est supprimé de la base une fois annoncé et n'entre jamais dans le journal (id et longueur seulement : `args` masqués, résultats sans texte). 50 rappels en attente au plus, 24 h au plus.
+
+| Outil | Niveau | Paramètres | Retour | Exemple |
+|---|---|---|---|---|
+| `timer_set` | N1, `taint_blocked` | `duration` (« 20 minutes », « 1h30 », « une demi-heure »), `label` (peut être vide) | heure de fin | « mets un minuteur de 10 minutes pour les pâtes », « rappelle-moi de sortir le linge dans 20 minutes » |
+| `reminder_set` | N1, `taint_blocked` | `when` (« dans 2 heures », « à 7h30 », « demain à 8h »), `label` | heure du rappel | « réveille-moi à 7h », « rappelle-moi à 18h30 d'appeler Paul » |
+| `reminder_list` | N0 | aucun | une ligne par rappel : `#id à HH:MM : minuteur/rappel` (jamais le texte, qui reste journal-safe et lisible à la voix) | « mes rappels » |
+| `reminder_cancel` | N1, `taint_blocked` | `id` (0 = le plus proche) | id annulé | « annule le minuteur », « annule le rappel 3 » |
+| `briefing` | N0, `external` | aucun | date, météo, rappels du jour (nombre et heure, jamais le texte), publications lol-clipper du jour, 2 titres de la veille IA | « briefing du matin » |
+
+- **Briefing sans mails ni finances** : `mail_recent` est N2 et privé, les finances sont privées ; lus à voix haute, ils sortiraient devant la TV ou un visiteur. Une source en panne est omise, le reste est dit.
+- **Briefing automatique** : `JARVIS_BRIEFING_AT=07:30` (HH:MM, `.env`). Un rappel de type `briefing` se réarme chaque jour ; lu par la voix du PC + push « ton briefing est prêt ». Un briefing manqué de plus de 2 h (PC éteint) n'est pas lu.
+- Annonce : le journal dit ce qui a été fait (`voix + push`, `push`, `non remis`). Voix hors ligne, muette ou occupée > 20 s : push seul, le texte est perdu (supprimé avant l'annonce). Les sauvegardes de la base contiennent les rappels en attente (texte inclus) : base locale, propriétaire seul.
+- Analyse des durées et heures : `parse_duration`, `parse_when` (« 7h » déjà passé = demain ; pas de « midi » ni de jours de semaine).
+
 ## Commande `say` (voix, Phase 4 étape 3)
 
 - **Commande** : `python -m jarvis say "texte"` (pas un outil du registre, aucune route HTTP). Lit le texte avec Piper (`fr_FR-tom-medium`, `length_scale` 1,05), source `voix`, texte tronqué à `ANSWER_MAX`.
