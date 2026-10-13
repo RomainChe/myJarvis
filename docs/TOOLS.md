@@ -369,6 +369,13 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Paramètres** : aucun. **Exemple** : « Jarvis, prix des hôtels » → « Hébergement du 06/05 au 22/05 : 2345 € recommandé, 2100 € le moins cher, trajets compris (relevé du 13/10). Osaka : … ».
 - **Notes** : dossier du clone = clé `hotel_dir` de `~/.jarvis/voyages.json` (défaut `~/Desktop/WebstormProject/hotel-price-tracker`). `git fetch origin main` au plus une fois par heure puis `git show origin/main:historique/resume.json`, comme pour les vols ; fichier borné à 64 Ko, champs tronqués, nombres validés ; un champ illisible écarte l'hôtel, un total illisible = « aucun relevé ».
 
+## conso_pc (`jarvis/tools/conso.py`)
+
+- **Description** : énergie consommée par le PC, mesurée par sa prise Tapo P110 (`sensor.prise_pc_current_consumption` via Home Assistant), en kWh et en € (prix saisi par le propriétaire), avec la période d'avant. Même lecture que l'onglet « Consommation » et le carré « Conso · PC » (`/api/conso`).
+- **Niveau** : N0 (lecture du cache local `~/.jarvis/conso.db`). Pas `external` : seuls des nombres calculés par le Core en sortent. Routeur sans LLM : « combien consomme le PC », « combien le PC a consommé aujourd'hui / cette semaine / ce mois-ci », « la consommation du PC ».
+- **Paramètres** : `periode` = `jour`, `semaine` (7 jours glissants) ou `mois` (30 jours glissants) ; alias « aujourd'hui ». Autre valeur : refusée. **Exemple** : « Jarvis, combien le PC a consommé aujourd'hui ? » → « Le PC a consommé 1,50 kWh aujourd'hui (environ 0,38 €), contre 2,00 kWh hier. »
+- **Notes** : un fil du Core échantillonne la puissance chaque minute et l'intègre par jour (trapèze, intervalle > 3 min ignoré) ; Core éteint ou prise illisible = trou, jamais comblé : « Mesuré sur N h seulement : le total est sous-estimé ». Rétention 400 jours, un total par jour (aucune courbe fine : RGPD). Sans mesure : « donnée indisponible ». Prix du kWh : `~/.jarvis/conso.json`, modifiable par `PUT /api/conso/tarif` (0 < prix ≤ 5 €, une ligne au journal sans le montant). Le total du logement (Enedis) et les conseils viennent aux étapes 2 et 3.
+
 ## voyage_destination (`jarvis/tools/voyages.py`)
 
 - **Description** : change la destination suivie par flight-price-tracker : nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées (en pause, historique gardé), commit `config : …` puis push sur `main`.
