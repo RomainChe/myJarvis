@@ -162,6 +162,8 @@ class Briefing(Base):
                 r.briefing_time(raw)
         self.assertEqual(r.briefing_time("07:30"), (7, 30))
         self.assertIsNone(r.briefing_time(""))
+        with mock.patch.dict("os.environ", clear=True):  # variable absente (Core neuf, Linux) : pas de briefing, pas d'exception
+            self.assertIsNone(r.briefing_time())
 
     def test_briefing_complet_et_source_en_panne(self):
         w = {"temp_c": 14.2, "sky": "Pluie", "min_c": 9.0, "max_c": 15.0, "rain_chance": 60.0, "alerts": ["vent fort"]}
