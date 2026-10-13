@@ -2,7 +2,7 @@
 
 Usage : python scripts/wakeword/live_score.py [--bruit[=niveau]] [nom_de_modèle ...]   (défaut : hey_jarvis_v0.1 jarvis_fr)
 --bruit : mélange en direct, dans le signal analysé seulement, des bruits AudioSet (musique, voix, ambiance) du dossier
-d'entraînement ; niveau = RMS visé entre 0 et 1 (défaut 0.05, 0.1 = fort). Sert à tester au casque sans haut-parleur.
+d'entraînement ; niveau = RMS visé entre 0 et 1 (défaut 0.005 ≈ +8 dB sous la voix du propriétaire (RMS parole ≈ 0.012), 0.012 = aussi fort que la voix). Sert à tester au casque sans haut-parleur.
 Micro : JARVIS_AUDIO_IN comme le reste de Jarvis. Ctrl+C pour finir ; le pic de chaque modèle est résumé.
 """
 import os
@@ -66,5 +66,5 @@ def main(names, level=0.0):
 if __name__ == "__main__":
     args = sys.argv[1:]
     bruit = next((a for a in args if a.startswith("--bruit")), None)
-    level = float(bruit.partition("=")[2] or 0.05) if bruit else 0.0
+    level = float(bruit.partition("=")[2] or 0.005) if bruit else 0.0
     main([a for a in args if not a.startswith("--")] or ["hey_jarvis_v0.1", "jarvis_fr"], level)
