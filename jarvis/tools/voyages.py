@@ -1,4 +1,5 @@
-"""Voyages (Phase 6 point 10) : `voyage_prix` (N0, étape 4 : voix et chat) lit le meilleur prix ; `voyage_destination` (N2,
+"""Voyages (Phase 6 point 10) : `hotel_itineraire` (N0, Phase 4 de hotel-price-tracker) lit le dernier relevé d'hôtels ;
+`voyage_prix` (N0, étape 4 : voix et chat) lit le meilleur prix ; `voyage_destination` (N2,
 `taint_blocked`, étape 3) change de destination dans flight-price-tracker.
 
 Changer de destination = nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées
@@ -58,6 +59,30 @@ def summary(snap: dict) -> str:
                      "escales, tendance.", Level.N0, external=True)
 def voyage_prix() -> str:
     return summary(voyages.snapshot())
+
+
+def hotel_summary(snap: dict) -> str:
+    """Phrase courte et parlable : totaux du dernier relevé puis l'hôtel recommandé de chaque étape."""
+    if not snap["configured"]:
+        return "Je n'ai aucun relevé de prix d'hôtels pour l'instant."
+    stages, cur = snap["etapes"], snap["devise"]
+    cur = "€" if cur in ("", "EUR") else cur
+    out = "Hébergement"
+    if stages and stages[0]["chk_in"] and stages[-1]["chk_out"]:
+        out += f" du {_fmt_day(stages[0]['chk_in'])} au {_fmt_day(stages[-1]['chk_out'])}"
+    out += (f" : {snap['total_recommande']:.0f} {cur} recommandé, {snap['total_moins_cher']:.0f} {cur} le moins cher, "
+            f"trajets compris (relevé du {_fmt_day(snap['date'])}).")
+    if not snap["complet"]:
+        out += " Relevé incomplet : une étape n'a pas d'offre ou de trajet."
+    picks = [f"{s['ville'].capitalize()} : {s['recommande']['hotel']}, {s['recommande']['nuit']:.0f} {cur}/nuit"
+             for s in stages if s["recommande"]]
+    return out + (" " + " ; ".join(picks) + "." if picks else "")
+
+
+@tool("hotel_itineraire", "Hébergement du voyage suivi par hotel-price-tracker (dernier relevé) : total recommandé et moins cher "
+                          "(trajets compris), hôtel recommandé par ville.", Level.N0, external=True)
+def hotel_itineraire() -> str:
+    return hotel_summary(voyages.hotel_snapshot())
 
 
 def _place(value: str, label: str) -> str:

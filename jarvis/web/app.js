@@ -885,6 +885,7 @@ function clearDigest() {
   for (const id of ['dg-social', 'dg-fin', 'dg-veille-state']) $(id).textContent = '';
   $('dg-veille').replaceChildren();
   $('dg-voyage').hidden = true;
+  $('dg-hotel').hidden = true;
 }
 $('dg-fin-show').addEventListener('click', async () => {
   const run = digestRun;
@@ -928,6 +929,15 @@ async function loadDigest() {
       li.append(a, el('span', 'muted', new URL(deal.link).hostname));
       return li;
     })()] : []));
+  }
+  const hotels = vo.value?.hotels; // dernier relevé d'hôtels (hotel-price-tracker) : carré affiché seulement s'il existe
+  $('dg-hotel').hidden = !hotels?.configured;
+  if (hotels?.configured) {
+    const cur = hotels.devise === 'EUR' ? '€' : hotels.devise, n = (v) => `${Math.round(v)} ${cur}`;
+    const st = hotels.etapes ?? [], from = st[0]?.chk_in, to = st[st.length - 1]?.chk_out;
+    $('dg-hotel-price').textContent = n(hotels.total_recommande);
+    $('dg-hotel-info').textContent = [from && to ? `${from} → ${to}` : '', `moins cher ${n(hotels.total_moins_cher)}`,
+      'trajets compris', hotels.complet ? '' : 'incomplet'].filter(Boolean).join(' · ');
   }
   const next = so.value?.scheduled?.[0];
   if (next) $('dg-social').textContent += ` · prochaine : ${fmtDate(next.at)}`;

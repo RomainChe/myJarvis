@@ -8,6 +8,8 @@ Le contenu du CSV est une donnée : champs tronqués, prix numériques, liens ht
 l'ouverture de l'onglet), puis lecture de `origin/main:data/prices.csv` par `git show` : ni checkout ni merge (la copie
 de travail du propriétaire n'est jamais touchée), hooks désactivés. La lecture n'exécute aucun code du projet (seule la
 validation de `voyage_destination`, étape 3, lance le `.venv` du tracker). Sans git : fichier local.
+Phase 4 de hotel-price-tracker : `hotel_snapshot` lit de la même façon `historique/resume.json` (totaux déjà calculés par
+le tracker : JARVIS ne recalcule rien). Dossier : clé `hotel_dir` du même `voyages.json`.
 """
 import csv
 import json
@@ -15,7 +17,7 @@ import os
 import subprocess
 import threading
 import time
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 CONFIG = Path.home() / ".jarvis" / "voyages.json"
@@ -32,6 +34,9 @@ TEXT = ("source", "origin", "dest", "return_from", "depart_date", "return_date",
 DEAL_BELOW, DEAL_MAX_STOPS, DEAL_SOURCE = 650, 2, "Google Flights"
 JAPAN = {"NRT", "HND", "KIX", "ITM", "NGO", "FUK", "CTS", "OKA", "KMJ", "HIJ", "SDJ", "UKB"}
 ALERT_STATE = Path.home() / ".jarvis" / "voyages-alert.json"
+HOTEL_DEFAULT_DIR = Path.home() / "Desktop" / "WebstormProject" / "hotel-price-tracker"
+MAX_RESUME_BYTES, MAX_STAGES = 64 * 1024, 10
+_hotel_sync = {"at": 0.0, "ok": None, "error": None}
 
 
 def tracker_dir(path: Path = CONFIG) -> Path:
@@ -39,6 +44,13 @@ def tracker_dir(path: Path = CONFIG) -> Path:
         return Path(json.loads(Path(path).read_text(encoding="utf-8"))["dir"])
     except (OSError, ValueError, KeyError, TypeError):
         return DEFAULT_DIR
+
+
+def hotel_dir(path: Path = CONFIG) -> Path:
+    try:
+        return Path(json.loads(Path(path).read_text(encoding="utf-8"))["hotel_dir"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return HOTEL_DEFAULT_DIR
 
 
 def _offer(row: dict) -> dict | None:
@@ -66,21 +78,21 @@ def _git(root: Path, *args: str, input: bytes | None = None, env: dict | None = 
 on_fetch = None  # rappel (ok: bool) après chaque `git fetch` tenté : branché sur le journal d'audit par le serveur
 
 
-def sync(root: Path, now: float | None = None) -> dict:
+def sync(root: Path, now: float | None = None, state: dict = _sync) -> dict:
     """`git fetch origin main` si la dernière tentative date de plus d'une heure ; renvoie l'état de la synchronisation."""
     now = time.time() if now is None else now
     with _lock:  # un seul fetch à la fois, les autres appels lisent l'état
-        if now - _sync["at"] >= FETCH_EVERY_S and (root / ".git").is_dir():
-            _sync["at"] = now
+        if now - state["at"] >= FETCH_EVERY_S and (root / ".git").is_dir():
+            state["at"] = now
             try:
                 _git(root, "fetch", "--quiet", "--no-tags", "origin", "main")
-                _sync.update(ok=now, error=None)
+                state.update(ok=now, error=None)
             except (OSError, subprocess.SubprocessError):
-                _sync["error"] = "échec de la synchronisation avec GitHub"  # détail non montré : chemins, URL
+                state["error"] = "échec de la synchronisation avec GitHub"  # détail non montré : chemins, URL
             if on_fetch:
-                on_fetch(_sync["error"] is None)
-        return {"synced_at": datetime.fromtimestamp(_sync["ok"]).isoformat(timespec="minutes") if _sync["ok"] else None,
-                "sync_error": _sync["error"]}
+                on_fetch(state["error"] is None)
+        return {"synced_at": datetime.fromtimestamp(state["ok"]).isoformat(timespec="minutes") if state["ok"] else None,
+                "sync_error": state["error"]}
 
 
 def _read_csv(root: Path) -> bytes | None:
@@ -172,3 +184,62 @@ def check_deal(notify, state: Path = ALERT_STATE, root: Path | None = None) -> d
     Path(state).parent.mkdir(parents=True, exist_ok=True)
     Path(state).write_text(json.dumps({"key": key, "price": deal["price"]}), encoding="utf-8")
     return deal
+
+
+def _num(v) -> float | None:
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v < 1_000_000 else None
+
+
+def _text(v, n: int) -> str:
+    """Texte d'une donnée externe, renvoyé au LLM : une seule ligne imprimable, tronquée."""
+    return "".join(c for c in " ".join(str(v or "").split()) if c.isprintable())[:n]
+
+
+def _day(v) -> str:
+    try:
+        return date.fromisoformat(str(v)).isoformat()
+    except ValueError:
+        return ""
+
+
+def _pick(o) -> dict | None:
+    """Hôtel d'une étape ; tout champ illisible écarte l'hôtel plutôt que d'inventer un prix."""
+    if not isinstance(o, dict) or any(_num(o.get(k)) is None for k in ("note10", "nuit", "total")):
+        return None
+    return {"hotel": _text(o.get("hotel"), 60), "note10": _num(o["note10"]), "nuit": _num(o["nuit"]), "total": _num(o["total"])}
+
+
+def _read_resume(root: Path) -> bytes | None:
+    if _hotel_sync["ok"]:
+        try:
+            return _git(root, "show", "origin/main:historique/resume.json")
+        except (OSError, subprocess.SubprocessError):
+            pass
+    f = root / "historique" / "resume.json"
+    if f.is_symlink() or not f.is_file() or f.stat().st_size > MAX_RESUME_BYTES:
+        return None
+    return f.read_bytes()
+
+
+def hotel_snapshot(root: Path | None = None) -> dict:
+    """Dernier relevé de hotel-price-tracker : totaux (hébergement + trajets), étapes. Le JSON est une donnée : champs bornés."""
+    root = Path(root) if root else hotel_dir()
+    state = sync(root, state=_hotel_sync)
+    try:
+        data = _read_resume(root)
+        if not data or len(data) > MAX_RESUME_BYTES:
+            raise ValueError
+        raw = json.loads(data)
+        stages = [{"ville": _text(e.get("ville"), 40), "chk_in": _day(e.get("chk_in")), "chk_out": _day(e.get("chk_out")),
+                   "nuits": e["nuits"] if isinstance(e.get("nuits"), int) else None,
+                   "recommande": _pick(e.get("recommande")), "moins_cher": _pick(e.get("moins_cher"))}
+                  for e in raw["etapes"][:MAX_STAGES]]
+        out = {"configured": True, "date": _day(raw["date"]), "devise": _text(raw.get("devise"), 3),
+               "voyageurs": raw["voyageurs"] if isinstance(raw.get("voyageurs"), int) else None,
+               "trajets": _num(raw.get("trajets")), "complet": raw.get("complet") is True, "etapes": stages,
+               "total_recommande": _num(raw["total_recommande"]), "total_moins_cher": _num(raw["total_moins_cher"])}
+        if out["total_recommande"] is None or out["total_moins_cher"] is None or len(out["date"]) != 10:
+            raise ValueError
+    except (ValueError, KeyError, TypeError, AttributeError):  # json absent, invalide ou d'un autre schéma
+        return {"configured": False, **state}
+    return {**out, **state}

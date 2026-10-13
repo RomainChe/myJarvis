@@ -150,6 +150,11 @@
                 "le point sur les vols", "ou en sont les prix des vols"]
   },
   {
+    "tool": "hotel_itineraire",
+    "phrases": ["prix des hotels", "le prix des hotels", "prix de l hotel", "ou en sont les hotels", "ou en est l hebergement",
+                "combien coute l hebergement", "combien coutent les hotels", "le point sur les hotels", "prix de l hebergement"]
+  },
+  {
     "tool": "briefing",
     "phrases": ["briefing", "le briefing", "mon briefing", "briefing du matin", "mon briefing du matin", "le point du matin",
                 "fais moi le briefing", "resume de la journee", "quoi de neuf aujourd hui"]
