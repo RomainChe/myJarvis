@@ -35,7 +35,8 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
   - Fait : `mic.py` choisit le modèle par `JARVIS_WAKE_WORD` (nom de fichier seul, « hey_jarvis_v0.1 » par défaut) ; manifeste : entrée locale sans URL (`fetch_models.py` la vérifie sans télécharger) ; modèle copié dans `models/openwakeword/` (ignoré par git) ; `scripts/wakeword/live_score.py` pour l'essai au micro.
   - **Essai micro réel (2026-10-12)** : micro du casque OK (MME index 1). Whisper transcrit juste (« Jarvis, allume le salon… ») ; réveil `hey_jarvis` 0,47 sur « Hey Jarvis », 0 sur « Jarvis » seul ; `jarvis_fr` 0 partout → **inutilisable, réentraîner avec la voix du propriétaire** : `scripts/wakeword/record_owner.py` (enregistrement guidé, clips dans `%LOCALAPPDATA%\jarvis-wakeword\data\owner`, hors dépôt), puis entraînement voix réelle + synthèse.
   - **Reprise (ancienne) :** 1) essai au micro du propriétaire : `python scripts/wakeword/live_score.py` (compare « hey jarvis » et `jarvis_fr`), régler `JARVIS_WAKE_THRESHOLD` ; 2) si insuffisant, réentraîner (`layer_size` 64, `max_negative_weight`) ; 3) revue Sécurité (avec celle des réglages de voix) ; 4) docs/VOIX.md (choix du modèle).
-- Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud) ; 1 volet ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7 ; Jarvis peut lire `.env` ; LLM = qwen3:14b sans réflexion, veille automatique pendant un jeu, déchargement après 15–30 min d'inactivité (ARCHITECTURE §6.6).
+- **Décidé le 2026-10-13 (propriétaire) : volets roulants abandonnés (plus de Shelly 2PM, aucun outil volet) ; clims (MELCloud) reportées, trop chères pour l'instant.** Matériel à l'étude : mini-PC dédié 24 h/24 (HA OS + Core, pas encore acheté) et prise connectée Meross MSS305ZF (compatibilité Home Assistant à vérifier avant achat). Les anciennes décisions « 1 volet » et « clims option A » ci-dessous sont caduques ; docs/DOMOTIQUE_PLAN.md reste à aligner.
+- Décidé le 2026-10-07 : tutoiement ; clims option A (MELCloud, reportée) ; 1 volet (abandonné) ; réponses domotique dans docs/DOMOTIQUE_PLAN.md §7 ; Jarvis peut lire `.env` ; LLM = qwen3:14b sans réflexion, veille automatique pendant un jeu, déchargement après 15–30 min d'inactivité (ARCHITECTURE §6.6).
 - 2026-10-08 : planchers N2 → N1 (docs/DECISIONS.md), garde contenu externe et voix sur le niveau du registre.
 - 2026-10-12 : commandes vocales « Jarvis mets-toi en off / hors ligne » et « Jarvis online » (`Voice.offline`, `jarvis/core/voice.py`) : hors ligne, la voix ignore tout (rien exécuté, rien dit) sauf « online » ; en mémoire seulement (redémarrage = en ligne), journalisé `voix_mode`. Le kill switch `mic_off` reste séparé (réarmement au terminal). 872 tests verts.
 - Décisions propriétaire en attente : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7, choix parmi les pistes de la Phase 7 (proposées le 2026-10-12).
@@ -44,7 +45,7 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 ## Phase 0 — Cadrage ✅
 - [x] Inventaire du matériel (PC, smartphone, budget)
 - [x] Architecture : `docs/ARCHITECTURE.md`
-- [x] Marques et modèles : TV, barre de son, clims, box ; volets filaires → modules Shelly
+- [x] Marques et modèles : TV, barre de son, clims, box (volets filaires : abandonnés le 2026-10-13)
 - [x] Validation des 4 décisions (ARCHITECTURE §6)
 
 ## Phase 1 — Core + outils PC
@@ -84,7 +85,7 @@ Sortie de phase : commande simple < 1 s, tous les tests verts, `docs/TOOLS.md` �
 ## Phase 2 — Domotique
 1. Hyper-V + VM Home Assistant OS, réseau ponté, sauvegarde HA activée.
 2. Intégrations des appareils (selon les marques), puis découverte automatique dans Jarvis.
-3. Outils `home/*` : état (N0), TV/enceintes/volets (N1), chauffage coupé ou forcé (N2).
+3. Outils `home/*` : état (N0), TV/enceintes (N1), chauffage coupé ou forcé (N2).
 4. Scènes : « mode cinéma », « je pars », « bonne nuit ».
 5. Les noms d'appareils sont traités comme des données (test d'injection dans un nom).
 
@@ -127,7 +128,7 @@ Classées par valeur au quotidien / effort. Chacune passe par la porte habituell
 2. ✅ (codé le 2026-10-13) **Minuteurs et rappels** (« rappelle-moi dans 20 min », « réveille-moi à 7 h ») : rien n'existe. Annonce Piper + Web Push (déjà en place). N1, intentions au routeur sans LLM.
 3. ✅ (codé le 2026-10-13, sans écran PWA) **Mémoire** (ARCHITECTURE §3.7, table `memory` prévue, jamais codée) : « souviens-toi que… » / « oublie… », clé/valeur injectée en tête du prompt, consultable et effaçable dans la PWA. Pas de `sqlite-vec` (YAGNI). Donnée personnelle : à signaler (RGPD).
 4. ✅ (codé le 2026-10-13, sans mails ni finances) **Briefing du matin** (voix ou push) à partir des modules existants : météo, mails du jour, cycle de paie, publications lol-clipper du jour, 2 titres de la veille IA. Lecture N0/N2 déjà journalisée.
-5. **Domotique générique** : outil `home_state` / `home_action` sur une liste blanche d'entités HA, pour que Shelly et MELCloud arrivent sans code par appareil (HA expose aussi son API Assist en serveur MCP, mais à travers les entités « exposées » seulement ; garder le client REST actuel). Puis scènes « je pars » / « bonne nuit » complètes.
+5. **Domotique générique** : outil `home_state` / `home_action` sur une liste blanche d'entités HA, pour que les prises connectées (et MELCloud, reporté) arrivent sans code par appareil (HA expose aussi son API Assist en serveur MCP, mais à travers les entités « exposées » seulement ; garder le client REST actuel). Puis scènes « je pars » / « bonne nuit » complètes.
 6. **Présence** : appli compagnon HA sur Android (Wi-Fi maison ou zone) → « je pars » proposé automatiquement (jamais exécuté seul si un outil > N1). Localisation = nouvelle donnée personnelle.
 7. **Pilotage de lol-clipper à la voix** (suite de Phase 6 §3) : « fais un best-of de la semaine », « le dernier short, sans micro », en N1 vers les commandes `compile` / `edit` existantes.
 8. **Synthèse** : comparer Kokoro (voix française `ff_siwis`) à Piper, dont le dépôt GitHub serait archivé depuis octobre 2025 (source unique, à vérifier).
