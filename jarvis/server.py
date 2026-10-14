@@ -449,8 +449,12 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
+        try:
+            conso_core.save_price(body.price_kwh)
+        except OSError:
+            audit.log(f"pwa:{auth[0]}", "conso_tarif", {}, 1, "auto", "erreur : prix non enregistré")
+            return reply(500, "enregistrement impossible")
         audit.log(f"pwa:{auth[0]}", "conso_tarif", {}, 1, "auto", "prix du kWh modifié")  # le montant reste hors journal
-        conso_core.save_price(body.price_kwh)
         return {"price_kwh": conso_core.load_price()}
 
     @app.get("/api/finance")

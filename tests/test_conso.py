@@ -65,6 +65,12 @@ class SampleTest(unittest.TestCase):
         self.assertFalse(s["configured"])
         self.assertTrue(all(p["kwh"] is None for p in s["periods"].values()))
 
+    def test_serie_calendaire_jours_vides(self):
+        self.feed([(m * 60, 1000) for m in range(61)])
+        series = conso.snapshot(self.db, NOON + timedelta(hours=1), self.cfg)["series"]
+        self.assertEqual(len(series), 30)
+        self.assertEqual((series[-1]["day"], series[-1]["kwh"], series[0]["kwh"]), (NOON.date().isoformat(), 1.0, None))
+
     def test_base_sans_table(self):
         sqlite3.connect(self.db).close()
         self.assertFalse(conso.snapshot(self.db, NOON, self.cfg)["configured"])
@@ -96,6 +102,54 @@ class SampleTest(unittest.TestCase):
         self.cfg.write_text("{{", encoding="utf-8")
         self.assertIsNone(conso.load_price(self.cfg))
 
+    def test_minuit_pendant_un_intervalle(self):
+        mid = datetime(2026, 10, 14, 0, 0, 0)
+        conso._last = None
+        for sec in (-30, 30):  # 1 000 W de part et d'autre de minuit : 60 s = 16,67 Wh au total
+            conso.sample(1000, mid + timedelta(seconds=sec), self.db)
+        wh = dict(sqlite3.connect(self.db).execute("SELECT day, wh FROM pc_energy").fetchall())
+        self.assertAlmostEqual(sum(wh.values()), 1000 / 60, places=3)  # rien perdu ni compté deux fois
+
+    def test_horloge_qui_recule(self):
+        self.feed([(0, 1000), (60, 1000)])  # 16,67 Wh
+        before = sqlite3.connect(self.db).execute("SELECT wh, sec FROM pc_energy").fetchone()
+        self.feed([(-3600, 1000), (-3540, 1000)])  # NTP / changement d'heure : le temps repart en arrière
+        after = sqlite3.connect(self.db).execute("SELECT SUM(wh), SUM(sec) FROM pc_energy").fetchone()
+        self.assertGreaterEqual(after[0], before[0])  # jamais de Wh négatif ni d'énergie retirée
+        self.assertLessEqual(after[1], before[1] + 60)  # au plus l'intervalle réellement mesuré
+
+    def test_deux_ecritures_sur_la_meme_base(self):
+        for _ in range(2):  # deux Core (ou un redémarrage) : chaque processus ajoute, personne n'écrase
+            conso._last = None
+            self.feed([(0, 600), (60, 600)])
+        wh = sqlite3.connect(self.db).execute("SELECT wh FROM pc_energy").fetchone()[0]
+        self.assertAlmostEqual(wh, 2 * 10.0, places=3)
+
+    def test_base_corrompue(self):
+        self.db.write_bytes(b"ceci n'est pas une base sqlite" * 50)
+        s = conso.snapshot(self.db, NOON, self.cfg)  # lecture : « donnée indisponible », pas d'exception
+        self.assertFalse(s["configured"])
+        self.assertIsNone(s["periods"]["jour"]["kwh"])
+
+    def test_valeurs_non_numeriques_ignorees(self):
+        for bad in ("12", None, float("nan"), float("-inf"), conso.MAX_W + 1):
+            conso._last = None
+            conso.sample(500, NOON, self.db)
+            conso.sample(bad, NOON + timedelta(seconds=60), self.db)
+            conso.sample(500, NOON + timedelta(seconds=120), self.db)  # repart de zéro après la rupture
+        self.assertFalse(self.db.exists())
+
+    def test_prix_json_hors_bornes(self):
+        for raw in ('{"price_kwh": NaN}', '{"price_kwh": Infinity}', '{"price_kwh": -0.2}', '{"price_kwh": 7}', '[]', '"x"', 'null'):
+            self.cfg.write_text(raw, encoding="utf-8")
+            self.assertIsNone(conso.load_price(self.cfg), raw)
+
+    def test_retention_compte_en_jours_et_garde_la_limite(self):
+        self.feed([(0, 100), (60, 100)], start=NOON - timedelta(days=conso.KEEP_DAYS))
+        conso._last = None
+        self.feed([(0, 100), (60, 100)])
+        self.assertEqual(sqlite3.connect(self.db).execute("SELECT COUNT(*) FROM pc_energy").fetchone()[0], 2)  # J-400 gardé
+
 
 class ToolTest(unittest.TestCase):
     def snap(self, **period):
@@ -125,6 +179,10 @@ class ToolTest(unittest.TestCase):
         with mock.patch.object(conso, "snapshot", return_value=self.snap()):
             self.assertIn("aujourd'hui", REGISTRY["conso_pc"].run(periode="Aujourd'hui"))
 
+    def test_apostrophe_typographique(self):  # la reconnaissance vocale et le LLM produisent souvent « ’ »
+        with mock.patch.object(conso, "snapshot", return_value=self.snap()):
+            self.assertIn("aujourd'hui", REGISTRY["conso_pc"].run(periode="aujourd’hui"))
+
 
 class RouterTest(unittest.TestCase):
     def test_intentions_sans_llm(self):
@@ -132,6 +190,18 @@ class RouterTest(unittest.TestCase):
         for text, periode in (("combien consomme le pc", "jour"), ("Jarvis, combien le PC a consommé aujourd'hui ?", "jour"),
                               ("la consommation du pc cette semaine", "semaine"), ("combien a consommé le pc ce mois-ci", "mois")):
             self.assertEqual(r.route(text), ("conso_pc", {"periode": periode}), text)
+
+    def test_pas_de_faux_positif(self):
+        r = Router()
+        for text in ("combien consomme le frigo", "consommation du pc portable de Paul", "la conso du pc de Paul",
+                     "combien consomme mon pc portable", "consommation de la tv", "combien consomme la clim",
+                     "combien consomme le pc et éteins le", "éteins le pc", "consommation du pc cette année"):
+            self.assertNotEqual((r.route(text) or ("",))[0], "conso_pc", text)
+
+    def test_autres_intentions_inchangees(self):
+        r = Router()
+        for text in ("éteins le pc", "volume à 20", "prix des hotels", "mode cinéma"):
+            self.assertNotEqual((r.route(text) or ("",))[0], "conso_pc", text)
 
 
 class RouteTest(ServerBase):

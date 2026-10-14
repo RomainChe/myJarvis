@@ -815,20 +815,21 @@ async function loadConso() {
     const d = r.data;
     state.hidden = d.configured;
     state.textContent = d.configured ? '' : "Aucune mesure : la prise du PC n'a pas encore été échantillonnée (donnée indisponible).";
-    for (const [key, title, label] of [['jour', "Aujourd'hui", 'hier'], ['semaine', '7 jours', '7 jours avant'], ['mois', '30 jours', '30 jours avant']]) {
+    // Nœuds construits puis posés d'un coup : deux chargements en vol (onglet quitté puis rouvert) ne dupliquent rien.
+    strip.replaceChildren(...[['jour', "Aujourd'hui", 'hier'], ['semaine', '7 jours', '7 jours avant'], ['mois', '30 jours', '30 jours avant']].map(([key, title, label]) => {
       const p = d.periods[key], s = el('section', 'panel hud stat');
       s.append(el('h2', '', title), el('p', 'big', kwh(p.kwh)));
       const sub = consoSub(p, label);
       if (sub) s.append(el('p', 'muted', sub));
-      strip.append(s);
-    }
-    const max = Math.max(0.001, ...d.series.map((x) => x.kwh));
-    for (const x of d.series) {
+      return s;
+    }));
+    const max = Math.max(0.001, ...d.series.map((x) => x.kwh ?? 0));
+    bars.replaceChildren(...d.series.map((x) => { // un jour sans mesure = barre minimale, titre « indisponible »
       const b = el('span', 'conso-bar');
-      b.style.height = `${Math.max(3, Math.round((x.kwh / max) * 100))}%`;
+      b.style.height = `${Math.max(3, Math.round(((x.kwh ?? 0) / max) * 100))}%`;
       b.title = `${x.day} : ${kwh(x.kwh)}`;
-      bars.append(b);
-    }
+      return b;
+    }));
     $('conso-source').textContent = d.source;
     $('conso-price').value = d.price_kwh ?? '';
   } catch (e) {

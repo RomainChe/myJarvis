@@ -31,7 +31,7 @@ def summary(snap: dict, periode: str) -> str:
 @tool("conso_pc", "Consommation électrique du PC mesurée par sa prise connectée : kWh, € et comparaison à la période "
                   "précédente. `periode` : jour, semaine (7 jours) ou mois (30 jours).", Level.N0, periode=str)
 def conso_pc(periode: str) -> str:
-    key = ALIASES.get(fold(periode.strip()).replace("'", " "))
+    key = ALIASES.get(fold(periode.strip()).replace("'", " ").replace("’", " "))  # apostrophes droite et typographique
     if key is None:
         raise ValueError("période invalide : jour, semaine ou mois")
     return summary(conso.snapshot(), key)

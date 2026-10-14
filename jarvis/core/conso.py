@@ -1,13 +1,14 @@
 """Onglet Consommation de la PWA, étape 1 : énergie de la prise du PC (Tapo P110 via Home Assistant), N0, lecture seule.
 
 Le Core échantillonne la puissance de la prise (`sample`, une fois par minute) et l'intègre en Wh par jour dans
-`~/.jarvis/conso.db` (SQLite, une ligne par jour, 400 jours). Aucune courbe fine n'est gardée : un total quotidien révèle
+`~/.jarvis/conso.db` (SQLite, une ligne par jour, 65 jours). Aucune courbe fine n'est gardée : un total quotidien révèle
 bien moins les habitudes de vie qu'une courbe horaire (RGPD). Le Core éteint ou Home Assistant injoignable = un trou :
 l'intervalle n'est pas compté et le temps réellement mesuré (`sec`) est conservé pour dire « mesuré sur N h ».
 Prix du kWh : `~/.jarvis/conso.json` (`{"price_kwh": 0.25}`), saisi par le propriétaire, jamais lu depuis un contrat.
 """
 import json
 import math
+import os
 import sqlite3
 from contextlib import closing
 from datetime import date, datetime, timedelta
@@ -16,7 +17,7 @@ from pathlib import Path
 HOME = Path.home() / ".jarvis"
 DB = HOME / "conso.db"
 CONFIG = HOME / "conso.json"
-SAMPLE_S, MAX_GAP_S, KEEP_DAYS = 60, 180, 400
+SAMPLE_S, MAX_GAP_S, KEEP_DAYS = 60, 180, 65  # 65 j = les 30 jours + les 30 d'avant (minimisation RGPD)
 MAX_W, MAX_PRICE = 5000.0, 5.0  # multiprise 16 A = 3 680 W ; prix du kWh au-delà = saisie absurde
 PERIODS = {"jour": 1, "semaine": 7, "mois": 30}  # fenêtres glissantes se terminant aujourd'hui
 SCHEMA = "CREATE TABLE IF NOT EXISTS pc_energy (day TEXT PRIMARY KEY, wh REAL NOT NULL, sec REAL NOT NULL)"
@@ -57,7 +58,9 @@ def save_price(price: float, path: Path | None = None) -> None:
         raise ValueError(f"prix du kWh entre 0 et {MAX_PRICE} €")
     path = Path(path or CONFIG)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"price_kwh": round(float(price), 4)}), encoding="utf-8")
+    tmp = path.with_suffix(".tmp")  # écriture atomique : un arrêt en cours ne laisse pas un fichier tronqué
+    tmp.write_text(json.dumps({"price_kwh": round(float(price), 4)}), encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def _window(cx, first: date, last: date) -> tuple[float, float, int]:
@@ -90,6 +93,8 @@ def snapshot(db: Path | None = None, now: datetime | None = None, config: Path |
                               ((today - timedelta(days=29)).isoformat(),)).fetchall()
     except sqlite3.Error:
         return out  # base absente de table ou illisible : « donnée indisponible »
-    out["series"] = [{"day": d, "kwh": round(wh / 1000, 3)} for d, wh in rows]
-    out["configured"] = bool(out["series"]) or any(p["kwh"] is not None for p in out["periods"].values())
+    by_day = dict(rows)  # axe calendaire : un jour sans mesure reste une barre vide (kwh None), il ne décale pas les autres
+    days = [(today - timedelta(days=29 - i)).isoformat() for i in range(30)]
+    out["series"] = [{"day": d, "kwh": round(by_day[d] / 1000, 3) if d in by_day else None} for d in days]
+    out["configured"] = bool(by_day) or any(p["kwh"] is not None for p in out["periods"].values())
     return out
