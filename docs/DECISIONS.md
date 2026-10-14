@@ -1,5 +1,11 @@
 # Décisions et risques acceptés
 
+## 2026-10-14 — Onglet Consommation, étape 3 : conseils (revue Sécurité : feu vert sous conditions)
+- **Choix** : `conso_conseils` en N0, règles déterministes (hausse du logement, part du PC, hausse du PC), texte construit uniquement à partir de chiffres calculés par le Core, jamais d'une chaîne de MyElectricalData ; aucun push.
+- **Corrigé** : (1) `conso_conseils`, `conso_pc`, `conso_totale` en `private=True` : le journal ne garde que le type et la longueur du résultat (kWh, € et part du PC = habitudes de vie). Test : résultat absent du journal.
+- **Risque accepté par le propriétaire (2)** : les totaux agrégés sur 7 jours peuvent être lus à voix haute et déclenchés par un tiers ou la TV ; sensibilité faible.
+- **QA** : BUG-CO-01 (période précédente à 0 kWh) et BUG-CO-02 (part du PC plafonnée) corrigés ; non corrigés : fenêtre PC incluant aujourd'hui (hausse sous-estimée), quelques tournures non routées sans LLM.
+
 ## 2026-10-08 — Planchers de niveau abaissés de N2 à N1
 - Demande du propriétaire : tous les outils peuvent être réglés en N1. `power`, `delete_file`, `move_file`, `kill_process`, `run_script` : plancher N1 (N0 reste interdit). Abaisser reste une action N3 (clé d'accès).
 - Risque accepté : un outil abaissé en N1 s'exécute sans confirmation depuis la PWA ou la CLI (ex. suppression, arrêt du PC).

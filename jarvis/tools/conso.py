@@ -80,19 +80,19 @@ def advice_summary(adv: dict) -> str:
 
 
 @tool("conso_conseils", "Conseils pour consommer moins d'électricité, déduits des chiffres du logement et du PC "
-                        "(hausse sur 7 jours, part du PC). Chaque conseil cite son chiffre.", Level.N0)
+                        "(hausse sur 7 jours, part du PC). Chaque conseil cite son chiffre.", Level.N0, private=True)
 def conso_conseils() -> str:
     return advice_summary(conseils.snapshot())
 
 
 @tool("conso_pc", "Consommation électrique du PC mesurée par sa prise connectée : kWh, € et comparaison à la période "
-                  "précédente. `periode` : jour, semaine (7 jours) ou mois (30 jours).", Level.N0, periode=str)
+                  "précédente. `periode` : jour, semaine (7 jours) ou mois (30 jours).", Level.N0, private=True, periode=str)
 def conso_pc(periode: str) -> str:
     return summary(conso.snapshot(), _period(periode))
 
 
 @tool("conso_totale", "Consommation électrique totale du logement (compteur Linky, relevé de la veille) : kWh, € et "
                       "comparaison à la période précédente. `periode` : jour (hier), semaine (7 jours) ou mois (30 jours).",
-      Level.N0, periode=str)
+      Level.N0, private=True, periode=str)
 def conso_totale(periode: str) -> str:
     return home_summary(conso.home_snapshot(), _period(periode))
