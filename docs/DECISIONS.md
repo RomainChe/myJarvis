@@ -127,3 +127,9 @@
 - **Risque accepté par le propriétaire (RGPD)** : une recherche ponctuelle publie sa destination et ses dates dans les journaux GitHub Actions du dépôt public `flight-price-tracker`, et l'e-mail de résultats y reste en artefact 7 jours. Même exposition que `voyage_destination` (ci-dessus).
 - **Corrigé** : (2) une recherche par minute au plus (`SEARCH_EVERY_S`). Documenté : mention du dépôt public dans docs/TOOLS.md.
 - **Non retenu** : (3) `-R` explicite : le dépôt reste déduit du clone configuré (`voyages.json`), source unique pour la lecture, le push et la recherche.
+
+## 2026-10-14 — `claude_code` depuis la PWA : clé d'accès exigée (revue Sécurité Phase 5, constat H1)
+- **Décision du propriétaire** : l'outil reste N1 (exception du CLAUDE.md §4), mais une demande venant de `pwa:*` exige la signature de la clé d'accès de l'appareil, comme une confirmation N3. Le terminal local (`cli`) reste sans confirmation.
+- **Pourquoi** : la condition « la demande vient directement du propriétaire » ne se prouve pas par un token qui peut être volé. Sans cela, un token volé lançait `claude_code` (tests exécutés avec les droits de l'utilisateur et le réseau, constat 9 du 2026-10-08) et contournait D2 et D3 ; « un token volé ne suffit pas » n'était pas vrai.
+- **Mise en œuvre** : `permissions.execute` (`strong_needed` pour tout outil `owner_only` hors `cli`), `chat._confirm` (traité comme N3), test `test_pwa_exige_la_cle_d_acces_le_terminal_non`. Commit 7439340 sur `main`.
+- **Reste** : le bac à sable du constat 9 (compte dédié ou sans réseau) n'est pas livré ; la clé d'accès reste donc exigée jusque-là.
