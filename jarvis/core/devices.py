@@ -2,6 +2,8 @@
 
 Le token authentifie à lui seul : ni l'IP source ni un en-tête Tailscale ne comptent (tout arrive de 127.0.0.1).
 Un code d'enrôlement ne se crée que depuis le PC (`python -m jarvis device add`), jamais par une route HTTP.
+Un token expire `TOKEN_TTL_S` après son dernier renouvellement (D6) ; la PWA le renouvelle à chaque ouverture. L'ancien
+reste valable jusqu'au premier usage du nouveau : une réponse perdue ne coupe pas l'appareil.
 """
 import hashlib
 import hmac
@@ -15,6 +17,7 @@ CODE_TTL_S = 120
 MAX_FAILS = 5  # échecs d'enrôlement avant de brûler tous les codes en attente
 LOCKOUT_S = 300
 NAME_MAX = 40
+TOKEN_TTL_S = 90 * 86400
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
@@ -23,7 +26,9 @@ CREATE TABLE IF NOT EXISTS devices (
     token_hash TEXT NOT NULL UNIQUE,
     created REAL NOT NULL,
     last_used REAL,
-    revoked INTEGER NOT NULL DEFAULT 0
+    revoked INTEGER NOT NULL DEFAULT 0,
+    expires REAL,
+    prev_hash TEXT
 );
 CREATE TABLE IF NOT EXISTS enroll_codes (code_hash TEXT PRIMARY KEY, expires REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS push_subs (device_id INTEGER PRIMARY KEY, endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL);
@@ -39,6 +44,11 @@ class Devices:
         self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self.lock = threading.Lock()
         self.db.executescript(SCHEMA)
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(devices)")}
+        for col in ("expires REAL", "prev_hash TEXT"):  # base créée avant D6
+            if col.split()[0] not in cols:
+                self.db.execute(f"ALTER TABLE devices ADD COLUMN {col}")
+        self.db.execute("UPDATE devices SET expires = ? WHERE expires IS NULL", (_now() + TOKEN_TTL_S,))
         self.fails, self.locked_until = 0, 0.0  # en mémoire : un redémarrage remet le compteur à zéro
 
     def new_code(self) -> str:
@@ -69,26 +79,49 @@ class Devices:
                 return None
             self.fails = 0
             token = secrets.token_urlsafe(32)
-            cur = self.db.execute("INSERT INTO devices (name, token_hash, created) VALUES (?, ?, ?)",
-                                  (name, _h(token), now))
+            cur = self.db.execute("INSERT INTO devices (name, token_hash, created, expires) VALUES (?, ?, ?, ?)",
+                                  (name, _h(token), now, now + TOKEN_TTL_S))
             return cur.lastrowid, token
 
     def check(self, token: str) -> tuple[int, str] | None:
-        """(id, nom) de l'appareil si le token est valide et non révoqué. Vérifié en base à chaque requête."""
+        """(id, nom) de l'appareil si le token est valide, non expiré et non révoqué. Vérifié en base à chaque requête.
+
+        Le token précédent (avant renouvellement) est accepté jusqu'au premier usage du nouveau.
+        """
         digest = _h(token)
         with self.lock:
-            row = self.db.execute("SELECT id, name, token_hash FROM devices WHERE token_hash = ? AND revoked = 0",
-                                  (digest,)).fetchone()
-            if row is None or not hmac.compare_digest(row[2], digest):
+            row = self.db.execute("SELECT id, name, token_hash, prev_hash FROM devices "
+                                  "WHERE (token_hash = ? OR prev_hash = ?) AND revoked = 0 AND expires >= ?",
+                                  (digest, digest, _now())).fetchone()
+            if row is None or not (hmac.compare_digest(row[2], digest) or hmac.compare_digest(row[3] or "", digest)):
                 return None
-            self.db.execute("UPDATE devices SET last_used = ? WHERE id = ?", (_now(), row[0]))
+            current = hmac.compare_digest(row[2], digest)
+            self.db.execute("UPDATE devices SET last_used = ?" + (", prev_hash = NULL" if current else "") + " WHERE id = ?",
+                            (_now(), row[0]))
         return row[0], row[1]
+
+    def rotate(self, device_id: int, used: str) -> str | None:
+        """Nouveau token valable `TOKEN_TTL_S` ; None si l'appareil est révoqué entre-temps.
+
+        `used` = token présenté : si c'est le précédent (réponse du dernier renouvellement perdue), il reste valable.
+        """
+        token = secrets.token_urlsafe(32)
+        with self.lock:
+            ok = self.db.execute("UPDATE devices SET prev_hash = CASE WHEN prev_hash = ? THEN prev_hash ELSE token_hash END, "
+                                 "token_hash = ?, expires = ? WHERE id = ? AND revoked = 0 AND expires >= ?",
+                                 (_h(used), _h(token), _now() + TOKEN_TTL_S, device_id, _now())).rowcount
+        return token if ok == 1 else None
 
     def revoke(self, device_id: int) -> bool:
         with self.lock:
             self.db.execute("DELETE FROM push_subs WHERE device_id = ?", (device_id,))  # plus de notification vers un appareil révoqué
             return self.db.execute("UPDATE devices SET revoked = 1 WHERE id = ? AND revoked = 0",
                                    (device_id,)).rowcount == 1
+
+    def revoke_all(self, keep: int | None = None) -> int:
+        """Révoque tous les appareils sauf `keep` ; nombre d'appareils révoqués."""
+        ids = [r[0] for r in self.list() if not r[4] and r[0] != keep]
+        return sum(self.revoke(i) for i in ids)
 
     def list(self) -> list[tuple]:
         with self.lock:

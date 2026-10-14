@@ -115,8 +115,9 @@
 
   <section id="view-devices" class="view" aria-labelledby="t-devices" hidden>
     <h1 id="t-devices" class="title">Appareils</h1>
-    <p class="muted">Appareils autorisés. La révocation se fait en ligne de commande sur le PC.</p>
+    <p class="muted">Appareils autorisés. Révoquer un seul appareil se fait sur le PC (« python -m jarvis device revoke »).</p>
     <ul id="devices-list" class="panel hud plain"></ul>
+    <p><button id="devices-revoke" class="btn" type="button">Révoquer tous les autres appareils</button></p>
   </section>
 
   <section id="view-settings" class="view" aria-labelledby="t-settings" hidden>
@@ -255,6 +256,7 @@
       </footer>
     </div>
     <p id="fin-state" class="muted">Chargement…</p>
+    <p><button id="fin-unlock" class="btn" type="button" hidden>Déverrouiller avec la clé d’accès</button></p>
   </section>
 
 </div>

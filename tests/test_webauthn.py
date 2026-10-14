@@ -16,7 +16,7 @@ from jarvis.core.chat import Chat
 from jarvis.core.devices import Devices
 from jarvis.core.tools import REGISTRY, Level, tool
 from jarvis.core.webauthn import Passkeys, b64u, cbor, UP, UV, AT
-from test_chat import ChatBase, wait_for
+from test_chat import ChatBase, no_strong, wait_for
 from test_server import ServerBase, free_port
 
 RP = "pc-test.tail1234.ts.net"
@@ -215,6 +215,7 @@ class WebAuthnServerBase(ChatBase):
     """Serveur sur le nom Tailscale (le seul où WebAuthn marche) ; les appels portent Host et Origin HTTPS."""
     def setUp(self):
         ServerBase.setUp(self)
+        no_strong(self)
         self.srv.should_exit = True
         time.sleep(0.3)
         self.chat = Chat(self.audit)
@@ -296,7 +297,7 @@ class N3ChatTest(WebAuthnServerBase):
         job = self.start()[1]["job"]
         result = self.done(job)
         self.assertEqual((result["answer"], result["pending"]), ("refusé", None))
-        self.assertIn("aucune clé d'accès", str(self.audit.last(10)))
+        self.assertIn("N3 refusé : clé d'accès requise", str(self.audit.last(10)))
 
     def test_n3_avec_assertion_valide(self):
         self.register_key()
@@ -382,6 +383,117 @@ class LevelsRoutesTest(WebAuthnServerBase):
     def test_defi_refuse_pour_un_outil_inconnu(self):
         self.register_key()
         self.assertEqual(self.call("POST", "/api/levels/challenge", {"tool": "inconnu", "level": 1})[0], 422)  # pas de défi
+
+
+STRONG = chat_mod.STRONG_N2  # liste réelle, lue avant que `no_strong` ne la vide
+
+
+class StrongN2Test(WebAuthnServerBase):
+    """D2 : les N2 forts exigent la clé d'accès comme un N3 ; un token volé ne suffit plus."""
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(chat_mod, "STRONG_N2", STRONG)
+        patch.start()
+        self.addCleanup(patch.stop)
+        ask = lambda text, *, audit, confirm, strong_auth, source: str(  # noqa: E731
+            confirm(REGISTRY["kill_process"], {"pid": 4242, "name": "notepad.exe"}))
+        patch = mock.patch.object(chat_mod, "ask", ask)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_liste_d2(self):
+        self.assertEqual(STRONG, {"run_script", "delete_file", "kill_process", "power", "clipboard_read", "screenshot",
+                                  "mail_recent"})
+        self.assertTrue(all(REGISTRY[n].level == Level.N2 for n in STRONG))  # un nom faux ne protégerait rien
+
+    def test_sans_cle_refuse_sans_demander(self):
+        result = self.done(self.start()[1]["job"])
+        self.assertEqual((result["answer"], result["pending"]), ("False", None))
+        self.assertIn("N2 refusé : clé d'accès requise", str(self.audit.last(10)))
+
+    def test_oui_sans_assertion_refuse_avec_assertion_accepte(self):
+        self.register_key()
+        job = self.start()[1]["job"]
+        pending = self.pending(job)
+        self.assertEqual((pending["level"], pending["webauthn"]["rpId"]), (2, RP))
+        self.assertEqual(self.decide(pending["id"], True)[0], 200)
+        self.assertEqual(self.done(job)["answer"], "False")
+        job = self.start()[1]["job"]
+        pending = self.pending(job)
+        body = {"approve": True, "assertion": self.a.get(pending["webauthn"])}
+        self.assertEqual(self.call("POST", f"/api/confirm/{pending['id']}", body)[0], 200)
+        self.assertEqual(self.done(job)["answer"], "True")
+
+
+class FinanceUnlockTest(WebAuthnServerBase):
+    """D3 : Finances s'ouvre `FINANCE_UNLOCK_S` après une signature de la clé d'accès de CET appareil."""
+    def setUp(self):
+        super().setUp()
+        for name, value in (("finance_snapshot", {"configured": True, "latest": None, "trend": []}),
+                            ("bank_view", None), ("crypto_view", None), ("portfolio_view", None)):
+            patch = mock.patch.object(server, name, return_value=value)
+            patch.start()
+            self.addCleanup(patch.stop)
+        patch = mock.patch.object(server.binance, "refresh_if_stale")
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def unlock(self, action="finance", **kw):
+        options = self.call("POST", "/api/passkey/challenge", {"action": action})[1]
+        return self.call("POST", "/api/finance/unlock", {"assertion": self.a.get(options, **kw)})[0]
+
+    def test_verrouille_par_defaut_et_journalise(self):
+        for path in ("/api/finance", "/api/finance/bank"):
+            self.assertEqual(self.call("GET", path)[0], 403, path)
+        self.assertIn("finance_locked", str(self.audit.last(5)))
+        self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "finance"})[0], 403)  # aucune clé
+
+    def test_assertion_valide_ouvre_finances(self):
+        self.register_key()
+        self.assertEqual(self.unlock(), 200)
+        self.assertEqual(self.call("GET", "/api/finance")[0], 200)
+        self.assertEqual(self.call("GET", "/api/finance/bank")[0], 200)
+        self.assertIn("finance_unlock", str(self.audit.last(5)))
+
+    def test_mauvaises_assertions_refusees(self):
+        self.register_key()
+        self.assertEqual(self.unlock(action="devices:revoke"), 403)  # défi d'une autre action
+        self.assertEqual(self.unlock(sign_with=ec.generate_private_key(ec.SECP256R1())), 403)
+        self.assertEqual(self.call("GET", "/api/finance")[0], 403)
+        self.assertEqual(self.call("POST", "/api/finance/unlock", {})[0], 422)
+        self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "confirm:x"})[0], 422)  # liste fermée
+
+    def test_deverrouillage_expire(self):
+        self.register_key()
+        with mock.patch.object(server, "FINANCE_UNLOCK_S", -1):
+            self.assertEqual(self.unlock(), 200)
+        self.assertEqual(self.call("GET", "/api/finance")[0], 403)
+
+    def test_un_autre_appareil_reste_verrouille(self):
+        self.register_key()
+        self.unlock()
+        code = self.devices.new_code()
+        other = ServerBase.call(self, "POST", "/api/enroll", {"code": code, "name": "autre"}, Host=RP, Origin=ORIGIN)[1]
+        self.assertEqual(self.call("GET", "/api/finance", token=other["token"])[0], 403)
+
+
+class RevokeOthersTest(WebAuthnServerBase):
+    def test_revoque_les_autres_avec_la_cle_seulement(self):
+        code = self.devices.new_code()
+        other = ServerBase.call(self, "POST", "/api/enroll", {"code": code, "name": "autre"}, Host=RP, Origin=ORIGIN)[1]
+        self.register_key()
+        self.assertEqual(self.call("POST", "/api/devices/revoke-others", {})[0], 422)
+        options = self.call("POST", "/api/passkey/challenge", {"action": "finance"})[1]  # défi d'une autre action
+        self.assertEqual(self.call("POST", "/api/devices/revoke-others", {"assertion": self.a.get(options)})[0], 403)
+        self.assertEqual(self.call("GET", "/api/ping", token=other["token"])[0], 200)  # rien n'a changé
+        # un token volé sans clé d'accès ne chasse pas le propriétaire
+        self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "devices:revoke"}, token=other["token"])[0], 403)
+        options = self.call("POST", "/api/passkey/challenge", {"action": "devices:revoke"})[1]
+        status, body, _ = self.call("POST", "/api/devices/revoke-others", {"assertion": self.a.get(options)})
+        self.assertEqual((status, body), (200, {"revoked": 1}))
+        self.assertEqual(self.call("GET", "/api/ping", token=other["token"])[0], 401)
+        self.assertEqual(self.call("GET", "/api/ping")[0], 200)  # l'appareil qui a signé reste
+        self.assertIn("révocation des autres appareils", str(self.audit.last(5)))
 
 
 if __name__ == "__main__":

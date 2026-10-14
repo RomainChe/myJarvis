@@ -102,6 +102,21 @@ async function registerPasskey() {
   loadSettings();
 }
 $('passkey-add').addEventListener('click', registerPasskey);
+// Téléphone perdu : révoquer tous les autres appareils, signé par la clé d'accès de CET appareil
+$('devices-revoke').addEventListener('click', async () => {
+  if (!confirm('Révoquer tous les autres appareils ? Ils devront être associés de nouveau depuis le PC.')) return;
+  const b = $('devices-revoke');
+  b.disabled = true;
+  try {
+    const ch = await api('/api/passkey/challenge', { method: 'POST', body: { action: 'devices:revoke' } });
+    if (!ch.ok) { toast('Enregistrez d’abord une clé d’accès sur cet appareil (Réglages).'); return; }
+    const assertion = await getAssertion(ch.data);
+    if (!assertion) { toast('Clé d’accès non validée : rien n’a changé.'); return; }
+    const r = await api('/api/devices/revoke-others', { method: 'POST', body: { assertion } });
+    toast(r.ok ? `${r.data.revoked} appareil(s) révoqué(s).` : 'Révocation refusée.');
+    loadDevices();
+  } catch { /* api() a déjà prévenu */ } finally { b.disabled = false; }
+});
 
 // ---- Réglages : niveaux des outils -------------------------------------------------------------
 async function applyLevel(row, level) {

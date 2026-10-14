@@ -71,7 +71,7 @@ const clip = (s, n) => { const t = String(s ?? ''); return t.length > n ? `${t.s
 const CACHEABLE = /^\/api\/(dashboard|social|voyages|finance|finance\/bank|bienetre|veille|audit|devices|levels|memory|reminders)$/;
 const lastRead = new Map();
 const hhmm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-async function api(path, { method = 'GET', body, auth = true } = {}) {
+async function api(path, { method = 'GET', body, auth = true, retried = false } = {}) {
   const headers = {};
   if (auth && token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -95,7 +95,11 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
   setStatus('');
   setLink(true);
   document.body.classList.remove('stale');
-  if (res.status === 401 && auth) { await signOut(); throw new Error('unauthorized'); }
+  if (res.status === 401 && auth) {
+    const stored = await getToken(); // un autre onglet a renouvelé le token (D6) : on reprend le sien, une fois
+    if (!retried && stored && stored !== token) { token = stored; return api(path, { method, body, auth, retried: true }); }
+    await signOut(); throw new Error('unauthorized');
+  }
   if (res.status === 429) toast('Jarvis est occupé, réessayez dans un instant.');
   const data = await res.json().catch(() => null);
   if (res.ok && method === 'GET' && data && CACHEABLE.test(path)) lastRead.set(path, { data, at: Date.now() });

@@ -157,7 +157,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         for row in devices.list():
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
-    if sub == "add" and len(argv) == 2 or sub == "revoke" and len(argv) == 3 and argv[2].isdigit():
+    if sub == "add" and len(argv) == 2 or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
         if not sys.stdin.isatty():  # action d'un humain devant le PC, comme une confirmation N3
             print("Refusé : cette commande exige un terminal interactif.")
             return 1
@@ -172,11 +172,16 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             except UnicodeEncodeError:  # console non UTF-8 (cp1252) : le lien ci-dessus suffit
                 print("(QR non affichable dans cette console : utilise le lien.)")
             return 0
+        if argv[2] == "all":  # téléphone perdu ou token volé : tout couper, puis réenrôler
+            n = devices.revoke_all()
+            audit.log("cli", "device_revoke", {"tous": True}, 3, "confirmé", f"{n} appareil(s) révoqué(s)")
+            print(f"{n} appareil(s) révoqué(s).")
+            return 0
         ok = devices.revoke(int(argv[2]))
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
         print("Appareil révoqué." if ok else "Appareil introuvable ou déjà révoqué.")
         return 0 if ok else 1
-    print("Usage : device add | device list | device revoke <id> | serve")
+    print("Usage : device add | device list | device revoke <id>|all | serve")
     return 2
 
 

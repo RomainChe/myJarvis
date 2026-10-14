@@ -13,7 +13,15 @@ setInterval(() => { if (!$('app').hidden && !document.hidden) loadMic(); }, 1500
   const code = new URLSearchParams(location.hash.slice(1)).get('code');
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   token = await getToken();
-  if (token) { showApp(); return; }
+  if (token) {
+    // D6 : token renouvelé à chaque ouverture (90 jours glissants) ; hors ligne, l'ancien reste valable.
+    try {
+      const r = await api('/api/token', { method: 'POST', body: {} });
+      if (r.ok && r.data?.token) { token = r.data.token; await setToken(token); }
+    } catch { /* hors ligne ou 401 (api() a déjà déconnecté) */ }
+    if (token) showApp();
+    return;
+  }
   if (code) {
     showEnroll();
     await enroll(code.trim(), $('enroll-name').value.trim() || guessName());

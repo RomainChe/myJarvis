@@ -127,3 +127,8 @@
 - **Risque accepté par le propriétaire (RGPD)** : une recherche ponctuelle publie sa destination et ses dates dans les journaux GitHub Actions du dépôt public `flight-price-tracker`, et l'e-mail de résultats y reste en artefact 7 jours. Même exposition que `voyage_destination` (ci-dessus).
 - **Corrigé** : (2) une recherche par minute au plus (`SEARCH_EVERY_S`). Documenté : mention du dépôt public dans docs/TOOLS.md.
 - **Non retenu** : (3) `-R` explicite : le dépôt reste déduit du clone configuré (`voyages.json`), source unique pour la lecture, le push et la recherche.
+
+## 2026-10-14 — Phase 5, étapes 1 et 9 : D2, D3, D6 (décision du propriétaire)
+- **D2** : clé d'accès exigée pour les N2 `run_script`, `delete_file`, `kill_process`, `power`, `clipboard_read`, `screenshot`, `mail_recent` dans la PWA (`chat.STRONG_N2`). La voix et le terminal ne changent pas : ils n'utilisent pas de token.
+- **D3** : clé d'accès pour ouvrir Finances (10 min par signature), pas pour la Veille.
+- **D6** : token d'appareil valable 90 jours glissants, renouvelé à chaque ouverture de la PWA ; « révoquer tout » au terminal et dans la PWA (avec clé d'accès).
