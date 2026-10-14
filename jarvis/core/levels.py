@@ -102,7 +102,7 @@ LABELS = {
     "tv_open_app": ("Appli sur la TV", "Lance YouTube, Netflix ou une autre appli sur la TV."),
     "timer_set": ("Minuteur", "Prévient à la fin d'une durée, par la voix du PC et une notification."),
     "reminder_set": ("Rappel ou réveil", "Prévient à une heure donnée, par la voix du PC et une notification."),
-    "reminder_list": ("Liste des rappels", "Minuteurs et rappels en attente, avec leur texte."),
+    "reminder_list": ("Liste des rappels", "Minuteurs et rappels en attente : id, heure et type, jamais le texte."),
     "reminder_cancel": ("Annuler un rappel", "Supprime un minuteur ou un rappel en attente."),
     "briefing": ("Briefing du jour", "Date, météo, rappels, publications lol-clipper et veille IA. Sans mails ni finances."),
     "memory_set": ("Retenir un fait", "Mémorise une préférence ou une habitude, ajoutée au contexte du LLM."),

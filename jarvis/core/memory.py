@@ -4,6 +4,7 @@ Le texte d'un fait ne va jamais au journal (ajout seul, non purgeable) : `memory
 Les faits sont injectés dans le prompt système comme DONNÉES (jamais des ordres) ; l'écriture est refusée au LLM après
 lecture de contenu externe (`taint_blocked`), sinon une page web pourrait y poser une consigne durable.
 """
+from . import injection_scan
 from .audit import Audit
 from .router import fold
 
@@ -31,6 +32,8 @@ def add(text: str) -> int:
     text = " ".join(text.split())[:TEXT_MAX]
     if not text:
         raise ValueError("rien à retenir")
+    if injection_scan.scan(text):
+        raise ValueError("ce texte ressemble à une consigne : non retenu")
     a = _db()
     with a.lock:
         if a.db.execute("SELECT COUNT(*) FROM memory").fetchone()[0] >= MAX_FACTS:
