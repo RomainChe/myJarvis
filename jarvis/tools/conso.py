@@ -30,10 +30,43 @@ def summary(snap: dict, periode: str) -> str:
     return out
 
 
-@tool("conso_pc", "Consommation électrique du PC mesurée par sa prise connectée : kWh, € et comparaison à la période "
-                  "précédente. `periode` : jour, semaine (7 jours) ou mois (30 jours).", Level.N0, periode=str)
-def conso_pc(periode: str) -> str:
+def _period(periode: str) -> str:
     key = ALIASES.get(fold(periode.strip()).replace("'", " ").replace("’", " "))  # apostrophes droite et typographique
     if key is None:
         raise ValueError("période invalide : jour, semaine ou mois")
-    return summary(conso.snapshot(), key)
+    return key
+
+
+HOME_WHEN = {"jour": "hier", "semaine": "sur les 7 derniers jours relevés", "mois": "sur les 30 derniers jours relevés"}
+HOME_BEFORE = {"jour": "la veille", "semaine": "les 7 jours d'avant", "mois": "les 30 jours d'avant"}
+
+
+def home_summary(snap: dict, periode: str) -> str:
+    """Phrase parlable du total logement ; la part du PC n'est dite que sur des jours mesurés des deux côtés."""
+    p = snap["periods"][periode]
+    if p["kwh"] is None:
+        return "Je n'ai pas de relevé du compteur pour cette période : donnée indisponible."
+    out = f"Le logement a consommé {_n(p['kwh'], 'kWh')} {HOME_WHEN[periode]}"
+    if p["eur"] is not None:
+        out += f" (environ {_n(p['eur'], '€')})"
+    if p["prev_kwh"] is not None:
+        out += f", contre {_n(p['prev_kwh'], 'kWh')} {HOME_BEFORE[periode]}"
+    out += "."
+    if p["partial"]:
+        out += f" {p['days']} jours relevés seulement : le total est partiel."
+    if p["pc_share"] is not None:
+        out += f" Le PC en représente {round(p['pc_share'] * 100)} %."
+    return out
+
+
+@tool("conso_pc", "Consommation électrique du PC mesurée par sa prise connectée : kWh, € et comparaison à la période "
+                  "précédente. `periode` : jour, semaine (7 jours) ou mois (30 jours).", Level.N0, periode=str)
+def conso_pc(periode: str) -> str:
+    return summary(conso.snapshot(), _period(periode))
+
+
+@tool("conso_totale", "Consommation électrique totale du logement (compteur Linky, relevé de la veille) : kWh, € et "
+                      "comparaison à la période précédente. `periode` : jour (hier), semaine (7 jours) ou mois (30 jours).",
+      Level.N0, periode=str)
+def conso_totale(periode: str) -> str:
+    return home_summary(conso.home_snapshot(), _period(periode))

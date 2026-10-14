@@ -101,3 +101,76 @@ def snapshot(db: Path | None = None, now: datetime | None = None, config: Path |
     out["series"] = [{"day": d, "kwh": round(by_day[d] / 1000, 3) if d in by_day else None} for d in days]
     out["configured"] = bool(by_day) or any(p["kwh"] is not None for p in out["periods"].values())
     return out
+
+
+# --- Étape 2 : total du logement (compteur Linky via MyElectricalData, jours complets J-1 au plus récent) ---
+HOME_SCHEMA = "CREATE TABLE IF NOT EXISTS home_energy (day TEXT PRIMARY KEY, kwh REAL NOT NULL, fetched_at TEXT NOT NULL)"
+
+
+def store_home(days: dict[str, float], at: datetime | None = None, db: Path | None = None) -> None:
+    """Remplace les jours reçus (un relevé corrigé par Enedis l'emporte) et purge au-delà de KEEP_DAYS."""
+    at, db = at or datetime.now(), Path(db or DB)
+    db.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(db)) as cx, cx:
+        cx.execute(HOME_SCHEMA)
+        cx.executemany("INSERT INTO home_energy VALUES (?, ?, ?) ON CONFLICT(day) DO UPDATE "
+                       "SET kwh = excluded.kwh, fetched_at = excluded.fetched_at",
+                       [(d, k, at.isoformat(timespec="seconds")) for d, k in days.items()])
+        cx.execute("DELETE FROM home_energy WHERE day < ?", ((at.date() - timedelta(days=KEEP_DAYS)).isoformat(),))
+
+
+def last_fetch(db: Path | None = None) -> datetime | None:
+    db = Path(db or DB)
+    if not db.is_file():
+        return None  # sqlite3.connect créerait un fichier vide à la lecture
+    try:
+        with closing(sqlite3.connect(db)) as cx:
+            v = cx.execute("SELECT MAX(fetched_at) FROM home_energy").fetchone()[0]
+        return datetime.fromisoformat(v) if v else None
+    except (sqlite3.Error, ValueError):
+        return None
+
+
+def home_snapshot(db: Path | None = None, now: datetime | None = None, config: Path | None = None) -> dict:
+    """kWh, € et période précédente du logement ; fenêtres de jours complets finissant hier. `kwh` None = aucun relevé."""
+    now, db = now or datetime.now(), Path(db or DB)
+    last, price = now.date() - timedelta(days=1), load_price(config)
+    empty = {"kwh": None, "eur": None, "prev_kwh": None, "days": 0, "partial": False, "pc_share": None}
+    out = {"configured": False, "price_kwh": price, "last_day": None, "fetched_at": None,
+           "periods": {name: dict(empty) for name in PERIODS}, "series": [],
+           "source": "Compteur Linky via MyElectricalData (relevé de la veille, quelques heures de décalage)"}
+    if not db.is_file():
+        return out
+    iso = lambda d: d.isoformat()  # noqa: E731
+    try:
+        with closing(sqlite3.connect(db)) as cx:
+            home = dict(cx.execute("SELECT day, kwh FROM home_energy WHERE day >= ?",
+                                   (iso(last - timedelta(days=2 * 30 - 1)),)).fetchall())
+            out["fetched_at"] = cx.execute("SELECT MAX(fetched_at) FROM home_energy").fetchone()[0]
+            try:
+                pc = dict(cx.execute("SELECT day, wh / 1000 FROM pc_energy WHERE day >= ?",
+                                     (iso(last - timedelta(days=29)),)).fetchall())
+            except sqlite3.Error:
+                pc = {}  # pas encore de table de la prise : part du PC « indisponible »
+    except sqlite3.Error:
+        return out
+    if not home:
+        return out
+    for name, n in PERIODS.items():
+        days = [iso(last - timedelta(days=i)) for i in range(n)]
+        got = [d for d in days if d in home]
+        if not got:
+            continue
+        kwh = sum(home[d] for d in got)
+        prev = [home[iso(last - timedelta(days=n + i))] for i in range(n) if iso(last - timedelta(days=n + i)) in home]
+        both = [d for d in got if d in pc]  # la part du PC ne compare que des jours mesurés des deux côtés
+        base = sum(home[d] for d in both)
+        out["periods"][name] = {
+            "kwh": round(kwh, 3), "eur": None if price is None else round(kwh * price, 2),
+            "prev_kwh": round(sum(prev), 3) if prev else None, "days": len(got), "partial": len(got) < n,
+            "pc_share": round(sum(pc[d] for d in both) / base, 3) if both and base > 0 else None}
+    out["last_day"] = max(home)
+    out["series"] = [{"day": d, "kwh": round(home[d], 3) if d in home else None}
+                     for d in (iso(last - timedelta(days=29 - i)) for i in range(30))]
+    out["configured"] = True
+    return out
