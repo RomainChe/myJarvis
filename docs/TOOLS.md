@@ -400,6 +400,14 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Exemple** : onglet Voyages → « Changer de destination » (route `POST /api/voyages/destination`, confirmation N2 dans la PWA).
 - **Notes** : `git fetch`, puis `config.yaml` lu dans `origin/main` ; commit par la plomberie (`hash-object`, index temporaire, `commit-tree`) et `push origin <sha>:refs/heads/main` sans `--force` : ni la copie de travail ni la branche locale du propriétaire ne bougent. Validation avant le commit par le `load_config` du projet (son `.venv`) : départs hors France/Barcelone et destinations inconnues refusés avec le message du projet. Champs bornés par des motifs (lettres, espaces, tirets, apostrophes) : ni e-mail ni secret dans le dépôt public ; valeurs écrites en chaînes JSON (YAML entre guillemets). Push refusé (le workflow a commité entre-temps) : une seconde tentative sur le nouvel `origin/main`. Ne recopie pas les filtres de l'ancienne recherche (escales, durée des escales).
 
+## voyage_recherche (`jarvis/tools/voyages.py`)
+
+- **Description** : recherche de vols ponctuelle : lance le workflow `search.yml` de flight-price-tracker (`gh workflow run`), qui envoie le résultat par e-mail. Ni `config.yaml` ni l'historique ne sont touchés : le suivi en cours ne change pas.
+- **Niveau** : N1, `taint_blocked` (refusé au LLM après un contenu externe : un mail ou une page ne peut pas déclencher d'envoi d'e-mail).
+- **Paramètres** : les mêmes que `voyage_destination`, avec les mêmes validations (`_spec`).
+- **Exemple** : « cherche aussi la Thaïlande du 1er au 10 février, retour le 20 » → « Recherche Thaïlande lancée sur GitHub : le résultat arrivera par e-mail… ».
+- **Notes** : `gh` lancé dans le clone (dépôt déduit de son `origin`, jeton de `gh auth`, jamais lu par JARVIS), `GH_PROMPT_DISABLED=1`, timeout 30 s, une recherche par minute au plus ; champs passés en `-f clé=valeur` (aucune valeur ne peut devenir une option), le workflow les reçoit en variables d'environnement. Pas d'intention au routeur : il faut des dates, donc le LLM. Les filtres avancés du workflow (escales, classe, bagage) gardent leurs valeurs par défaut. **Dépôt public** : destination et dates de la recherche sont lisibles dans les journaux Actions (et l'e-mail en artefact 7 jours).
+
 ## Commande `say` (voix, Phase 4 étape 3)
 
 - **Commande** : `python -m jarvis say "texte"` (pas un outil du registre, aucune route HTTP). Lit le texte avec Piper (`fr_FR-tom-medium`, `length_scale` 1,05), source `voix`, texte tronqué à `ANSWER_MAX`.

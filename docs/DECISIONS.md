@@ -122,3 +122,8 @@
 - **Acceptés** : (3) `_pop_due` supprime avant d'annoncer, un crash entre les deux perd le rappel ; (4) le briefing dit à voix haute des titres externes (60 car.), lus par TTS, jamais exécutés ; (10) 30 faits × 200 car. ≈ 1 500–2 000 tokens par requête, inchangé tant que le contrôleur de tokens n'a pas mesuré de gêne.
 - **RGPD (9)** : « mémoire du propriétaire » = nouvelle donnée personnelle, en clair dans la base du journal ; consultable et effaçable par `memory_list` / `memory_forget`. La sauvegarde hors machine (D1) devra la chiffrer.
 - **Phase 5 (11, 12)** : `Mic.run` utilise l'API privée `sd._terminate` / `_initialize` hors verrou partagé avec `Speaker` ; une panne persistante du micro n'est pas journalisée (une ligne « micro perdu » puis « micro revenu » à ajouter).
+
+## 2026-10-14 — Voyages, étape 5 : `voyage_recherche` (revue Sécurité : feu vert sous conditions, conditions remplies)
+- **Risque accepté par le propriétaire (RGPD)** : une recherche ponctuelle publie sa destination et ses dates dans les journaux GitHub Actions du dépôt public `flight-price-tracker`, et l'e-mail de résultats y reste en artefact 7 jours. Même exposition que `voyage_destination` (ci-dessus).
+- **Corrigé** : (2) une recherche par minute au plus (`SEARCH_EVERY_S`). Documenté : mention du dépôt public dans docs/TOOLS.md.
+- **Non retenu** : (3) `-R` explicite : le dépôt reste déduit du clone configuré (`voyages.json`), source unique pour la lecture, le push et la recherche.

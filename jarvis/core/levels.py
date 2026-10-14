@@ -91,6 +91,7 @@ LABELS = {
     "social_schedule": ("Planning des publications", "Liste les vidéos programmées de lol-clipper."),
     "social_reschedule": ("Décaler une publication", "Change l'heure de mise en ligne d'une vidéo programmée de lol-clipper."),
     "voyage_prix": ("Prix des vols", "Meilleur prix suivi par flight-price-tracker, tendance, départ et dates."),
+    "voyage_recherche": ("Recherche de vols", "Lance une recherche ponctuelle de flight-price-tracker, résultat par e-mail."),
     "hotel_itineraire": ("Prix des hôtels", "Total d'hébergement du voyage suivi par hotel-price-tracker, hôtel recommandé par ville."),
     "conso_conseils": ("Conseils de consommation", "Conseils déterministes pour consommer moins, chacun justifié par un chiffre de la semaine."),
     "conso_totale": ("Consommation du logement", "kWh et € du compteur Linky (relevé de la veille) sur le jour, la semaine ou le mois, avec la part du PC."),

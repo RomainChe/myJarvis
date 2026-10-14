@@ -1,6 +1,7 @@
 """Voyages (Phase 6 point 10) : `hotel_itineraire` (N0, Phase 4 de hotel-price-tracker) lit le dernier relevé d'hôtels ;
 `voyage_prix` (N0, étape 4 : voix et chat) lit le meilleur prix ; `voyage_destination` (N2,
-`taint_blocked`, étape 3) change de destination dans flight-price-tracker.
+`taint_blocked`, étape 3) change de destination dans flight-price-tracker ; `voyage_recherche` (N1, `taint_blocked`,
+étape 5) lance une recherche ponctuelle (workflow `search.yml`, résultat par e-mail, config.yaml non touché).
 
 Changer de destination = nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées
 (leur historique reste dans `data/prices.csv`, indexé par `name`) ; jamais un renommage. Le fichier est construit à partir de
@@ -15,6 +16,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -24,7 +26,8 @@ from jarvis.core.tools import Level, tool
 PLACE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ' -]{1,39}")  # ville, pays ou code IATA
 MAX_ORIGINS, MAX_STAYS, MAX_STAY_DAYS, MAX_AHEAD_DAYS, MAX_ALERT = 10, 5, 90, 400, 20_000
 CHECK = "import sys; from tracker.config import load_config; load_config(sys.argv[1])"
-CHECK_TIMEOUT_S, PUSH_TIMEOUT_S = 60, 60
+CHECK_TIMEOUT_S, PUSH_TIMEOUT_S, GH_TIMEOUT_S, SEARCH_EVERY_S = 60, 60, 30, 60
+_last_search = [0.0]  # une recherche par minute : un client en boucle ne peut pas inonder la boîte mail
 AUTHOR, AUTHOR_EMAIL = "JARVIS", "jarvis@users.noreply.github.com"
 
 
@@ -233,3 +236,36 @@ def voyage_destination(destination, depart_from, depart_to, stay_days, return_da
             continue
         return f"Suivi passé sur « {spec['name']} » (commit {commit[:7]} poussé). Le prochain relevé quotidien l'inclura."
     raise AssertionError("inatteignable")
+
+
+def _describe_search(destination, depart_from, depart_to, stay_days, return_date, origins, alert_below) -> str:
+    s = _spec(destination, depart_from, depart_to, stay_days, return_date, origins, alert_below)
+    back = f"retour le {s['back']:%d/%m/%Y}" if s["back"] else f"séjour de {', '.join(map(str, s['stays']))} j"
+    return (f"Recherche ponctuelle {s['destination']} depuis {', '.join(s['origins'])}, départ du {s['from']:%d/%m/%Y} "
+            f"au {s['to']:%d/%m/%Y}, {back} : résultat par e-mail, suivi en cours inchangé.")
+
+
+@tool("voyage_recherche", "Recherche de vols ponctuelle par flight-price-tracker (workflow GitHub, résultat par e-mail), sans changer "
+                          "le suivi en cours. Dates AAAA-MM-JJ ; `stay_days` (ex. \"10,14\") OU `return_date`, l'autre vide ; "
+                          "`origins` villes de France ou Barcelone séparées par des virgules ; `alert_below` en €, 0 = aucun.",
+      Level.N1, taint_blocked=True, describe=_describe_search, destination=str, depart_from=str, depart_to=str, stay_days=str,
+      return_date=str, origins=str, alert_below=int)
+def voyage_recherche(destination, depart_from, depart_to, stay_days, return_date, origins, alert_below) -> str:
+    s = _spec(destination, depart_from, depart_to, stay_days, return_date, origins, alert_below)
+    root = voyages.tracker_dir()
+    if not (root / ".git").is_dir():
+        raise ValueError("clone git de flight-price-tracker introuvable : aucune recherche lancée")
+    if time.monotonic() - _last_search[0] < SEARCH_EVERY_S:
+        raise ValueError("une recherche vient d'être lancée : réessaie dans une minute")
+    _last_search[0] = time.monotonic()
+    fields = {"destination": s["destination"], "origins": ", ".join(s["origins"]), "depart_from": s["from"].isoformat(),
+              "depart_to": s["to"].isoformat(), "return_date": s["back"].isoformat() if s["back"] else "",
+              "stay_days": ", ".join(map(str, s["stays"])), "alert_below": str(s["alert"] or "")}
+    args = [a for k, v in fields.items() for a in ("-f", f"{k}={v}")]  # -f clé=valeur : une valeur ne devient jamais une option
+    try:  # dépôt déduit du clone (son `origin`) ; jeton de `gh auth`, jamais lu par JARVIS
+        subprocess.run(["gh", "workflow", "run", "search.yml", *args], cwd=root, capture_output=True, check=True,
+                       timeout=GH_TIMEOUT_S, env={**os.environ, "GH_PROMPT_DISABLED": "1"},
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        raise ValueError("GitHub injoignable ou `gh` non connecté : aucune recherche lancée") from None
+    return f"Recherche {s['destination']} lancée sur GitHub : le résultat arrivera par e-mail d'ici une demi-heure environ."
