@@ -376,6 +376,13 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Paramètres** : `periode` = `jour`, `semaine` (7 jours glissants) ou `mois` (30 jours glissants) ; alias « aujourd'hui ». Autre valeur : refusée. **Exemple** : « Jarvis, combien le PC a consommé aujourd'hui ? » → « Le PC a consommé 1,50 kWh aujourd'hui (environ 0,38 €), contre 2,00 kWh hier. »
 - **Notes** : un fil du Core échantillonne la puissance chaque minute et l'intègre par jour (trapèze, intervalle > 3 min ignoré) ; Core éteint ou prise illisible = trou, jamais comblé : « Mesuré sur N h seulement : le total est sous-estimé ». Rétention 65 jours, un total par jour (aucune courbe fine : RGPD). Sans mesure : « donnée indisponible ». Prix du kWh : `~/.jarvis/conso.json`, modifiable par `PUT /api/conso/tarif` (0 < prix ≤ 5 €, une ligne au journal sans le montant). Le total du logement (Enedis) et les conseils viennent aux étapes 2 et 3.
 
+## conso_totale (`jarvis/tools/conso.py`)
+
+- **Description** : énergie consommée par tout le logement (compteur Linky), relevé de la veille, via la passerelle hébergée MyElectricalData (Enedis n'ouvre pas Data Connect aux particuliers). kWh et € (prix saisi), période d'avant, part du PC calculée sur les seuls jours mesurés des deux côtés.
+- **Niveau** : N0 (lecture du cache `~/.jarvis/conso.db`, table `home_energy`). Pas `external` : seuls des nombres calculés par le Core en sortent. Routeur sans LLM : « combien j'ai consommé chez moi », « la conso de la maison cette semaine ».
+- **Paramètres** : `periode` = `jour` (hier), `semaine` (7 jours) ou `mois` (30 jours), fenêtres de jours complets finissant hier. Autre valeur : refusée. **Exemple** : « Jarvis, combien j'ai consommé chez moi hier ? »
+- **Notes** : le Core appelle l'API au plus une fois par 24 h (`jarvis/core/enedis.py`, 10 s de délai, une tentative, réponse bornée : 0 à 500 kWh/jour, jours hors fenêtre ignorés). Jeton `med_token` et PDL `med_pdl` dans le coffre (`python -m jarvis secret set med_token`), jamais dans un fichier. Source absente ou en panne : « donnée indisponible », rien n'est estimé ni écrit. Une ligne `conso_enedis_fetch` au journal à chaque changement d'état, sans valeur. Totaux quotidiens seulement (pas de courbe 30 min), 65 jours gardés.
+
 ## voyage_destination (`jarvis/tools/voyages.py`)
 
 - **Description** : change la destination suivie par flight-price-tracker : nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées (en pause, historique gardé), commit `config : …` puis push sur `main`.

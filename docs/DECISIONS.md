@@ -105,3 +105,9 @@
 - **Corrigés** : (M1) plancher N2 pour `voyage_destination` dans `levels.FLOORS` (ni réglage ni jeton d'appareil ne le descend) ; (M2) plus de villes de départ par défaut dans la PWA, ROADMAP sans plan de voyage ; (B5) tests : destination ou départ commençant par `-`, plancher N2.
 - **Dette basse corrigée ensuite (`fix/voyages-dette`)** : B1 (validation avec environnement minimal, chemin personnel masqué dans l'erreur, docstring corrigée), B2 (le réessai ne double plus une recherche déjà en tête de `config.yaml`), B3 (chaque `git fetch` est journalisé `voyages_sync`), B4 (auteur et committer forcés à `JARVIS <jarvis@users.noreply.github.com>`).
 - **À tester en réel** : push avec le Git Credential Manager, `config.yaml` CRLF réel, confirmation par push sur mobile.
+
+## 2026-10-14 — Onglet Consommation, étape 2 : total du logement via MyElectricalData (hébergé)
+- **Décision du propriétaire** : passerelle hébergée (myelectricaldata.fr), pas auto-hébergée ; Data Connect refusé par Enedis aux particuliers, scraping TotalEnergies interdit (CGU).
+- **Risque accepté (RGPD)** : un tiers (l'hébergeur) voit la consommation quotidienne du logement après le consentement Enedis du propriétaire. Atténuations : un seul appel par jour, totaux quotidiens seulement, jeton et PDL dans le coffre, stockage local 65 jours, passage possible en auto-hébergé (constante `URL`).
+- **À vérifier au premier essai réel** : en-tête `Authorization` (jeton brut), unité de `value` (Wh supposés) et chemin `daily_consumption/<pdl>/start/<AAAA-MM-JJ>/end/<AAAA-MM-JJ>/` ; relevés dans les tests, pas encore confrontés à la vraie API.
+- Étape 1, revue Sécurité : feu vert, constats bas (nom du fichier temporaire du prix fixe, `except` muet de l'échantillonneur, prix du kWh N1 volontaire : un affichage seulement).

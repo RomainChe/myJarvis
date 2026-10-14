@@ -154,6 +154,9 @@
     "phrases": ["prix des hotels", "le prix des hotels", "prix de l hotel", "ou en sont les hotels", "ou en est l hebergement",
                 "combien coute l hebergement", "combien coutent les hotels", "le point sur les hotels", "prix de l hebergement"]
   },
+  {"tool": "conso_totale", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (de la maison|du logement|totale|de chez moi)|combien (j.ai|on a|a-t-on) consomm[eé]( chez moi| en tout| au total)?)( hier)?"], "defaults": {"periode": "jour"}},
+  {"tool": "conso_totale", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (de la maison|du logement|totale|de chez moi)|combien (j.ai|on a|a-t-on) consomm[eé]( chez moi| en tout| au total)?) (cette semaine|sur la semaine|sur (les )?7 jours|depuis une semaine)"], "defaults": {"periode": "semaine"}},
+  {"tool": "conso_totale", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (de la maison|du logement|totale|de chez moi)|combien (j.ai|on a|a-t-on) consomm[eé]( chez moi| en tout| au total)?) (ce mois( ci|-ci)?|sur le mois|sur (les )?30 jours)"], "defaults": {"periode": "mois"}},
   {"tool": "conso_pc", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (du|de mon) pc|combien (a )?consomm[eé] (le|mon) pc|combien (le|mon) pc (a )?consomm[eé]e?|combien (le|mon) pc consomme)( aujourd.?hui)?"], "defaults": {"periode": "jour"}},
   {"tool": "conso_pc", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (du|de mon) pc|combien (a )?consomm[eé] (le|mon) pc|combien (le|mon) pc (a )?consomm[eé]e?|combien (le|mon) pc consomme) (cette semaine|sur la semaine|sur (les )?7 jours|depuis une semaine)"], "defaults": {"periode": "semaine"}},
   {"tool": "conso_pc", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (du|de mon) pc|combien (a )?consomm[eé] (le|mon) pc|combien (le|mon) pc (a )?consomm[eé]e?|combien (le|mon) pc consomme) (ce mois( ci|-ci)?|sur le mois|sur (les )?30 jours)"], "defaults": {"periode": "mois"}},

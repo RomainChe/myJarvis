@@ -442,7 +442,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return conso_core.snapshot()  # lecture N0 du cache local : pas de ligne au journal (comme /api/voyages)
+        return conso_core.snapshot() | {"home": conso_core.home_snapshot()}  # lecture N0 du cache local : pas de ligne au journal (comme /api/voyages)
 
     @app.put("/api/conso/tarif")
     def conso_tarif(body: Tarif, request: Request):

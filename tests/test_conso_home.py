@@ -9,6 +9,7 @@ from pathlib import Path
 
 import jarvis.tools.conso as conso_tool
 from jarvis.core import conso, enedis
+from jarvis.core.router import Router
 from jarvis.core.tools import REGISTRY, Level
 
 NOW = datetime(2026, 10, 14, 9, 0, 0)
@@ -169,3 +170,17 @@ class ToolTest(unittest.TestCase):
     def test_periode_invalide(self):
         with self.assertRaises(ValueError):
             conso_tool.conso_totale("année")
+
+
+class RouterTest(unittest.TestCase):
+    def test_intentions_sans_llm(self):
+        r = Router()
+        for text, periode in (("combien j'ai consommé chez moi", "jour"), ("la consommation de la maison hier", "jour"),
+                              ("conso du logement cette semaine", "semaine"), ("combien j'ai consommé ce mois-ci", "mois")):
+            self.assertEqual(r.route(text), ("conso_totale", {"periode": periode}), text)
+
+    def test_pas_de_confusion_avec_le_pc(self):
+        r = Router()
+        self.assertEqual(r.route("combien consomme le pc")[0], "conso_pc")
+        for text in ("combien consomme la clim", "éteins la maison", "consommation de la tv"):
+            self.assertNotEqual((r.route(text) or ("",))[0], "conso_totale", text)

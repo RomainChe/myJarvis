@@ -146,6 +146,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=_reminders, args=(audit, mic), daemon=True).start()
         threading.Thread(target=_voyages_watch, args=(audit,), daemon=True).start()
         threading.Thread(target=_conso_watch, daemon=True).start()
+        threading.Thread(target=_conso_home_watch, args=(audit,), daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
         threading.Thread(target=_bienetre, daemon=True).start()
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
@@ -325,6 +326,24 @@ def _voyages_watch(audit) -> None:
         except Exception:  # noqa: BLE001 (réseau, git, push : réessai à la prochaine heure)
             pass
         time.sleep(voyages.FETCH_EVERY_S)
+
+
+def _conso_home_watch(audit) -> None:
+    """Toutes les heures : relevé quotidien du compteur (au plus un appel par 24 h, voir jarvis/core/enedis.py).
+    Une ligne au journal à chaque changement d'état (ok / indisponible), sans valeur."""
+    import time
+    from jarvis.core import enedis
+    last = None
+    while True:
+        time.sleep(90)  # le serveur démarre d'abord
+        try:
+            status = enedis.refresh()
+        except Exception:  # noqa: BLE001 (disque : réessai à l'heure suivante)
+            status = "indisponible"
+        if status in ("ok", "indisponible") and status != last:
+            audit.log("pwa:conso", "conso_enedis_fetch", {}, 0, "auto", status)
+        last = status if status != "à jour" else last
+        time.sleep(3600)
 
 
 def _conso_watch() -> None:
