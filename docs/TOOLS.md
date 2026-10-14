@@ -267,7 +267,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 ## claude_code (`jarvis/tools/dev.py`)
 
 - **Description** : fait modifier le code de JARVIS par Claude Code (`claude -p`), sur une branche `jarvis/claude-<horodatage>` placée dans un worktree de `%LOCALAPPDATA%\jarvis-claude-work`. La fusion `--ff-only` dans `main` n'a lieu que si tous les contrôles passent (voir DECISIONS.md, 2026-10-08) ; JARVIS redémarre ensuite. Sinon, le statut est « revue requise » et la branche est gardée.
-- **Niveau** : N1 (décision du propriétaire, CLAUDE.md §4). L'outil est `owner_only` : il n'est jamais proposé au LLM, et seules les sources `cli` et `pwa:<id>` sont acceptées. La voix est refusée.
+- **Niveau** : N1 (décision du propriétaire, CLAUDE.md §4). L'outil est `owner_only` : il n'est jamais proposé au LLM, et seules les sources `cli` et `pwa:<id>` sont acceptées. La voix est refusée. Depuis la PWA, la demande exige la signature d'une clé d'accès (WebAuthn, comme une confirmation N3, `permissions.execute`) ; le terminal local ne l'exige pas.
 - **Paramètres** : `request` (5 à 500 caractères au routeur).
 - **Retour** : PWA : « C'est lancé », puis le travail tourne en arrière-plan, un seul à la fois. CLI : le travail est synchrone et l'outil renvoie le statut.
 - **Exemple** : « code : ajoute un bouton pause dans la console », « modifie ton code pour afficher l'heure en gros ».

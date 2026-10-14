@@ -164,7 +164,7 @@ class Chat:
         return False
 
     def _confirm(self, job: Job, tool: Tool, args: dict) -> bool:
-        level = effective(tool)
+        level = max(effective(tool), Level.N3) if tool.owner_only else effective(tool)  # le chat est la PWA : clé d'accès (cf. permissions.execute)
         job.strong = False
         if level >= Level.N3 and not (self.passkeys and self.passkeys.has(job.device)):  # inutile de demander
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé",

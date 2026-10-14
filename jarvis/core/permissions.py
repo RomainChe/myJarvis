@@ -83,10 +83,12 @@ def execute(
         raise
     logged = masked(args, tool.hidden)
 
+    # Outil du propriétaire demandé depuis la PWA : clé d'accès exigée comme en N3, quel que soit son niveau (le terminal local, non).
+    strong_needed = level >= Level.N3 or (tool.owner_only and source != "cli")
     decision = "auto"
-    if level >= Level.N2:
+    if level >= Level.N2 or strong_needed:
         try:
-            ok = confirm(tool, dict(args)) is True and (level < Level.N3 or strong_auth(tool, dict(args)) is True)
+            ok = confirm(tool, dict(args)) is True and (not strong_needed or strong_auth(tool, dict(args)) is True)
         except BaseException as e:  # Ctrl+C ou canal coupé : refus journalisé, puis l'exception remonte
             audit.log(source, name, logged, level, "refusé", f"confirmation impossible : {type(e).__name__}")
             raise

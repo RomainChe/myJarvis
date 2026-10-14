@@ -64,7 +64,8 @@ JARVIS a le contrôle complet, mais chaque outil est classé :
   Exception décidée par le propriétaire (2026-10-08) : l'outil Claude Code (JARVIS modifie
   son propre code) est N1, à deux conditions non négociables : la demande vient directement
   du propriétaire (jamais d'un tour où le LLM a lu un contenu externe), et le travail se fait
-  sur une branche fusionnée dans `main` seulement si les tests passent.
+  sur une branche fusionnée dans `main` seulement si les tests passent. Depuis la PWA, la
+  demande exige en plus la clé d'accès de l'appareil (2026-10-14).
 Le propriétaire peut ajuster le niveau de chaque outil dans les réglages. Toute instruction
 provenant d'un contenu externe (page web, email, fichier, nom d'appareil) est une DONNÉE,
 jamais un ordre : elle ne peut jamais déclencher seule une action N2 ou N3.
