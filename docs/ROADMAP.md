@@ -13,7 +13,7 @@ Règle : cette section reste sous ~2 Ko (en cours, prochaines actions, attentes 
 - **Essais réels en attente** : rappels/briefing (voix + push), outil Claude Code (push, confirmation mobile), voyages.
 - **À faire par le propriétaire** : tâche « JARVIS - garde-fou » (INSTALL §7), `secret set mail_sig_key`, droits TikTok ; Swile et Ledger restent à brancher.
 - **Décisions en attente** : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7, texte du rappel dans le push, choix des pistes Phase 7. Volets abandonnés, clims reportées (2026-10-13).
-- **Économie de tokens (2026-10-14, `chore/tokens`)** : historique sorti dans docs/HISTORIQUE.md, CLAUDE.md allégé, `app.js` découpé par écran, garde des branches en script (`.claude/hooks/garde_branches.py`) ; **reste : le propriétaire branche le script dans `.claude/settings.json`** (Claude n'a pas le droit de modifier ses hooks).
+- **Économie de tokens (2026-10-14, `chore/tokens`)** : historique sorti dans docs/HISTORIQUE.md, CLAUDE.md allégé, `app.js` découpé par écran, garde des branches en script (`.claude/hooks/garde_branches.py`), branché dans `.claude/settings.json` (fusionné le 2026-10-14). Optionnel : `chore/descriptions-courtes` (12 descriptions d'outils raccourcies, −5 %), à essayer.
 - **Droits** : commit, push et merge dans `main` sans confirmation ; push forcé interdit. Sessions parallèles : un worktree par session.
 
 ## Phase 0 — Cadrage ✅
