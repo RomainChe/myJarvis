@@ -22,9 +22,11 @@ def summary(snap: dict, periode: str) -> str:
         out += f" (environ {_n(p['eur'], '€')})"
     if p["prev_kwh"] is not None:
         out += f", contre {_n(p['prev_kwh'], 'kWh')} {BEFORE[periode]}"
+        if p.get("prev_partial"):
+            out += f" (mesurés sur {p['prev_hours']:.1f} h seulement)"
     out += "."
     if p["partial"]:
-        out += f" Mesuré sur {p['hours']:.1f} h seulement : le total est sous-estimé."
+        out += f" Mesuré sur {p['hours']:.1f} h seulement : le total peut être sous-estimé (PC éteint ou Core arrêté)."
     return out
 
 

@@ -60,6 +60,19 @@ class SampleTest(unittest.TestCase):
         self.assertAlmostEqual(s["semaine"]["prev_kwh"], 0.1, places=3)  # J-9 tombe dans les 7 jours d'avant
         self.assertIsNone(s["mois"]["prev_kwh"])  # rien entre J-59 et J-30
 
+    def test_periode_precedente_quasi_vide_signalee(self):  # BUG-CO-01
+        conso._last = None
+        for sec in range(0, 7201, 60):
+            conso.sample(100, NOON - timedelta(days=8) + timedelta(seconds=sec), self.db)  # 2 h seulement, il y a 8 jours
+        self.feed([(0, 100), (60, 100)])  # une mesure aujourd'hui : la fenêtre courante existe
+        s = conso.snapshot(self.db, NOON, self.cfg)["periods"]["semaine"]
+        self.assertTrue(s["prev_partial"])
+        self.assertEqual(s["prev_hours"], 2.0)
+
+    def test_prix_booleen_refuse(self):  # BUG-CO-04
+        self.cfg.write_text('{"price_kwh": true}', encoding="utf-8")
+        self.assertIsNone(conso.load_price(self.cfg))
+
     def test_donnee_indisponible_sans_base(self):
         s = conso.snapshot(self.dir / "absente.db", NOON, self.cfg)
         self.assertFalse(s["configured"])
@@ -167,6 +180,10 @@ class ToolTest(unittest.TestCase):
         out = conso_tool.summary(self.snap(eur=None, prev_kwh=None, partial=True, hours=3.0), "semaine")
         self.assertNotIn("€", out)
         self.assertIn("Mesuré sur 3.0 h seulement", out)
+
+    def test_precedent_partiel_signale(self):
+        out = conso_tool.summary(self.snap(prev_partial=True, prev_hours=2.0), "jour")
+        self.assertIn("mesurés sur 2.0 h seulement", out)
 
     def test_source_indisponible(self):
         self.assertIn("donnée indisponible", conso_tool.summary(self.snap(kwh=None), "mois"))

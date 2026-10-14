@@ -47,9 +47,11 @@ def sample(watts: float, at: datetime | None = None, db: Path | None = None) -> 
 def load_price(path: Path | None = None) -> float | None:
     """Prix du kWh en € ; absent ou hors bornes = None (les montants sont alors « indisponibles », jamais inventés)."""
     try:
-        price = float(json.loads(Path(path or CONFIG).read_text(encoding="utf-8"))["price_kwh"])
+        price = json.loads(Path(path or CONFIG).read_text(encoding="utf-8"))["price_kwh"]
     except (OSError, ValueError, KeyError, TypeError):
         return None
+    if isinstance(price, bool) or not isinstance(price, (int, float)):
+        return None  # `true` ne devient pas 1 €
     return price if 0 < price <= MAX_PRICE else None
 
 
@@ -74,7 +76,7 @@ def snapshot(db: Path | None = None, now: datetime | None = None, config: Path |
     today, price = now.date(), load_price(config)
     out = {"configured": False, "price_kwh": price, "periods": {}, "series": [],
            "source": "Prise Tapo du PC, échantillonnée chaque minute (le Core éteint laisse un trou)"}
-    empty = {"kwh": None, "eur": None, "prev_kwh": None, "hours": 0.0, "partial": False}
+    empty = {"kwh": None, "eur": None, "prev_kwh": None, "hours": 0.0, "partial": False, "prev_hours": 0.0, "prev_partial": False}
     out["periods"] = {name: dict(empty) for name in PERIODS}
     if not db.is_file():
         return out
@@ -82,13 +84,14 @@ def snapshot(db: Path | None = None, now: datetime | None = None, config: Path |
         with closing(sqlite3.connect(db)) as cx:
             for name, n in PERIODS.items():
                 wh, sec, rows = _window(cx, today - timedelta(days=n - 1), today)
-                pwh, _, prows = _window(cx, today - timedelta(days=2 * n - 1), today - timedelta(days=n))
+                pwh, psec, prows = _window(cx, today - timedelta(days=2 * n - 1), today - timedelta(days=n))
                 if rows:
                     elapsed_h = (n - 1) * 24 + now.hour + now.minute / 60
                     out["periods"][name] = {
                         "kwh": round(wh / 1000, 3), "eur": None if price is None else round(wh / 1000 * price, 2),
                         "prev_kwh": round(pwh / 1000, 3) if prows else None, "hours": round(sec / 3600, 1),
-                        "partial": sec / 3600 < 0.9 * elapsed_h}
+                        "partial": sec / 3600 < 0.9 * elapsed_h,
+                        "prev_hours": round(psec / 3600, 1), "prev_partial": bool(prows) and psec < 0.9 * n * 86400}
             rows = cx.execute("SELECT day, wh FROM pc_energy WHERE day >= ? ORDER BY day",
                               ((today - timedelta(days=29)).isoformat(),)).fetchall()
     except sqlite3.Error:
