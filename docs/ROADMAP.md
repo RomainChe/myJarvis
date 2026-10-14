@@ -6,7 +6,7 @@ Règle : aucune phase ne démarre sans le feu vert de l'Expert Sécurité **et**
 Règle : cette section reste sous ~2 Ko (en cours, prochaines actions, attentes du propriétaire). Une tâche finie se résume ici en une ligne puis part dans docs/HISTORIQUE.md (détail, constats, chiffres). Chercher dans l'historique avec `grep`, ne pas le lire en entier.
 
 - **Phase en cours : 5 (durcissement)**, plan et décisions D1–D13 : docs/SECURITY_REVIEW_PHASE_5.md. Phase 6 (intégrations) et Phase 7 (pistes) avancent en parallèle à la demande du propriétaire.
-- **Consommation** (étapes 1–3 dans `main`) : reste revue QA puis Sécurité de l'étape 3, essai navigateur 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente d'une décision (répartition horaire).
+- **Consommation** (étapes 1–3 dans `main`) : revues QA et Sécurité de l'étape 3 faites le 2026-10-14 ; reste essai navigateur 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente d'une décision (répartition horaire).
 - **Migration mini-PC** (docs/MIGRATION_CORE_MINIPC.md, lots 1–6 codés) : reste revue Sécurité de `pc_off_plug`, installation du mini-PC (guide INSTALL_SERVEUR_HA.md), essais réels.
 - **Mot de réveil `jarvis_fr`** : le propriétaire active `JARVIS_WAKE_WORD=jarvis_fr` + `JARVIS_WAKE_THRESHOLD=0.7` dans `.env`, un jour d'usage pour compter les faux réveils, puis revue Sécurité.
 - **Hôtels** (`feat/hotel-liens-aeroport` en cours) : reste fusion côté tracker (`resume.json`), premier relevé réel, revue Sécurité.
