@@ -381,7 +381,7 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Description** : conseils pour consommer moins, construits par des règles déterministes (`jarvis/core/conseils.py`) sur les totaux quotidiens du logement et du PC. Aucun appel au LLM : chaque phrase cite le chiffre qui la justifie.
 - **Niveau** : N0 (lecture du cache local). Aucune action automatique : un conseil ne déclenche rien. Routeur sans LLM : « des conseils pour consommer moins », « comment réduire ma conso ».
 - **Paramètres** : aucun. **Exemple** : « Jarvis, des conseils pour consommer moins ».
-- **Règles** (7 jours, seuils en constantes) : hausse du logement ≥ 15 % et ≥ 5 kWh ; PC ≥ 25 % du total (« au moins » si le PC est mesuré partiellement) ; hausse du PC ≥ 25 % et ≥ 1 kWh. Une période ou une période précédente partielle ne déclenche jamais de comparaison.
+- **Règles** (7 jours, seuils en constantes) : hausse du logement ≥ 15 % et ≥ 5 kWh ; PC ≥ 25 % du total sur au moins 5 jours mesurés des deux côtés (« au moins » si le PC est mesuré partiellement, jamais si la part est plafonnée à 100 %) ; hausse du PC ≥ 25 % et ≥ 1 kWh. Une période ou une période précédente partielle ne déclenche jamais de comparaison. Sans aucune règle évaluable, la réponse est « pas assez de relevés complets », jamais « rien d'anormal ».
 - **Notes** : « talon nocturne » et « PC allumé la nuit » exigent une répartition horaire, non conservée aujourd'hui (totaux quotidiens, RGPD) : non codées, décision du propriétaire en attente.
 
 ## conso_totale (`jarvis/tools/conso.py`)

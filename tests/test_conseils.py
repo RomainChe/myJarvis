@@ -14,7 +14,8 @@ NOW = datetime(2026, 10, 14, 9, 0, 0)
 
 
 def period(**kw):
-    return {"kwh": 70.0, "prev_kwh": 70.0, "partial": False, "prev_partial": False, "pc_share": None, "pc_partial": False} | kw
+    return {"kwh": 70.0, "prev_kwh": 70.0, "partial": False, "prev_partial": False, "pc_share": None, "pc_partial": False,
+            "pc_days": 7, "pc_base_kwh": 70.0, "pc_capped": False} | kw
 
 
 def snaps(home=None, pc=None):
@@ -54,6 +55,25 @@ class AdviceTest(unittest.TestCase):
         self.assertIn("au moins 30 %", conseils.advice(*snaps({"pc_share": 0.3, "pc_partial": True}))[0]["text"])
         self.assertEqual(self.ids({"pc_share": 0.2}), [])
 
+    def test_part_du_pc_exige_des_jours_mesures(self):  # BUG-CO4-01
+        self.assertEqual(self.ids({"pc_share": 0.4, "pc_days": 1}), [])
+        out = conseils.advice(*snaps({"pc_share": 0.4, "pc_days": 5, "pc_base_kwh": 50.0}))
+        self.assertIn("sur 5 jours mesurés (50,0 kWh au total)", out[0]["text"])
+
+    def test_part_plafonnee_non_conseillee(self):  # BUG-CO4-06
+        self.assertEqual(self.ids({"pc_share": 1.0, "pc_capped": True}), [])
+
+    def test_conseil_veille_sans_extinction(self):
+        self.assertNotIn("Éteins", conseils.advice(*snaps({"pc_share": 0.3}))[0]["text"])
+
+    def test_flottants_aux_seuils(self):  # BUG-CO4-03
+        self.assertEqual(self.ids(pc={"kwh": 2.3, "prev_kwh": 1.3}), ["hausse_pc"])  # +1,0 exact : 2.3 - 1.3 < 1.0 en flottant
+
+    def test_delta_coherent_avec_les_chiffres_affiches(self):  # BUG-CO4-04
+        out = conseils.advice(*snaps({"kwh": 90.06, "prev_kwh": 70.04}))
+        self.assertIn("20,1 kWh", out[0]["text"])  # 90,1 - 70,0 : le delta suit les chiffres cités
+        self.assertIn("90,1 kWh contre 70,0 kWh", out[0]["text"])
+
     def test_hausse_pc(self):
         self.assertEqual(self.ids(pc={"kwh": 10.0, "prev_kwh": 6.0}), ["hausse_pc"])
         self.assertEqual(self.ids(pc={"kwh": 10.0, "prev_kwh": 9.0}), [])  # +11 % seulement
@@ -63,7 +83,16 @@ class SnapshotTest(unittest.TestCase):
     def test_sans_donnee_indisponible(self):
         d = Path(tempfile.mkdtemp())
         s = conseils.snapshot(d / "absente.db", NOW, d / "c.json")
-        self.assertEqual(s, {"available": False, "items": []})
+        self.assertEqual(s, {"available": False, "evaluable": False, "items": []})
+
+    def test_donnees_insuffisantes_pas_rien_d_anormal(self):  # BUG-CO4-02
+        d = Path(tempfile.mkdtemp())
+        db, cfg = d / "conso.db", d / "conso.json"
+        conso.store_home({"2026-10-05": 10.0, "2026-10-04": 10.0}, NOW, db)  # 2 jours anciens
+        s = conseils.snapshot(db, NOW, cfg)
+        self.assertTrue(s["available"])
+        self.assertFalse(s["evaluable"])
+        self.assertIn("Pas assez de relevés", conso_tool.advice_summary(s))
 
     def test_de_bout_en_bout(self):
         d = Path(tempfile.mkdtemp())
@@ -72,6 +101,7 @@ class SnapshotTest(unittest.TestCase):
         conso.store_home(days, NOW, db)
         s = conseils.snapshot(db, NOW, cfg)
         self.assertTrue(s["available"])
+        self.assertTrue(s["evaluable"])
         self.assertEqual([a["id"] for a in s["items"]], ["hausse_logement"])  # 105 kWh contre 70
 
 
@@ -80,9 +110,10 @@ class ToolTest(unittest.TestCase):
         self.assertEqual(REGISTRY["conso_conseils"].level, Level.N0)
 
     def test_phrases(self):
-        self.assertIn("donnée indisponible", conso_tool.advice_summary({"available": False, "items": []}))
-        self.assertIn("Rien d'anormal", conso_tool.advice_summary({"available": True, "items": []}))
-        out = conso_tool.advice_summary({"available": True, "items": [{"id": "a", "text": "Un."}, {"id": "b", "text": "Deux."}]})
+        self.assertIn("donnée indisponible", conso_tool.advice_summary({"available": False, "evaluable": False, "items": []}))
+        self.assertIn("Rien d'anormal", conso_tool.advice_summary({"available": True, "evaluable": True, "items": []}))
+        out = conso_tool.advice_summary({"available": True, "evaluable": True,
+                                         "items": [{"id": "a", "text": "Un."}, {"id": "b", "text": "Deux."}]})
         self.assertEqual(out, "Un. Deux.")
 
     def test_intention_sans_llm(self):

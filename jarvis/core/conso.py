@@ -147,7 +147,8 @@ def home_snapshot(db: Path | None = None, now: datetime | None = None, config: P
     now, db = now or datetime.now(), Path(db or DB)
     last, price = now.date() - timedelta(days=1), load_price(config)
     empty = {"kwh": None, "eur": None, "prev_kwh": None, "days": 0, "partial": False, "pc_share": None,
-             "prev_days": 0, "prev_partial": False, "pc_partial": False}
+             "prev_days": 0, "prev_partial": False, "pc_partial": False, "pc_days": 0, "pc_base_kwh": None,
+             "pc_capped": False}
     out = {"configured": False, "price_kwh": price, "last_day": None, "fetched_at": None, "stale": False,
            "periods": {name: dict(empty) for name in PERIODS}, "series": [],
            "source": "Compteur Linky via MyElectricalData (relevé de la veille, quelques heures de décalage)"}
@@ -182,6 +183,8 @@ def home_snapshot(db: Path | None = None, now: datetime | None = None, config: P
             "prev_kwh": round(sum(prev), 3) if prev else None, "days": len(got), "partial": len(got) < n,
             "prev_days": len(prev), "prev_partial": 0 < len(prev) < n,
             "pc_share": round(min(1.0, sum(pc[d][0] for d in both) / base), 3) if both and base > 0 else None,
+            "pc_capped": bool(both) and base > 0 and sum(pc[d][0] for d in both) > base,  # PC > logement : relevés incohérents
+            "pc_days": len(both), "pc_base_kwh": round(base, 3) if both else None,
             "pc_partial": any(pc[d][1] < 0.9 * 86400 for d in both)}  # le PC éteint = trou : la part est un minorant
     out["last_day"] = max(home)
     out["stale"] = out["last_day"] < iso(last)  # le dernier relevé n'est pas celui d'hier

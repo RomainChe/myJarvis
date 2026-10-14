@@ -72,6 +72,8 @@ def advice_summary(adv: dict) -> str:
     """Phrase parlable : les conseils déjà construits par jarvis/core/conseils.py, jamais reformulés par le LLM."""
     if not adv["available"]:
         return "Je n'ai pas encore de mesure de consommation pour te conseiller : donnée indisponible."
+    if not adv["items"] and not adv.get("evaluable"):
+        return "Pas assez de relevés complets sur 7 jours pour te conseiller : donnée insuffisante."
     if not adv["items"]:
         return "Rien d'anormal sur tes chiffres de la semaine : pas de conseil pour le moment."
     return " ".join(a["text"] for a in adv["items"])

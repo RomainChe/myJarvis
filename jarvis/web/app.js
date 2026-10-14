@@ -825,7 +825,7 @@ async function loadConso() {
     }));
     const adv = d.advice?.items ?? [];
     $('conso-advice').replaceChildren(...(adv.length ? adv.map((a) => el('li', '', a.text))
-      : [el('li', '', d.advice?.available ? 'Rien d’anormal cette semaine.' : 'Conseils indisponibles : pas assez de mesures.')]));
+      : [el('li', '', !d.advice?.available ? 'Conseils indisponibles : pas assez de mesures.' : d.advice.evaluable ? 'Rien d’anormal cette semaine.' : 'Pas assez de relevés complets sur 7 jours pour te conseiller.')]));
     const h = d.home, hs = $('conso-home-state');
     hs.textContent = h?.configured
       ? `${h.source}. Dernier jour relevé : ${h.last_day}${h.stale ? ' (ancien : le relevé de la veille manque)' : ''}.`
