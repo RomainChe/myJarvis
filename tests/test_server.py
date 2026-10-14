@@ -430,3 +430,54 @@ class CliTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MemoryRemindersTest(ServerBase):
+    """Écrans Souvenirs et Rappels de Réglages : lecture, suppression par numéro, journal sans texte."""
+
+    def setUp(self):
+        super().setUp()
+        from jarvis.core import memory, reminders
+        memory.load(self.audit)
+        reminders.load(self.audit)
+        self.memory, self.reminders = memory, reminders
+        self.token = self.enroll()[1]
+
+    def test_authentification_exigee(self):
+        for method, path, body in (("GET", "/api/memory", None), ("POST", "/api/memory/forget", {"id": 1}),
+                                   ("GET", "/api/reminders", None), ("POST", "/api/reminders/cancel", {"id": 1})):
+            self.assertEqual(self.call(method, path, body)[0], 401, path)
+
+    def test_souvenirs_lus_puis_oublies_sans_texte_au_journal(self):
+        n = self.memory.add("j'aime le café noir")
+        status, body, _ = self.call("GET", "/api/memory", token=self.token)
+        self.assertEqual((status, body), (200, {"facts": [{"id": n, "text": "j'aime le café noir"}]}))
+        self.assertEqual(self.call("POST", "/api/memory/forget", {"id": n}, token=self.token)[0], 200)
+        self.assertEqual(self.call("GET", "/api/memory", token=self.token)[1], {"facts": []})
+        self.assertEqual(self.call("POST", "/api/memory/forget", {"id": n}, token=self.token)[0], 404)
+        with self.audit.lock:
+            dump = str(self.audit.db.execute("SELECT * FROM audit").fetchall())
+        self.assertIn("memory_forget", dump)
+        self.assertNotIn("café", dump)
+
+    def test_oubli_par_mot_ou_id_invalide_refuse(self):
+        self.memory.add("rendez-vous dentiste")
+        for bad in ({"id": "dentiste"}, {"id": 0}, {"id": True}, {"id": 1.5}, {}):
+            self.assertEqual(self.call("POST", "/api/memory/forget", bad, token=self.token)[0], 422, bad)
+        self.assertEqual(len(self.memory.facts()), 1)
+
+    def test_rappels_lus_et_annules_briefing_intouchable(self):
+        due = time.time() + 600
+        rid = self.reminders.add(due, "sortir le pain", "reminder")
+        bid = self.reminders.add(due + 60, "briefing", "briefing")
+        status, body, _ = self.call("GET", "/api/reminders", token=self.token)
+        self.assertEqual(status, 200)
+        self.assertEqual([x["id"] for x in body["reminders"]], [rid, bid])
+        self.assertEqual(self.call("POST", "/api/reminders/cancel", {"id": bid}, token=self.token)[0], 404)
+        self.assertEqual(self.call("POST", "/api/reminders/cancel", {"id": rid}, token=self.token)[0], 200)
+        self.assertEqual([x["id"] for x in self.reminders.pending() and
+                          self.call("GET", "/api/reminders", token=self.token)[1]["reminders"]], [bid])
+        with self.audit.lock:
+            dump = str(self.audit.db.execute("SELECT * FROM audit").fetchall())
+        self.assertIn("reminder_cancel", dump)
+        self.assertNotIn("pain", dump)

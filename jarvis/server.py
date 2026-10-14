@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field, StrictBool, StrictInt
 
-from jarvis.core import levels
+from jarvis.core import levels, memory, reminders
 from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
 from jarvis.core.dashboard import Dashboard
@@ -130,6 +130,10 @@ class Destination(BaseModel):  # formulaire de l'onglet Voyages ; contenu revali
 class Confirm(BaseModel):
     approve: StrictBool  # « oui » ou 1 ne confirment rien : seul `true` confirme
     assertion: Assertion | None = None  # N3 : signature WebAuthn du défi de cette demande
+
+
+class IdIn(BaseModel):  # oublier un souvenir, annuler un rappel : par numéro seulement, jamais par mot
+    id: int = Field(ge=1, le=10**9, strict=True)
 
 
 class Subscription(BaseModel):
@@ -466,6 +470,58 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         log_read(auth[0], "veille_read", "veille IA lue")
         return veille_snapshot()
+
+    @app.get("/api/memory")
+    def memory_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        try:
+            rows = memory.facts()
+        except RuntimeError:
+            return reply(503, "indisponible")
+        log_read(auth[0], "memory_read", "souvenirs lus")  # le texte ne va jamais au journal
+        return {"facts": [{"id": i, "text": t} for i, t in rows]}
+
+    @app.post("/api/memory/forget")
+    def memory_forget(body: IdIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        try:
+            n = memory.forget(f"#{body.id}")
+        except RuntimeError:
+            return reply(503, "indisponible")
+        if not n:
+            return reply(404, "introuvable")
+        audit.log(f"pwa:{auth[0]}", "memory_forget", {}, 1, "auto", f"souvenir {body.id} oublié")
+        return {"ok": True}
+
+    @app.get("/api/reminders")
+    def reminders_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        try:
+            rows = reminders.pending()
+        except RuntimeError:
+            return reply(503, "indisponible")
+        log_read(auth[0], "reminder_read", "rappels lus")
+        return {"reminders": [{"id": i, "due": due, "label": label, "kind": kind} for i, due, label, kind in rows]}
+
+    @app.post("/api/reminders/cancel")
+    def reminders_cancel(body: IdIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        try:
+            done = reminders.cancel(body.id)
+        except RuntimeError:
+            return reply(503, "indisponible")
+        if done is None:
+            return reply(404, "introuvable")
+        audit.log(f"pwa:{auth[0]}", "reminder_cancel", {}, 1, "auto", f"rappel {body.id} annulé")
+        return {"ok": True}
 
     @app.get("/api/mic")
     def mic_state(request: Request):

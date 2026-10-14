@@ -64,6 +64,10 @@ function fmtTime(v) {
 const clip = (s, n) => { const t = String(s ?? ''); return t.length > n ? `${t.slice(0, n)}…` : t; };
 
 // ---- Appels API ------------------------------------------------------------------------------
+// Dernières lectures réussies, en mémoire seulement (jamais sur disque) : PC injoignable = on montre ces données, grisées.
+const CACHEABLE = /^\/api\/(dashboard|social|voyages|finance|finance\/bank|bienetre|veille|audit|devices|levels|memory|reminders)$/;
+const lastRead = new Map();
+const hhmm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 async function api(path, { method = 'GET', body, auth = true } = {}) {
   const headers = {};
   if (auth && token) headers.Authorization = `Bearer ${token}`;
@@ -75,15 +79,23 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    setStatus('Hors ligne : le PC est injoignable.');
     setLink(false);
+    const hit = method === 'GET' ? lastRead.get(path) : undefined;
+    if (hit) {
+      setStatus(`Hors ligne : données de ${hhmm(hit.at)}.`);
+      document.body.classList.add('stale');
+      return { status: 200, ok: true, data: hit.data, stale: true };
+    }
+    setStatus('Hors ligne : le PC est injoignable.');
     throw new Error('network');
   }
   setStatus('');
   setLink(true);
+  document.body.classList.remove('stale');
   if (res.status === 401 && auth) { await signOut(); throw new Error('unauthorized'); }
   if (res.status === 429) toast('Jarvis est occupé, réessayez dans un instant.');
   const data = await res.json().catch(() => null);
+  if (res.ok && method === 'GET' && data && CACHEABLE.test(path)) lastRead.set(path, { data, at: Date.now() });
   return { status: res.status, ok: res.ok, data };
 }
 const unavailable = (what, e) => (e.message === 'network' ? `${what} : PC injoignable.`
@@ -91,6 +103,7 @@ const unavailable = (what, e) => (e.message === 'network' ? `${what} : PC injoig
 async function signOut() {
   token = null;
   currentDevice = null;
+  lastRead.clear();
   await clearToken();
   if (self.caches) { for (const k of await caches.keys()) await caches.delete(k); }
   // Rien de l'ancienne session ne reste dans le DOM masqué (réponses, journal, appareils).
@@ -103,6 +116,8 @@ async function signOut() {
   for (const id of ['st-sky', 'st-net', 'sys-error']) $(id).textContent = '';
   clearTimeout(homeTimer);
   $('levels-list').replaceChildren();
+  $('memory-list').replaceChildren();
+  $('rem-list').replaceChildren();
   clearFinance();
   clearDigest();
   $('push-state').textContent = '';
@@ -1211,6 +1226,8 @@ async function togglePush(reg, active, existing, key) {
 }
 async function loadSettings() {
   loadPush().catch(() => { $('push-state').textContent = 'État indisponible.'; });
+  loadMemory();
+  loadReminders();
   const box = $('levels-list');
   box.replaceChildren(el('p', 'muted', 'Chargement…'));
   try {
@@ -1240,6 +1257,54 @@ async function loadSettings() {
     box.replaceChildren(el('p', 'error', unavailable('Réglages indisponibles', e)));
   }
 }
+
+// ---- Souvenirs et rappels : lecture et suppression par numéro (le texte ne va jamais au journal) ----
+function listRow(text, meta, label, onDelete) {
+  const li = el('li', 'row');
+  const body = el('div', 'row-body');
+  body.append(el('p', 'row-text', text));
+  if (meta) body.append(el('p', 'muted', meta));
+  li.append(body);
+  if (onDelete) {
+    const b = el('button', 'btn', label);
+    b.type = 'button';
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        const r = await api(onDelete.path, { method: 'POST', body: { id: onDelete.id } });
+        if (!r.ok && r.status !== 404) throw new Error('bad');
+        li.remove();
+        toast('Fait.');
+      } catch (e) {
+        b.disabled = false;
+        toast(unavailable('Action impossible', e));
+      }
+    });
+    li.append(b);
+  }
+  return li;
+}
+async function loadList(path, listId, stateId, pick, empty) {
+  const ul = $(listId), state = $(stateId);
+  try {
+    const r = await api(path);
+    if (!r.ok || !r.data) throw new Error('bad');
+    const rows = pick(r.data);
+    ul.replaceChildren(...rows);
+    state.textContent = rows.length ? '' : empty;
+  } catch (e) {
+    ul.replaceChildren();
+    state.textContent = unavailable('Indisponible', e);
+  }
+}
+const loadMemory = () => loadList('/api/memory', 'memory-list', 'memory-state',
+  (d) => d.facts.map((f) => listRow(f.text, `n° ${f.id}`, 'Oublier', { path: '/api/memory/forget', id: f.id })),
+  'Rien de retenu pour le moment.');
+const KINDS = { timer: 'Minuteur', reminder: 'Rappel', briefing: 'Briefing' };
+const loadReminders = () => loadList('/api/reminders', 'rem-list', 'rem-state',
+  (d) => d.reminders.map((x) => listRow(x.kind === 'briefing' ? 'Briefing du matin' : x.label,
+    `${KINDS[x.kind] ?? x.kind} · ${fmtTime(x.due)}`, 'Annuler', x.kind === 'briefing' ? null : { path: '/api/reminders/cancel', id: x.id })),
+  'Aucun rappel en attente.');
 
 // ---- Démarrage -------------------------------------------------------------------------------
 window.addEventListener('offline', () => { setStatus('Hors ligne.'); setLink(false); });

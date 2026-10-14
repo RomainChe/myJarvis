@@ -526,3 +526,13 @@ h2.with-logo { display: flex; align-items: center; gap: var(--j-space-2); }
   .strip.yt .stat { padding: var(--j-space-5) var(--j-space-6); }
   .strip.yt .big { font-size: 2.25rem; }
 }
+
+/* Souvenirs et rappels (Réglages) */
+.rows { margin-top: var(--j-space-2); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--j-space-3); padding: var(--j-space-3) var(--j-space-4); }
+.row + .row { border-top: 1px solid var(--j-color-border); }
+.row-body { min-width: 0; }
+.row-text { margin: 0; overflow-wrap: anywhere; }
+.row-body .muted { margin: var(--j-space-1) 0 0; padding: 0; }
+/* Données de la dernière lecture : PC injoignable */
+body.stale .view { opacity: .6; }
