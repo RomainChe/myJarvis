@@ -376,6 +376,14 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Paramètres** : `periode` = `jour`, `semaine` (7 jours glissants) ou `mois` (30 jours glissants) ; alias « aujourd'hui ». Autre valeur : refusée. **Exemple** : « Jarvis, combien le PC a consommé aujourd'hui ? » → « Le PC a consommé 1,50 kWh aujourd'hui (environ 0,38 €), contre 2,00 kWh hier. »
 - **Notes** : un fil du Core échantillonne la puissance chaque minute et l'intègre par jour (trapèze, intervalle > 3 min ignoré) ; Core éteint ou prise illisible = trou, jamais comblé : « Mesuré sur N h seulement : le total est sous-estimé ». Rétention 65 jours, un total par jour (aucune courbe fine : RGPD). Sans mesure : « donnée indisponible ». Prix du kWh : `~/.jarvis/conso.json`, modifiable par `PUT /api/conso/tarif` (0 < prix ≤ 5 €, une ligne au journal sans le montant). Le total du logement (Enedis) et les conseils viennent aux étapes 2 et 3.
 
+## conso_conseils (`jarvis/tools/conso.py`)
+
+- **Description** : conseils pour consommer moins, construits par des règles déterministes (`jarvis/core/conseils.py`) sur les totaux quotidiens du logement et du PC. Aucun appel au LLM : chaque phrase cite le chiffre qui la justifie.
+- **Niveau** : N0 (lecture du cache local). Aucune action automatique : un conseil ne déclenche rien. Routeur sans LLM : « des conseils pour consommer moins », « comment réduire ma conso ».
+- **Paramètres** : aucun. **Exemple** : « Jarvis, des conseils pour consommer moins ».
+- **Règles** (7 jours, seuils en constantes) : hausse du logement ≥ 15 % et ≥ 5 kWh ; PC ≥ 25 % du total (« au moins » si le PC est mesuré partiellement) ; hausse du PC ≥ 25 % et ≥ 1 kWh. Une période ou une période précédente partielle ne déclenche jamais de comparaison.
+- **Notes** : « talon nocturne » et « PC allumé la nuit » exigent une répartition horaire, non conservée aujourd'hui (totaux quotidiens, RGPD) : non codées, décision du propriétaire en attente.
+
 ## conso_totale (`jarvis/tools/conso.py`)
 
 - **Description** : énergie consommée par tout le logement (compteur Linky), relevé de la veille, via la passerelle hébergée MyElectricalData (Enedis n'ouvre pas Data Connect aux particuliers). kWh et € (prix saisi), période d'avant, part du PC calculée sur les seuls jours mesurés des deux côtés.

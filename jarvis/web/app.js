@@ -823,6 +823,9 @@ async function loadConso() {
       if (sub) s.append(el('p', 'muted', sub));
       return s;
     }));
+    const adv = d.advice?.items ?? [];
+    $('conso-advice').replaceChildren(...(adv.length ? adv.map((a) => el('li', '', a.text))
+      : [el('li', '', d.advice?.available ? 'Rien d’anormal cette semaine.' : 'Conseils indisponibles : pas assez de mesures.')]));
     const h = d.home, hs = $('conso-home-state');
     hs.textContent = h?.configured
       ? `${h.source}. Dernier jour relevé : ${h.last_day}${h.stale ? ' (ancien : le relevé de la veille manque)' : ''}.`

@@ -1,5 +1,5 @@
 """Consommation électrique (N0, lecture du cache local `~/.jarvis/conso.db`, voir jarvis/core/conso.py)."""
-from jarvis.core import conso
+from jarvis.core import conseils, conso
 from jarvis.core.router import fold
 from jarvis.core.tools import Level, tool
 
@@ -66,6 +66,21 @@ def home_summary(snap: dict, periode: str) -> str:
         if p.get("pc_partial"):
             out += " (mesure du PC partielle : part minimale)"
     return out
+
+
+def advice_summary(adv: dict) -> str:
+    """Phrase parlable : les conseils déjà construits par jarvis/core/conseils.py, jamais reformulés par le LLM."""
+    if not adv["available"]:
+        return "Je n'ai pas encore de mesure de consommation pour te conseiller : donnée indisponible."
+    if not adv["items"]:
+        return "Rien d'anormal sur tes chiffres de la semaine : pas de conseil pour le moment."
+    return " ".join(a["text"] for a in adv["items"])
+
+
+@tool("conso_conseils", "Conseils pour consommer moins d'électricité, déduits des chiffres du logement et du PC "
+                        "(hausse sur 7 jours, part du PC). Chaque conseil cite son chiffre.", Level.N0)
+def conso_conseils() -> str:
+    return advice_summary(conseils.snapshot())
 
 
 @tool("conso_pc", "Consommation électrique du PC mesurée par sa prise connectée : kWh, € et comparaison à la période "
