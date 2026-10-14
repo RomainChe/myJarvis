@@ -54,6 +54,8 @@ def forget(about: str) -> int:
     needle = needle.lstrip("#").strip()
     if not needle:
         raise ValueError("oublier quoi ?")
+    if not by_id and not needle.isdigit() and len(needle) < 3:  # « oublie a » effacerait presque tout
+        raise ValueError("oublier quoi ? au moins 3 lettres, ou le numéro")
     rows = [i for i, t in facts() if needle == str(i) or (not by_id and needle in fold(t))]
     a = _db()
     with a.lock:
