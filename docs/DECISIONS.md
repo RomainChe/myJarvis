@@ -132,3 +132,9 @@
 - **D2** : clé d'accès exigée pour les N2 `run_script`, `delete_file`, `kill_process`, `power`, `clipboard_read`, `screenshot`, `mail_recent` dans la PWA (`chat.STRONG_N2`). La voix et le terminal ne changent pas : ils n'utilisent pas de token.
 - **D3** : clé d'accès pour ouvrir Finances (10 min par signature), pas pour la Veille.
 - **D6** : token d'appareil valable 90 jours glissants, renouvelé à chaque ouverture de la PWA ; « révoquer tout » au terminal et dans la PWA (avec clé d'accès).
+
+## 2026-10-14 — `claude_code` depuis la PWA : clé d'accès exigée (revue Sécurité Phase 5, constat H1)
+- **Décision du propriétaire** : l'outil reste N1 (exception du CLAUDE.md §4), mais une demande venant de `pwa:*` exige la signature de la clé d'accès de l'appareil, comme une confirmation N3. Le terminal local (`cli`) reste sans confirmation.
+- **Pourquoi** : la condition « la demande vient directement du propriétaire » ne se prouve pas par un token qui peut être volé. Sans cela, un token volé lançait `claude_code` (tests exécutés avec les droits de l'utilisateur et le réseau, constat 9 du 2026-10-08) et contournait D2 et D3 ; « un token volé ne suffit pas » n'était pas vrai.
+- **Mise en œuvre** : `permissions.execute` (`strong_needed` pour tout outil `owner_only` hors `cli`), `chat._confirm` (traité comme N3), test `test_pwa_exige_la_cle_d_acces_le_terminal_non`. Commit 7439340 sur `main`.
+- **Reste** : le bac à sable du constat 9 (compte dédié ou sans réseau) n'est pas livré ; la clé d'accès reste donc exigée jusque-là.

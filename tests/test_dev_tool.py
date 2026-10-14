@@ -34,9 +34,21 @@ class GuardTest(unittest.TestCase):
     def setUp(self):
         self.audit = Audit(":memory:")
 
-    def run_as(self, source):
+    def run_as(self, source, strong=yes):
         return execute("claude_code", {"request": "ajoute un bouton"}, source=source, audit=self.audit,
-                       confirm=lambda *_: self.fail("N1 : pas de confirmation"), strong_auth=yes)
+                       confirm=yes, strong_auth=strong)
+
+    def test_pwa_exige_la_cle_d_acces_le_terminal_non(self):
+        with mock.patch.object(dev, "_job") as job, mock.patch.object(dev.shutil, "which", return_value="claude"), \
+                mock.patch.object(dev, "_serving", return_value=True), mock.patch.object(dev.threading, "Thread"):
+            with self.assertRaises(Refused):
+                self.run_as("pwa:1", strong=lambda *_: False)
+            job.assert_not_called()
+            self.assertIn("lancé", self.run_as("pwa:1"))
+            dev._busy.release()
+            execute("claude_code", {"request": "ajoute un bouton"}, source="cli", audit=self.audit,
+                    confirm=lambda *_: self.fail("terminal : ni confirmation"), strong_auth=lambda *_: self.fail("ni clé"))
+            dev._busy.release()
 
     def test_niveau_n1_et_reserve_au_proprietaire(self):
         self.assertEqual(REGISTRY["claude_code"].level, Level.N1)
