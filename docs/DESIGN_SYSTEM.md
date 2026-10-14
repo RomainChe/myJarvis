@@ -386,7 +386,7 @@ Propositions (petites, sans dépendance, à confier au Développeur généralist
 ## 7bis. Implémentation de l'étape 4 (PWA minimale, `jarvis/web/`)
 
 Dossier plat : `index.html`, `app.css` (tokens `--j-*` de §2, sombre par défaut, clair par `prefers-color-scheme`),
-`app.js` (un module ES), `sw.js`, `manifest.webmanifest`, `icon.svg`. Aucune bibliothèque, police ni ressource externe
+`app.js` (socle) puis un script par écran (`finances.js`, `conso.js`…, `start.js` en dernier : scripts classiques `defer`, noms partagés, ordre fixé par index.html, depuis le 2026-10-14), `sw.js`, `manifest.webmanifest`, `icon.svg`. Aucune bibliothèque, police ni ressource externe
 (pile système, Inter si installée).
 
 - Écrans : enrôlement (`#code=` lu puis effacé du fragment, ou saisie à la main), Chat, Journal (50 lignes groupées par

@@ -125,9 +125,10 @@ class RenotifieTest(WebAuthnServerBase):
 
     def test_service_worker_et_message_cle_existante(self):
         from jarvis.server import WEB_DIR
+        from test_web_static import pwa_js
         sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
         self.assertIn("renotify: true", sw)  # même tag que « push test » : sans cela, remplacement silencieux sur Android
-        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        js = pwa_js()
         self.assertIn("InvalidStateError", js)
         self.assertIn("existe déjà", js)
 

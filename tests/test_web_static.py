@@ -27,12 +27,33 @@ def files():
     return sorted(p for p in WEB_DIR.iterdir() if p.is_file())
 
 
+def scripts() -> list[str]:
+    """Scripts de la PWA dans l'ordre de chargement d'index.html (ils partagent leurs noms de haut niveau)."""
+    return re.findall(r'<script defer src="/([\w-]+\.js)"></script>', (WEB_DIR / "index.html").read_text(encoding="utf-8"))
+
+
+def pwa_js() -> str:
+    return "\n".join((WEB_DIR / name).read_text(encoding="utf-8") for name in scripts())
+
+
 class WebStaticTest(unittest.TestCase):
     def test_dossier_plat_et_extensions_servies(self):
         self.assertTrue(WEB_DIR.is_dir())
         for p in WEB_DIR.iterdir():
             self.assertTrue(p.is_file(), f"sous-dossier non servi : {p.name}")
             self.assertIn(p.suffix, WEB_TYPES, p.name)
+
+    def test_scripts_tous_charges_et_en_cache(self):
+        # Un écran oublié dans index.html ou dans le cache du service worker casse la PWA (ou le hors-ligne).
+        names = scripts()
+        self.assertEqual(names[0], "app.js")
+        self.assertEqual(names[-1], "start.js")
+        self.assertEqual(sorted(names), sorted(p.name for p in files() if p.suffix == ".js" and p.name != "sw.js"))
+        sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
+        for name in names:
+            self.assertIn(f"'/{name}'", sw)
+        for name in names:
+            self.assertIn("\n'use strict';\n", "\n" + (WEB_DIR / name).read_text(encoding="utf-8")[:400], name)
 
     def test_fichiers_attendus(self):
         names = {p.name for p in files()}
@@ -67,7 +88,7 @@ class WebStaticTest(unittest.TestCase):
     def test_ids_du_js_presents_dans_le_html_et_aucun_id_mort(self):
         # Un $('id') vers un élément retiré (ex. view-home, st-ms) casse toute la PWA au chargement.
         html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
-        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        js = pwa_js()
         ids = set(re.findall(r'\sid="([^"]+)"', html))
         used = set(re.findall(r"\$\('([\w-]+)'\)", js))
         self.assertEqual(sorted(used - ids), [], "ids utilisés par app.js absents du HTML")
@@ -103,7 +124,7 @@ class WebStaticTest(unittest.TestCase):
         self.assertIn("/icon-192.png", sw)
 
     def test_correctifs_de_la_revue_du_front_en_place(self):  # garde-fous de structure (pas de test JS dans le dépôt)
-        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        js = pwa_js()
         self.assertIn("Number.isInteger(row.level)", js)  # le niveau du serveur est un entier : jamais « N? » pour N2
         self.assertRegex(js, r"ok\.disabled = true;\s*const arm = setTimeout\(.*500\)")  # Confirmer armé après 500 ms
         sign_out = js[js.index("async function signOut"):js.index("// ---- Enrôlement")]

@@ -43,8 +43,8 @@ ENV = {"ENABLE_CLAUDEAI_MCP_SERVERS": "false",  # ni connecteurs claude.ai, ni p
 PROTECTED = ("jarvis/__main__.py", "jarvis/server.py", "jarvis/intents.json", "jarvis/tools/dev.py", "jarvis/core/audit.py",
              "jarvis/core/chat.py", "jarvis/core/devices.py", "jarvis/core/levels.py", "jarvis/core/llm.py",
              "jarvis/core/permissions.py", "jarvis/core/router.py", "jarvis/core/secrets.py", "jarvis/core/tools.py",
-             "jarvis/core/voice.py", "jarvis/core/webauthn.py", "jarvis/core/mic.py", "jarvis/tools/home/scenes.py", "jarvis/web/app.js",
-             "jarvis/web/index.html", "jarvis/web/sw.js", "tests/__init__.py", ".claude/", ".github/", "CLAUDE.md", ".gitignore",
+             "jarvis/core/voice.py", "jarvis/core/webauthn.py", "jarvis/core/mic.py", "jarvis/tools/home/scenes.py",
+             "jarvis/web/", "tests/__init__.py", ".claude/", ".github/", "CLAUDE.md", ".gitignore",
              "pyproject.toml")
 PERSONAL = re.compile(r"\b(?!127\.0\.0\.1\b|0\.0\.0\.0\b)(?:\d{1,3}\.){3}\d{1,3}\b|[\w.+-]+@[\w-]+\.[\w.]+"
                       r"|(?i:password|passwd|secret|token|api_key)\s*[:=]\s*['\"][^'\"]{8,}")

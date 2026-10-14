@@ -69,7 +69,7 @@
   - **Commit** : le message est générique, la demande reste dans `~/.jarvis/claude_last.json`. Une ligne d'audit précède la fusion (échec fermé), avec le hash du commit.
   - **Contre-revue** :
     - Les niveaux et drapeaux de chaque outil existant sont comparés entre `main` et la branche. Un outil abaissé, affaibli ou retiré donne « revue requise » ; les nouveaux outils sont listés dans le compte rendu et l'audit.
-    - `jarvis/web/app.js`, `index.html`, `sw.js`, `mic.py`, `scenes.py` et `tests/__init__.py` sont protégés.
+    - Tout `jarvis/web/` (scripts de la PWA, `index.html`, `sw.js`, CSS : même origine que le dialogue de confirmation), `mic.py`, `scenes.py` et `tests/__init__.py` sont protégés (2026-10-14 : dossier entier depuis le découpage d'`app.js` par écran).
     - Les fichiers ajoutés sous `tests/` doivent s'appeler `test_*.py`.
     - `credential.helper` est vidé.
 - **Décisions du propriétaire (2026-10-08)** :
