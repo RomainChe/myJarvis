@@ -46,9 +46,10 @@ def snapshot(db=None, now=None, config=None) -> dict:
     h, c = home["periods"]["semaine"], pc["periods"]["semaine"]
 
     def complete(p):
-        return p["kwh"] is not None and p["prev_kwh"] is not None and not p["partial"] and not p.get("prev_partial")
+        return (p["kwh"] is not None and (p["prev_kwh"] or 0) > 0 and not p["partial"]  # prev 0 : ÷ 0, non comparable
+                and not p.get("prev_partial"))
 
     # `evaluable` : au moins une règle a pu être jugée ; sinon « rien d'anormal » serait un faux rassurant
-    evaluable = complete(h) or complete(c) or h["pc_days"] >= PC_DAYS_MIN
+    evaluable = complete(h) or complete(c) or (h["pc_days"] >= PC_DAYS_MIN and not h["pc_capped"])
     return {"available": home["configured"] or pc["configured"], "evaluable": evaluable,
             "items": advice(home, pc, home["price_kwh"])}
