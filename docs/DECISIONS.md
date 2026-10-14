@@ -108,6 +108,6 @@
 
 ## 2026-10-14 — Onglet Consommation, étape 2 : total du logement via MyElectricalData (hébergé)
 - **Décision du propriétaire** : passerelle hébergée (myelectricaldata.fr), pas auto-hébergée ; Data Connect refusé par Enedis aux particuliers, scraping TotalEnergies interdit (CGU).
-- **Risque accepté (RGPD)** : un tiers (l'hébergeur) voit la consommation quotidienne du logement après le consentement Enedis du propriétaire. Atténuations : un seul appel par jour, totaux quotidiens seulement, jeton et PDL dans le coffre, stockage local 65 jours, passage possible en auto-hébergé (constante `URL`).
+- **Risque accepté (RGPD)** : un tiers (l'hébergeur) voit la consommation quotidienne du logement après le consentement Enedis du propriétaire. Atténuations : un appel par jour (jusqu'à 4 si le relevé de la veille n'est pas encore publié, 6 h d'attente après un échec), redirections refusées, totaux quotidiens seulement, jeton et PDL dans le coffre, stockage local 65 jours, passage possible en auto-hébergé (constante `URL`).
 - **À vérifier au premier essai réel** : en-tête `Authorization` (jeton brut), unité de `value` (Wh supposés) et chemin `daily_consumption/<pdl>/start/<AAAA-MM-JJ>/end/<AAAA-MM-JJ>/` ; relevés dans les tests, pas encore confrontés à la vraie API.
 - Étape 1, revue Sécurité : feu vert, constats bas (nom du fichier temporaire du prix fixe, `except` muet de l'échantillonneur, prix du kWh N1 volontaire : un affichage seulement).

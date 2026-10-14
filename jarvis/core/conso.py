@@ -119,6 +119,17 @@ def store_home(days: dict[str, float], at: datetime | None = None, db: Path | No
         cx.execute("DELETE FROM home_energy WHERE day < ?", ((at.date() - timedelta(days=KEEP_DAYS)).isoformat(),))
 
 
+def last_home_day(db: Path | None = None) -> str | None:
+    db = Path(db or DB)
+    if not db.is_file():
+        return None
+    try:
+        with closing(sqlite3.connect(db)) as cx:
+            return cx.execute("SELECT MAX(day) FROM home_energy").fetchone()[0]
+    except sqlite3.Error:
+        return None
+
+
 def last_fetch(db: Path | None = None) -> datetime | None:
     db = Path(db or DB)
     if not db.is_file():
@@ -135,8 +146,9 @@ def home_snapshot(db: Path | None = None, now: datetime | None = None, config: P
     """kWh, € et période précédente du logement ; fenêtres de jours complets finissant hier. `kwh` None = aucun relevé."""
     now, db = now or datetime.now(), Path(db or DB)
     last, price = now.date() - timedelta(days=1), load_price(config)
-    empty = {"kwh": None, "eur": None, "prev_kwh": None, "days": 0, "partial": False, "pc_share": None}
-    out = {"configured": False, "price_kwh": price, "last_day": None, "fetched_at": None,
+    empty = {"kwh": None, "eur": None, "prev_kwh": None, "days": 0, "partial": False, "pc_share": None,
+             "prev_days": 0, "prev_partial": False, "pc_partial": False}
+    out = {"configured": False, "price_kwh": price, "last_day": None, "fetched_at": None, "stale": False,
            "periods": {name: dict(empty) for name in PERIODS}, "series": [],
            "source": "Compteur Linky via MyElectricalData (relevé de la veille, quelques heures de décalage)"}
     if not db.is_file():
@@ -148,8 +160,8 @@ def home_snapshot(db: Path | None = None, now: datetime | None = None, config: P
                                    (iso(last - timedelta(days=2 * 30 - 1)),)).fetchall())
             out["fetched_at"] = cx.execute("SELECT MAX(fetched_at) FROM home_energy").fetchone()[0]
             try:
-                pc = dict(cx.execute("SELECT day, wh / 1000 FROM pc_energy WHERE day >= ?",
-                                     (iso(last - timedelta(days=29)),)).fetchall())
+                pc = {d: (k, s) for d, k, s in cx.execute("SELECT day, wh / 1000, sec FROM pc_energy WHERE day >= ?",
+                                                          (iso(last - timedelta(days=29)),))}
             except sqlite3.Error:
                 pc = {}  # pas encore de table de la prise : part du PC « indisponible »
     except sqlite3.Error:
@@ -168,8 +180,11 @@ def home_snapshot(db: Path | None = None, now: datetime | None = None, config: P
         out["periods"][name] = {
             "kwh": round(kwh, 3), "eur": None if price is None else round(kwh * price, 2),
             "prev_kwh": round(sum(prev), 3) if prev else None, "days": len(got), "partial": len(got) < n,
-            "pc_share": round(sum(pc[d] for d in both) / base, 3) if both and base > 0 else None}
+            "prev_days": len(prev), "prev_partial": 0 < len(prev) < n,
+            "pc_share": round(min(1.0, sum(pc[d][0] for d in both) / base), 3) if both and base > 0 else None,
+            "pc_partial": any(pc[d][1] < 0.9 * 86400 for d in both)}  # le PC éteint = trou : la part est un minorant
     out["last_day"] = max(home)
+    out["stale"] = out["last_day"] < iso(last)  # le dernier relevé n'est pas celui d'hier
     out["series"] = [{"day": d, "kwh": round(home[d], 3) if d in home else None}
                      for d in (iso(last - timedelta(days=29 - i)) for i in range(30))]
     out["configured"] = True

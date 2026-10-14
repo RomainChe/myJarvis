@@ -47,6 +47,8 @@ def fetch(token: str, pdl: str, first: date, end: date, urlopen=_open) -> dict[s
     out: dict[str, float] = {}
     for r in readings if isinstance(readings, list) else []:
         try:
+            if isinstance(r["date"], bool) or isinstance(r["value"], bool):
+                continue  # float(True) = 1 Wh : un booléen n'est pas un relevé
             day, kwh = date.fromisoformat(str(r["date"])[:10]), float(r["value"]) / 1000  # l'API donne des Wh
         except (KeyError, TypeError, ValueError):
             continue
@@ -59,8 +61,12 @@ def refresh(db=None, now: datetime | None = None, fetch_fn=fetch, secret=secrets
     """« à jour » | « ok » | « non configuré » | « indisponible ». Au plus un appel par REFRESH_S."""
     now = now or datetime.now()
     prev = conso.last_fetch(db)
-    if prev and 0 <= (now - prev).total_seconds() < REFRESH_S:
-        return "à jour"
+    if prev:
+        age = (now - prev).total_seconds()
+        complete = (conso.last_home_day(db) or "") >= (now.date() - timedelta(days=1)).isoformat()
+        # J-1 pas encore publié au dernier appel : on réessaie après RETRY_S, sinon une fois par jour
+        if 0 <= age < (REFRESH_S if complete else RETRY_S):
+            return "à jour"
     global _failed_at
     if _failed_at and 0 <= (now - _failed_at).total_seconds() < RETRY_S:
         return "indisponible"

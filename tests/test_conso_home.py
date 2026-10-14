@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import jarvis.tools.conso as conso_tool
+import jarvis.core.chat  # noqa: F401  (charge tous les outils : le routeur les exige, y compris fichier seul)
 from jarvis.core import conso, enedis
 from jarvis.core.router import Router
 from jarvis.core.tools import REGISTRY, Level
@@ -66,6 +67,11 @@ class FetchTest(unittest.TestCase):
             with self.assertRaises(enedis.Unavailable):
                 enedis.fetch("tok", bad, self.first, self.end, opener(body(), seen))
         self.assertEqual(seen, [])
+
+    def test_booleens_refuses(self):  # BUG-CO2-06
+        rows = [{"date": "2026-10-09", "value": True}, {"date": True, "value": "100"}, {"date": "2026-10-08", "value": 3000}]
+        out = enedis.fetch("tok", PDL, self.first, self.end, opener({"meter_reading": {"interval_reading": rows}}))
+        self.assertEqual(out, {"2026-10-08": 3.0})
 
     def test_source_indisponible_sans_fuite(self):
         for payload in (OSError("boom tok"), b"pas du json", {"detail": "token invalide"}, {"meter_reading": 3}):
@@ -132,6 +138,15 @@ class RefreshTest(unittest.TestCase):
         self.assertEqual(enedis.refresh(self.db, NOW + timedelta(hours=7), self.fake({"2026-10-14": 5.0}), self.secrets_ok), "ok")
         self.assertEqual(len(self.calls), 2)
 
+    def test_releve_incomplet_reessaye_apres_6h(self):  # BUG-CO2-03 : J-1 pas encore publié au premier appel
+        self.assertEqual(enedis.refresh(self.db, NOW, self.fake({"2026-10-12": 9.0}), self.secrets_ok), "ok")
+        self.assertEqual(enedis.refresh(self.db, NOW + timedelta(hours=2), self.fake({}), self.secrets_ok), "à jour")
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(enedis.refresh(self.db, NOW + timedelta(hours=7), self.fake({"2026-10-13": 8.0}), self.secrets_ok), "ok")
+        self.assertEqual(len(self.calls), 2)  # J-1 reçu : plus de réessai avant 24 h
+        self.assertEqual(enedis.refresh(self.db, NOW + timedelta(hours=14), self.fake({}), self.secrets_ok), "à jour")
+        self.assertEqual(len(self.calls), 2)
+
     def test_non_configure_sans_appel(self):
         def broken(name):
             raise RuntimeError("pas de coffre")
@@ -160,6 +175,29 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual((p["semaine"]["kwh"], p["semaine"]["prev_kwh"], p["semaine"]["partial"]), (70.0, 70.0, False))
         self.assertTrue(p["mois"]["partial"])  # 14 jours sur 30 : annoncé, pas extrapolé
         self.assertEqual(p["mois"]["days"], 14)
+
+    def test_precedent_partiel_signale(self):  # BUG-CO2-01
+        days = {(date(2026, 10, 13) - timedelta(days=i)).isoformat(): 10.0 for i in range(7)}
+        days["2026-10-06"] = 10.0  # un seul jour dans les 7 jours d'avant
+        conso.store_home(days, NOW, self.db)
+        p = conso.home_snapshot(self.db, NOW, self.cfg)["periods"]["semaine"]
+        self.assertEqual((p["prev_kwh"], p["prev_days"], p["prev_partial"]), (10.0, 1, True))
+
+    def test_donnees_perimees_signalees(self):  # BUG-CO2-02
+        conso.store_home({"2026-10-08": 10.0, "2026-10-07": 10.0}, NOW, self.db)
+        snap = conso.home_snapshot(self.db, NOW, self.cfg)
+        self.assertTrue(snap["stale"])
+        self.assertEqual(snap["last_day"], "2026-10-08")
+        conso.store_home({"2026-10-13": 10.0}, NOW, self.db)
+        self.assertFalse(conso.home_snapshot(self.db, NOW, self.cfg)["stale"])
+
+    def test_part_du_pc_partielle_et_plafonnee(self):  # BUG-CO2-04
+        conso.store_home({"2026-10-13": 1.0}, NOW, self.db)
+        for sec in range(0, 7201, 60):  # 2 h seulement à 1 kW = 2 kWh, plus que le compteur
+            conso.sample(1000, datetime(2026, 10, 13, 12) + timedelta(seconds=sec), self.db)
+        p = conso.home_snapshot(self.db, NOW, self.cfg)["periods"]["jour"]
+        self.assertEqual(p["pc_share"], 1.0)  # jamais > 100 %
+        self.assertTrue(p["pc_partial"])  # 2 h mesurées sur 24
 
     def test_part_du_pc_sur_jours_communs(self):
         conso.store_home({"2026-10-13": 10.0, "2026-10-12": 10.0}, NOW, self.db)
@@ -203,6 +241,22 @@ class ToolTest(unittest.TestCase):
 
     def test_source_indisponible(self):
         self.assertIn("donnée indisponible", conso_tool.home_summary(self.snap(kwh=None), "mois"))
+
+    def test_precedent_partiel_dit(self):  # BUG-CO2-01
+        out = conso_tool.home_summary(self.snap(prev_partial=True, prev_days=1), "semaine")
+        self.assertIn("1 jour seulement", out)
+
+    def test_releve_perime_dit(self):  # BUG-CO2-02
+        out = conso_tool.home_summary(self.snap() | {"stale": True, "last_day": "2026-10-08"}, "semaine")
+        self.assertTrue(out.startswith("Dernier relevé du compteur : 08/10."))
+
+    def test_non_configure_distingue(self):
+        out = conso_tool.home_summary({"configured": False, "periods": self.snap(kwh=None)["periods"]}, "jour")
+        self.assertIn("pas encore relié", out)
+
+    def test_part_du_pc_partielle_dite(self):  # BUG-CO2-04
+        out = conso_tool.home_summary(self.snap(pc_partial=True), "jour")
+        self.assertIn("mesure du PC partielle", out)
 
     def test_periode_invalide(self):
         with self.assertRaises(ValueError):

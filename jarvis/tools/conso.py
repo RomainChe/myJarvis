@@ -37,25 +37,34 @@ def _period(periode: str) -> str:
     return key
 
 
-HOME_WHEN = {"jour": "hier", "semaine": "sur les 7 derniers jours relevés", "mois": "sur les 30 derniers jours relevés"}
+HOME_WHEN = {"jour": "hier", "semaine": "sur les 7 jours jusqu'à hier", "mois": "sur les 30 jours jusqu'à hier"}
 HOME_BEFORE = {"jour": "la veille", "semaine": "les 7 jours d'avant", "mois": "les 30 jours d'avant"}
 
 
 def home_summary(snap: dict, periode: str) -> str:
     """Phrase parlable du total logement ; la part du PC n'est dite que sur des jours mesurés des deux côtés."""
     p = snap["periods"][periode]
+    if snap.get("configured") is False:
+        return "Le compteur n'est pas encore relié (MyElectricalData non configuré ou aucun relevé reçu) : donnée indisponible."
     if p["kwh"] is None:
         return "Je n'ai pas de relevé du compteur pour cette période : donnée indisponible."
-    out = f"Le logement a consommé {_n(p['kwh'], 'kWh')} {HOME_WHEN[periode]}"
+    out = ""
+    if snap.get("stale") and snap.get("last_day"):
+        out = f"Dernier relevé du compteur : {snap['last_day'][8:]}/{snap['last_day'][5:7]}. "
+    out += f"Le logement a consommé {_n(p['kwh'], 'kWh')} {HOME_WHEN[periode]}"
     if p["eur"] is not None:
         out += f" (environ {_n(p['eur'], '€')})"
     if p["prev_kwh"] is not None:
         out += f", contre {_n(p['prev_kwh'], 'kWh')} {HOME_BEFORE[periode]}"
+        if p.get("prev_partial"):
+            out += f" ({p['prev_days']} jour{'s' if p['prev_days'] > 1 else ''} seulement)"
     out += "."
     if p["partial"]:
         out += f" {p['days']} jours relevés seulement : le total est partiel."
     if p["pc_share"] is not None:
         out += f" Le PC en représente {round(p['pc_share'] * 100)} %."
+        if p.get("pc_partial"):
+            out += " (mesure du PC partielle : part minimale)"
     return out
 
 
