@@ -846,7 +846,7 @@ async function loadConso() {
       b.title = `${x.day} : ${kwh(x.kwh)}`;
       return b;
     }));
-    $('conso-source').textContent = d.source;
+    $('conso-source').textContent = d.series.some((x) => x.kwh != null) ? d.source : `Aucune mesure sur 30 jours (donnée indisponible). ${d.source}`;
     $('conso-price').value = d.price_kwh ?? '';
   } catch (e) {
     state.hidden = true; err.hidden = false;
