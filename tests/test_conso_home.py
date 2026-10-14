@@ -1,6 +1,10 @@
 """Total du logement (MyElectricalData) : client borné, rafraîchissement, fenêtres, part du PC, outil `conso_totale`."""
 import io
 import json
+import threading
+import urllib.error
+import urllib.request
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import sqlite3
 import tempfile
 import unittest
@@ -71,8 +75,33 @@ class FetchTest(unittest.TestCase):
             self.assertNotIn(PDL, str(cm.exception))
 
 
+class RedirectTest(unittest.TestCase):
+    def test_redirection_refusee_et_jeton_non_renvoye(self):
+        hits = []
+
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                hits.append(self.headers.get("Authorization"))
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{self.server.server_port}/autre")
+                self.end_headers()
+
+            def log_message(self, *a):
+                pass
+
+        srv = HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        req = urllib.request.Request(f"http://127.0.0.1:{srv.server_port}/x", headers={"Authorization": "tok"})
+        with self.assertRaises(urllib.error.HTTPError):
+            enedis._open(req, timeout=5)
+        self.assertEqual(hits, ["tok"])  # un seul appel : la cible de la redirection n'est jamais jointe
+
+
 class RefreshTest(unittest.TestCase):
     def setUp(self):
+        enedis._failed_at = None
         self.db = Path(tempfile.mkdtemp()) / "conso.db"
         self.calls = []
 
@@ -94,6 +123,14 @@ class RefreshTest(unittest.TestCase):
         self.assertEqual(len(self.calls), 1)
         later = NOW + timedelta(hours=25)
         self.assertEqual(enedis.refresh(self.db, later, self.fake({"2026-10-14": 7.0}), self.secrets_ok), "ok")
+
+    def test_pas_de_reessai_avant_6h_apres_un_echec(self):
+        down = self.fake(enedis.Unavailable("x"))
+        self.assertEqual(enedis.refresh(self.db, NOW, down, self.secrets_ok), "indisponible")
+        self.assertEqual(enedis.refresh(self.db, NOW + timedelta(hours=1), down, self.secrets_ok), "indisponible")
+        self.assertEqual(len(self.calls), 1)  # la 2e tentative n'a pas appelé le tiers
+        self.assertEqual(enedis.refresh(self.db, NOW + timedelta(hours=7), self.fake({"2026-10-14": 5.0}), self.secrets_ok), "ok")
+        self.assertEqual(len(self.calls), 2)
 
     def test_non_configure_sans_appel(self):
         def broken(name):
