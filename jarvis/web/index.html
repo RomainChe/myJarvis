@@ -140,6 +140,13 @@
     <h2 class="section">Niveaux des outils</h2>
     <p class="muted">N0 lecture · N1 automatique · N2 confirmation · N3 clé d'accès. Relever est immédiat ; abaisser exige votre clé d'accès.</p>
     <div id="levels-list"></div>
+    <h2 class="section">Souvenirs</h2>
+    <p class="muted">Ce que Jarvis a retenu sur vous. Oublier est immédiat.</p>
+    <p id="memory-state" class="muted" role="status"></p>
+    <ul id="memory-list" class="plain panel hud rows"></ul>
+    <h2 class="section">Rappels et minuteurs</h2>
+    <p id="rem-state" class="muted" role="status"></p>
+    <ul id="rem-list" class="plain panel hud rows"></ul>
   </section>
 
   <section id="view-audit" class="view" aria-labelledby="t-audit" hidden>
@@ -208,6 +215,7 @@
     <p id="voyages-error" class="error" hidden></p>
     <p id="voyages-state" class="muted">Chargement…</p>
     <div id="voyages-list" class="voyages"></div>
+    <div id="hotels-list" class="voyages"></div>
     <details class="panel hud voy-change">
       <summary>Changer de destination</summary>
       <form id="voy-form" autocomplete="off">

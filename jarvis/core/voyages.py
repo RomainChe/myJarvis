@@ -175,14 +175,16 @@ def check_deal(notify, state: Path = ALERT_STATE, root: Path | None = None) -> d
         return None
     key = f"{deal['origin']}>{deal['dest']} {deal['depart_date']}/{deal['return_date']}"
     try:
-        last = json.loads(Path(state).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        last = {}
-    if last.get("key") == key and deal["price"] >= last.get("price", 0):
+        seen = json.loads(Path(state).read_text(encoding="utf-8")).get("seen")
+    except (OSError, ValueError, AttributeError):  # fichier absent, corrompu ou JSON qui n'est pas un objet
+        seen = None
+    seen = {k: v for k, v in seen.items() if isinstance(v, (int, float))} if isinstance(seen, dict) else {}
+    if key in seen and deal["price"] >= seen[key]:
         return None
     notify()
+    seen[key] = deal["price"]
     Path(state).parent.mkdir(parents=True, exist_ok=True)
-    Path(state).write_text(json.dumps({"key": key, "price": deal["price"]}), encoding="utf-8")
+    Path(state).write_text(json.dumps({"seen": dict(list(seen.items())[-20:])}), encoding="utf-8")  # 20 itinéraires au plus
     return deal
 
 
@@ -234,7 +236,7 @@ def hotel_snapshot(root: Path | None = None) -> dict:
                    "nuits": e["nuits"] if isinstance(e.get("nuits"), int) else None,
                    "recommande": _pick(e.get("recommande")), "moins_cher": _pick(e.get("moins_cher"))}
                   for e in raw["etapes"][:MAX_STAGES]]
-        out = {"configured": True, "date": _day(raw["date"]), "devise": _text(raw.get("devise"), 3),
+        out = {"configured": True, "date": _day(raw["date"]), "devise": _text(raw.get("devise"), 3) or "EUR",
                "voyageurs": raw["voyageurs"] if isinstance(raw.get("voyageurs"), int) else None,
                "trajets": _num(raw.get("trajets")), "complet": raw.get("complet") is True, "etapes": stages,
                "total_recommande": _num(raw["total_recommande"]), "total_moins_cher": _num(raw["total_moins_cher"])}

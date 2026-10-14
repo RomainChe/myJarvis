@@ -4,6 +4,7 @@ Le texte d'un fait ne va jamais au journal (ajout seul, non purgeable) : `memory
 Les faits sont injectés dans le prompt système comme DONNÉES (jamais des ordres) ; l'écriture est refusée au LLM après
 lecture de contenu externe (`taint_blocked`), sinon une page web pourrait y poser une consigne durable.
 """
+from . import injection_scan
 from .audit import Audit
 from .router import fold
 
@@ -31,6 +32,8 @@ def add(text: str) -> int:
     text = " ".join(text.split())[:TEXT_MAX]
     if not text:
         raise ValueError("rien à retenir")
+    if injection_scan.scan(text):
+        raise ValueError("ce texte ressemble à une consigne : non retenu")
     a = _db()
     with a.lock:
         if a.db.execute("SELECT COUNT(*) FROM memory").fetchone()[0] >= MAX_FACTS:
@@ -46,10 +49,14 @@ def facts() -> list[tuple[int, str]]:
 
 def forget(about: str) -> int:
     """Supprime les faits dont le texte contient `about` (sans accents ni casse), ou le fait `#id`. Renvoie le nombre."""
-    needle = fold(about).strip().lstrip("#")
+    needle = fold(about).strip()
+    by_id = needle.startswith("#")  # « #1 » = le numéro 1 seulement, jamais un mot
+    needle = needle.lstrip("#").strip()
     if not needle:
         raise ValueError("oublier quoi ?")
-    rows = [i for i, t in facts() if needle == str(i) or needle in fold(t)]
+    if not by_id and not needle.isdigit() and len(needle) < 3:  # « oublie a » effacerait presque tout
+        raise ValueError("oublier quoi ? au moins 3 lettres, ou le numéro")
+    rows = [i for i, t in facts() if needle == str(i) or (not by_id and needle in fold(t))]
     a = _db()
     with a.lock:
         a.db.executemany("DELETE FROM memory WHERE id = ?", [(i,) for i in rows])

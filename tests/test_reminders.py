@@ -214,3 +214,27 @@ class Routage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VoixPlafond(unittest.TestCase):
+    def test_cinq_par_heure_a_la_voix(self):
+        import os, tempfile
+        from jarvis.core import permissions, reminders
+        from jarvis.core.audit import Audit
+        fd, path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        audit = Audit(path)
+        reminders.load(audit)
+        permissions._voice_hits.clear()
+        run = lambda src: permissions.execute("timer_set", {"duration": "5 minutes", "label": "x"}, source=src, audit=audit,
+                                              confirm=lambda t, a: False, strong_auth=lambda t, a: False)
+        try:
+            for _ in range(permissions.VOICE_RATE):
+                run("voix/llm")
+            with self.assertRaises(permissions.Refused):
+                run("voix/llm")
+            run("pwa:1/llm")  # le plafond ne vise que la voix
+        finally:
+            permissions._voice_hits.clear()
+            audit.db.close()
+            os.unlink(path)

@@ -258,6 +258,7 @@ class Mic:
             except Exception:
                 self.error = ERR_MSG
                 self._buf = None
+                self._set("veille")
                 if stream is not None:
                     try:
                         stream.close()
@@ -272,7 +273,10 @@ class Mic:
                     except Exception:
                         pass
         if stream is not None:
-            stream.close()
+            try:
+                stream.close()
+            except Exception:
+                pass
 
     def stop(self):
         self._stop.set()

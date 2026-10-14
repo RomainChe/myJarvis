@@ -19,7 +19,7 @@ def _at(due: float) -> str:
     return datetime.fromtimestamp(due).strftime("%H:%M")
 
 
-@tool("timer_set", "Minuteur : prévient dans `duration` (« 20 minutes », « 1h30 », 1 minute à 24 h). `label` facultatif (« les pâtes »).",
+@tool("timer_set", "Minuteur : prévient dans `duration` (« 20 minutes », « 1h30 », 1 minute à 24 h). `label` : ce que le minuteur annonce (« les pâtes », « minuteur » si rien de précis).",
       Level.N1, taint_blocked=True, hidden=("label",), duration=str, label=str)
 def timer_set(duration: str, label: str) -> str:
     minutes = reminders.parse_duration(duration)
