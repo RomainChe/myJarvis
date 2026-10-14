@@ -93,7 +93,7 @@ de l'Expert Sécurité ET du propriétaire.
 - Gros fichiers (`jarvis/web/app.js`, `app.css`, `index.html`, `jarvis/__main__.py`,
   `jarvis/server.py`, docs/TOOLS.md, docs/HISTORIQUE.md) : jamais lus en entier ni par
   `cat`/`Get-Content` ; chercher avec Grep puis lire la plage utile. Le JS de la PWA est
-  découpé par écran dans `jarvis/web/js/`.
+  découpé par écran (`jarvis/web/*.js`, ordre fixé par index.html).
 
 ## Vérifications (à lancer avant de déclarer une tâche terminée)
 - Tests : `python -m unittest discover -s tests`
