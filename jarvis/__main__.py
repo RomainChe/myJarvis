@@ -52,6 +52,7 @@ from jarvis.server import HOST, make_server, port_from_env, ts_host_from_env
 import jarvis.tools.assist  # noqa: F401  (enregistre minuteurs, rappels et briefing)
 import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
+from jarvis.tools.home import pcplug
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 import jarvis.tools.voyages  # noqa: F401  (enregistre les outils voyages)
@@ -144,6 +145,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=_reminders, args=(audit, mic), daemon=True).start()
         threading.Thread(target=_voyages_watch, args=(audit,), daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
+        threading.Thread(target=_bienetre, daemon=True).start()
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
               + " (Ctrl+C pour arrêter)", file=sys.stderr)
         server.run()
@@ -360,6 +362,18 @@ def _reminders(audit, mic) -> None:
     reminders.run(announce, at)
 
 
+def _bienetre() -> None:
+    """Bilan de santé du PC relancé chaque jour (onglet Bien-être) : un contrôle toutes les 30 min."""
+    import time
+    from jarvis.core import bienetre
+    while True:
+        try:
+            bienetre.refresh_if_stale()
+        except Exception:  # noqa: BLE001 (le serveur ne dépend pas du bilan)
+            pass
+        time.sleep(1800)
+
+
 def _purge(audit) -> None:
     from jarvis.core import retention
     try:
@@ -433,6 +447,7 @@ def main(argv: list[str]) -> int:
         return 0
     levels.load(audit)
     reminders.load(audit)
+    pcplug.load(audit)
     memory.load(audit)
     if argv in (["finance", "fetch"], ["veille", "fetch"]):
         from jarvis.core import finance, finance_fetch, veille

@@ -116,6 +116,9 @@ def _check_not_config(path: Path) -> None:
         raise ValueError("le dossier de configuration de Jarvis est protégé")
     if path.is_relative_to(REPO_DIR):  # le code de Jarvis : le déplacer ou le remplacer = changer ses garde-fous
         raise ValueError("le dossier du code de Jarvis est protégé")
+    from jarvis.core import bienetre  # son code est relancé chaque jour par le Core : même protection
+    if path.is_relative_to(bienetre.project_dir().resolve()):
+        raise ValueError("le dossier du projet bien-etre-pc est protégé")
 
 
 def _destination(dst: str, src: Path) -> Path:

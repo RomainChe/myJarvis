@@ -1,6 +1,7 @@
 """Détection d'un jeu en cours (mode jeu : le LLM se décharge de la VRAM). Windows, stdlib."""
 import os
 import subprocess
+import time
 from pathlib import Path
 
 SYSTEM32 = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
@@ -61,8 +62,30 @@ def is_gaming(names: set[str], steam_id: int = 0, javaw: list[str] = (), extra: 
     return any("minecraft" in cmd.lower() for cmd in javaw)
 
 
+_remote = (0.0, False)  # (échéance, valeur) : un appel à l'agent par 5 s, 30 s après un échec (PC éteint)
+_OK_S, _DOWN_S = 5, 30
+
+
+def detect_remote(now=time.monotonic) -> bool:
+    """Core sans outils PC (mini-PC) : demande à l'agent. Injoignable = pas de PC, donc pas de VRAM à protéger."""
+    global _remote
+    t = now()
+    if t < _remote[0]:
+        return _remote[1]
+    from jarvis.core import agentlink
+    try:
+        value, ttl = agentlink.call("run", "game_running", {}) is True, _OK_S
+    except agentlink.AgentError:
+        value, ttl = False, _DOWN_S
+    _remote = (t + ttl, value)
+    return value
+
+
 def detect() -> bool:
     """Échec ouvert côté jeu : si on ne peut pas lire les processus, on suppose qu'aucun jeu ne tourne."""
+    from jarvis.core.host import HAS_PC_TOOLS
+    if not HAS_PC_TOOLS:
+        return detect_remote()
     try:
         names = process_names()
         javaw = javaw_commands() if "javaw.exe" in names else []

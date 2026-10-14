@@ -409,6 +409,20 @@ h2.section { margin-top: var(--j-space-4); }
   .digest-links a { color: var(--j-color-accent); }
 }
 
+/* ---- Bien-être ---- */
+#bienetre-list { display: grid; gap: var(--j-space-3); }
+#bienetre-list details.panel { padding: var(--j-space-4); }
+#bienetre-list summary { cursor: pointer; font: 600 var(--j-text-sm)/1.3 var(--j-font-tech); color: var(--j-color-accent); }
+.be-list { display: grid; gap: var(--j-space-2); }
+.be-item { padding: var(--j-space-3); border: 1px solid var(--j-color-border); border-radius: 8px; overflow-wrap: anywhere; }
+details .be-list { margin-top: var(--j-space-3); }
+.be-head, .be-value, .be-tip { margin: 0; }
+.be-value { margin-top: var(--j-space-1); color: var(--j-color-muted); }
+.be-tip { margin-top: var(--j-space-2); }
+.be-bad { color: var(--j-color-danger); }
+.be-warn { color: var(--j-color-warning); }
+.be-none { color: var(--j-color-muted); }
+
 /* ---- Voyages ---- */
 #voyages-list { display: grid; gap: var(--j-space-3); }
 #voyages-list details.panel, #hotels-list details.panel { padding: var(--j-space-4); }
