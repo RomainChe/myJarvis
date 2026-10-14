@@ -113,6 +113,7 @@ $('devices-revoke').addEventListener('click', async () => {
     const assertion = await getAssertion(ch.data);
     if (!assertion) { toast('Clé d’accès non validée : rien n’a changé.'); return; }
     const r = await api('/api/devices/revoke-others', { method: 'POST', body: { assertion } });
+    if (r.ok && r.data.token) { token = r.data.token; await setToken(token); }
     toast(r.ok ? `${r.data.revoked} appareil(s) révoqué(s).` : 'Révocation refusée.');
     loadDevices();
   } catch { /* api() a déjà prévenu */ } finally { b.disabled = false; }

@@ -490,9 +490,10 @@ class RevokeOthersTest(WebAuthnServerBase):
         self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "devices:revoke"}, token=other["token"])[0], 403)
         options = self.call("POST", "/api/passkey/challenge", {"action": "devices:revoke"})[1]
         status, body, _ = self.call("POST", "/api/devices/revoke-others", {"assertion": self.a.get(options)})
-        self.assertEqual((status, body), (200, {"revoked": 1}))
+        self.assertEqual((status, body["revoked"]), (200, 1))
         self.assertEqual(self.call("GET", "/api/ping", token=other["token"])[0], 401)
-        self.assertEqual(self.call("GET", "/api/ping")[0], 200)  # l'appareil qui a signé reste
+        self.assertEqual(self.call("GET", "/api/ping", token=body["token"])[0], 200)  # l'appareil qui a signé reste
+        self.assertEqual(self.call("GET", "/api/ping")[0], 401)  # son ancien token (une copie volée) est coupé aussi
         self.assertIn("révocation des autres appareils", str(self.audit.last(5)))
 
 

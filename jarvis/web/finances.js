@@ -16,7 +16,9 @@ async function unlockFinance() {
   if (!ch.ok) { toast('Enregistrez d’abord une clé d’accès (Réglages) pour ouvrir Finances.'); return false; }
   const assertion = await getAssertion(ch.data);
   if (!assertion) { toast('Clé d’accès non validée.'); return false; }
-  return (await api('/api/finance/unlock', { method: 'POST', body: { assertion } })).ok;
+  const ok = (await api('/api/finance/unlock', { method: 'POST', body: { assertion } })).ok;
+  if (!ok) toast('Déverrouillage refusé.');
+  return ok;
 }
 $('fin-unlock').addEventListener('click', async () => {
   $('fin-unlock').disabled = true;
@@ -28,7 +30,7 @@ async function loadFinance() {
   $('fin-unlock').hidden = true;
   try {
     const b = await api('/api/finance/bank');
-    if (b.status === 403) { state.textContent = 'Finances verrouillées.'; $('fin-unlock').hidden = false; return; }
+    if (b.status === 403) { clearFinance(); state.textContent = 'Finances verrouillées.'; $('fin-unlock').hidden = false; return; }
     if (!b.ok) throw new Error('bad');
     if (views.finance.hidden) return; // vue quittée pendant le chargement
     renderBank(b.data?.bank); renderCrypto(b.data?.crypto); renderPortfolio(b.data?.portfolio);

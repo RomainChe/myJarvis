@@ -427,6 +427,29 @@ class TokenTest(unittest.TestCase):
         self.t[0] += dev.TOKEN_TTL_S + 1
         self.assertIsNone(Devices(path).check("ancien"))
 
+    def test_expiration_a_la_seconde_pres(self):
+        self.t[0] += dev.TOKEN_TTL_S  # borne incluse
+        self.assertIsNotNone(self.d.check(self.token))
+        self.t[0] += 0.001
+        self.assertIsNone(self.d.check(self.token))
+
+    def test_renouvellements_concurrents_un_seul_gagnant(self):
+        """Deux onglets (ou un voleur) renouvellent en même temps avec le même token : jamais deux tokens neufs valables."""
+        news, barrier = [], threading.Barrier(8)
+
+        def go():
+            barrier.wait()
+            news.append(self.d.rotate(self.id, self.token))
+        threads = [threading.Thread(target=go) for _ in range(8)]
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join()
+        self.assertTrue(all(news))
+        self.assertIsNotNone(self.d.check(self.token))  # l'ancien reste valable tant qu'aucun neuf n'a servi
+        self.assertEqual(sum(self.d.check(n) is not None for n in news), 1)
+        self.assertIsNone(self.d.check(self.token))
+
     def test_revoquer_tout_sauf_un(self):
         other = self.d.enroll(self.d.new_code(), "pc")[1]
         self.assertEqual(self.d.revoke_all(keep=self.id), 1)
@@ -446,6 +469,15 @@ class TokenRouteTest(ServerBase):
         self.assertEqual(self.call("GET", "/api/ping", token=token)[0], 401)
         self.assertIn("token_rotate", str(self.audit.last(5)))
         self.assertNotIn(body["token"], str(self.audit.last(20)))
+
+    def test_route_reponse_perdue_puis_expire(self):
+        _, token = self.enroll()
+        self.call("POST", "/api/token", {}, token=token)  # réponse jamais reçue
+        status, body, _ = self.call("POST", "/api/token", {}, token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(self.call("GET", "/api/ping", token=body["token"])[0], 200)
+        with mock.patch.object(dev, "_now", lambda: time.time() + dev.TOKEN_TTL_S + 60):
+            self.assertEqual(self.call("POST", "/api/token", {}, token=body["token"])[0], 401)
 
 
 class CliTest(unittest.TestCase):

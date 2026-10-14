@@ -100,16 +100,17 @@ class Devices:
                             (_now(), row[0]))
         return row[0], row[1]
 
-    def rotate(self, device_id: int, used: str) -> str | None:
+    def rotate(self, device_id: int, used: str, clean: bool = False) -> str | None:
         """Nouveau token valable `TOKEN_TTL_S` ; None si l'appareil est révoqué entre-temps.
 
         `used` = token présenté : si c'est le précédent (réponse du dernier renouvellement perdue), il reste valable.
+        `clean` : aucun ancien token ne reste valable (révocation : une copie volée de CET appareil meurt aussi).
         """
         token = secrets.token_urlsafe(32)
         with self.lock:
-            ok = self.db.execute("UPDATE devices SET prev_hash = CASE WHEN prev_hash = ? THEN prev_hash ELSE token_hash END, "
+            ok = self.db.execute("UPDATE devices SET prev_hash = CASE WHEN ? THEN NULL WHEN prev_hash = ? THEN prev_hash ELSE token_hash END, "
                                  "token_hash = ?, expires = ? WHERE id = ? AND revoked = 0 AND expires >= ?",
-                                 (_h(used), _h(token), _now() + TOKEN_TTL_S, device_id, _now())).rowcount
+                                 (clean, _h(used), _h(token), _now() + TOKEN_TTL_S, device_id, _now())).rowcount
         return token if ok == 1 else None
 
     def revoke(self, device_id: int) -> bool:

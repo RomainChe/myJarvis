@@ -357,7 +357,9 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             audit.log(source, "device_revoke", {"tous": True}, 3, "refusé", "assertion absente ou invalide")
             return reply(403, "authentification forte requise")
         audit.log(source, "device_revoke", {"tous": True}, 3, "confirmé", "révocation des autres appareils")  # trace d'abord
-        return {"revoked": devices.revoke_all(keep=auth[0])}
+        revoked = devices.revoke_all(keep=auth[0])
+        # Le token de CET appareil change aussi, sans ancien valable : une copie volée sur ce même appareil est coupée.
+        return {"revoked": revoked, "token": devices.rotate(auth[0], "", clean=True)}
 
     @app.get("/api/push")
     def push_state(request: Request):

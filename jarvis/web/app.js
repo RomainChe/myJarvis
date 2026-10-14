@@ -132,7 +132,7 @@ async function signOut() {
   $('overlay').hidden = true;
   $('app').inert = false;
   setBusy(false);
-  setStatus('Non autorisé : associez de nouveau cet appareil.');
+  setStatus('Non autorisé : associez de nouveau cet appareil. Si vous n’avez rien fait, un token a pu être volé : sur le PC, « python -m jarvis device revoke all ».');
   showEnroll();
 }
 
@@ -267,7 +267,7 @@ async function handlePending(p, say = addMsg) {
   if (choice === 'expired') { say('note', 'Demande expirée, rien n\'a été fait.'); return; }
   let approve = choice === 'approve';
   let assertion;
-  if (approve && p.webauthn) { // N3 : la clé d'accès signe le défi de CETTE demande
+  if (approve && p.webauthn) { // N3 et N2 forts : la clé d'accès signe le défi de CETTE demande
     assertion = await getAssertion(p.webauthn);
     if (!assertion) { approve = false; toast('Clé d\'accès non validée : action annulée.'); }
   }
