@@ -57,7 +57,7 @@
  },
  {
   "name": "driverwatch_accept",
-  "description": "Accepte la proposition de mise à jour de pilotes affichée par DriverWatch au démarrage (équivaut à appuyer sur Entrée dans sa console). Windows demandera l'autorisation (UAC).",
+  "description": "Accepte la mise à jour de pilotes proposée par DriverWatch au démarrage (Windows demandera l'UAC).",
   "level": 1,
   "params": {},
   "hidden": [],
@@ -69,7 +69,7 @@
  },
  {
   "name": "driverwatch_update_all",
-  "description": "Demande à DriverWatch de mettre à jour tous les pilotes qui en ont besoin (en retard). Un point de restauration est créé et Windows demandera l'autorisation (UAC).",
+  "description": "Met à jour tous les pilotes en retard avec DriverWatch (point de restauration créé, Windows demandera l'UAC).",
   "level": 2,
   "params": {},
   "hidden": [],

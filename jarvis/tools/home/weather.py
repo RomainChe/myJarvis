@@ -32,7 +32,7 @@ def _fmt(w: dict) -> str:
     return ", ".join(parts) + " (signaux calculés, pas la vigilance officielle)."
 
 
-@tool("weather_now", "Météo actuelle et du jour au lieu de la maison : température, ressenti, ciel (pluie, orage, beau), "
-      "vent, rafales, risque de pluie, min/max et signaux d'alerte calculés. Ce ne sont pas les vigilances officielles.", Level.N0)
+@tool("weather_now", "Météo actuelle et du jour à la maison : température, ressenti, ciel, vent, pluie, min/max et "
+                     "alertes calculées (pas les vigilances officielles).", Level.N0)
 def weather_now() -> str:
     return _fmt(_weather())
