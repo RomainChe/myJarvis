@@ -49,10 +49,12 @@ def facts() -> list[tuple[int, str]]:
 
 def forget(about: str) -> int:
     """Supprime les faits dont le texte contient `about` (sans accents ni casse), ou le fait `#id`. Renvoie le nombre."""
-    needle = fold(about).strip().lstrip("#")
+    needle = fold(about).strip()
+    by_id = needle.startswith("#")  # « #1 » = le numéro 1 seulement, jamais un mot
+    needle = needle.lstrip("#").strip()
     if not needle:
         raise ValueError("oublier quoi ?")
-    rows = [i for i, t in facts() if needle == str(i) or needle in fold(t)]
+    rows = [i for i, t in facts() if needle == str(i) or (not by_id and needle in fold(t))]
     a = _db()
     with a.lock:
         a.db.executemany("DELETE FROM memory WHERE id = ?", [(i,) for i in rows])
