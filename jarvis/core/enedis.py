@@ -15,6 +15,7 @@ from jarvis.core import conso, secrets
 URL = "https://myelectricaldata.fr"  # ponytail: passerelle tierce hébergée ; auto-hébergée = changer cette constante
 TIMEOUT_S, MAX_BYTES, MAX_KWH_DAY, DAYS = 10, 1_000_000, 500.0, 30
 REFRESH_S, RETRY_S = 24 * 3600, 6 * 3600  # après un échec : pas de nouvel appel (jeton) avant 6 h
+PUBLISH_HOUR = 8  # heure locale avant laquelle le relevé de la veille n'est généralement pas publié
 _failed_at: datetime | None = None
 PDL = re.compile(r"\d{14}")
 
@@ -64,8 +65,9 @@ def refresh(db=None, now: datetime | None = None, fetch_fn=fetch, secret=secrets
     if prev:
         age = (now - prev).total_seconds()
         complete = (conso.last_home_day(db) or "") >= (now.date() - timedelta(days=1)).isoformat()
-        # J-1 pas encore publié au dernier appel : on réessaie après RETRY_S, sinon une fois par jour
-        if 0 <= age < (REFRESH_S if complete else RETRY_S):
+        # J-1 pas encore publié au dernier appel : réessai après RETRY_S, mais seulement à partir de PUBLISH_HOUR
+        # (« hier » change à minuit, Enedis publie le matin) ; sinon une fois par jour
+        if 0 <= age < (RETRY_S if not complete and now.hour >= PUBLISH_HOUR else REFRESH_S):
             return "à jour"
     global _failed_at
     if _failed_at and 0 <= (now - _failed_at).total_seconds() < RETRY_S:

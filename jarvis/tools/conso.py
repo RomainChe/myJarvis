@@ -46,11 +46,11 @@ def home_summary(snap: dict, periode: str) -> str:
     p = snap["periods"][periode]
     if snap.get("configured") is False:
         return "Le compteur n'est pas encore relié (MyElectricalData non configuré ou aucun relevé reçu) : donnée indisponible."
-    if p["kwh"] is None:
-        return "Je n'ai pas de relevé du compteur pour cette période : donnée indisponible."
     out = ""
     if snap.get("stale") and snap.get("last_day"):
         out = f"Dernier relevé du compteur : {snap['last_day'][8:]}/{snap['last_day'][5:7]}. "
+    if p["kwh"] is None:
+        return out + "Je n'ai pas de relevé du compteur pour cette période : donnée indisponible."
     out += f"Le logement a consommé {_n(p['kwh'], 'kWh')} {HOME_WHEN[periode]}"
     if p["eur"] is not None:
         out += f" (environ {_n(p['eur'], '€')})"

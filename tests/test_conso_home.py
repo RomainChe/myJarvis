@@ -147,6 +147,14 @@ class RefreshTest(unittest.TestCase):
         self.assertEqual(enedis.refresh(self.db, NOW + timedelta(hours=14), self.fake({}), self.secrets_ok), "à jour")
         self.assertEqual(len(self.calls), 2)
 
+    def test_pas_de_reessai_de_nuit_apres_minuit(self):  # BUG-CO3-01 : « hier » change à minuit, Enedis publie le matin
+        noon = datetime(2026, 10, 14, 12, 0)
+        self.assertEqual(enedis.refresh(self.db, noon, self.fake({"2026-10-13": 9.0}), self.secrets_ok), "ok")
+        for hours in (12, 18):  # 00:00 et 06:00 le lendemain : J-1 n'est pas encore publié, rien à gagner
+            self.assertEqual(enedis.refresh(self.db, noon + timedelta(hours=hours), self.fake({}), self.secrets_ok), "à jour")
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(enedis.refresh(self.db, noon + timedelta(hours=20), self.fake({"2026-10-14": 8.0}), self.secrets_ok), "ok")
+
     def test_non_configure_sans_appel(self):
         def broken(name):
             raise RuntimeError("pas de coffre")
@@ -249,6 +257,12 @@ class ToolTest(unittest.TestCase):
     def test_releve_perime_dit(self):  # BUG-CO2-02
         out = conso_tool.home_summary(self.snap() | {"stale": True, "last_day": "2026-10-08"}, "semaine")
         self.assertTrue(out.startswith("Dernier relevé du compteur : 08/10."))
+
+    def test_jour_perime_dit_le_dernier_releve(self):  # BUG-CO3-02
+        snap = self.snap(kwh=None) | {"stale": True, "last_day": "2026-10-12"}
+        out = conso_tool.home_summary(snap, "jour")
+        self.assertIn("Dernier relevé du compteur : 12/10.", out)
+        self.assertIn("donnée indisponible", out)
 
     def test_non_configure_distingue(self):
         out = conso_tool.home_summary({"configured": False, "periods": self.snap(kwh=None)["periods"]}, "jour")
