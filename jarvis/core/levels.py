@@ -78,7 +78,7 @@ LABELS = {
     "clipboard_read": ("Lire le presse-papiers", "Le texte copié peut contenir des mots de passe."),
     "move_file": ("Déplacer un fichier", "Déplace ou renomme dans le dossier utilisateur."),
     "delete_file": ("Supprimer un fichier", "Envoie à la corbeille, récupérable."),
-    "screenshot": ("Capture d'écran", "Enregistre tous les écrans dans Images/Jarvis."),
+    "screenshot": ("Capture d'écran", "Enregistre tous les écrans dans ~/.jarvis/captures (purgé après 7 jours)."),
     "screen_off": ("Éteindre les écrans", "Le PC reste allumé."),
     "lock_session": ("Verrouiller la session", "Verrouille la session Windows."),
     "driverwatch_accept": ("Accepter la mise à jour des pilotes", "Valide la proposition de DriverWatch (autorisation Windows demandée)."),
