@@ -15,6 +15,7 @@ CODE_TTL_S = 120
 MAX_FAILS = 5  # échecs d'enrôlement avant de brûler tous les codes en attente
 LOCKOUT_S = 300
 NAME_MAX = 40
+TOKEN_TTL_S = 90 * 86400  # D6 : un appareil inutilisé 90 jours perd son accès ; chaque usage renouvelle la durée
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
@@ -77,8 +78,8 @@ class Devices:
         """(id, nom) de l'appareil si le token est valide et non révoqué. Vérifié en base à chaque requête."""
         digest = _h(token)
         with self.lock:
-            row = self.db.execute("SELECT id, name, token_hash FROM devices WHERE token_hash = ? AND revoked = 0",
-                                  (digest,)).fetchone()
+            row = self.db.execute("SELECT id, name, token_hash FROM devices WHERE token_hash = ? AND revoked = 0 "
+                                  "AND COALESCE(last_used, created) >= ?", (digest, _now() - TOKEN_TTL_S)).fetchone()
             if row is None or not hmac.compare_digest(row[2], digest):
                 return None
             self.db.execute("UPDATE devices SET last_used = ? WHERE id = ?", (_now(), row[0]))
@@ -89,6 +90,12 @@ class Devices:
             self.db.execute("DELETE FROM push_subs WHERE device_id = ?", (device_id,))  # plus de notification vers un appareil révoqué
             return self.db.execute("UPDATE devices SET revoked = 1 WHERE id = ? AND revoked = 0",
                                    (device_id,)).rowcount == 1
+
+    def revoke_all(self) -> int:
+        """« Révoquer tout » : coupe chaque appareil actif (téléphone perdu, token volé) et ses abonnements push."""
+        with self.lock:
+            self.db.execute("DELETE FROM push_subs")
+            return self.db.execute("UPDATE devices SET revoked = 1 WHERE revoked = 0").rowcount
 
     def list(self) -> list[tuple]:
         with self.lock:

@@ -14,7 +14,7 @@
                                                        (Enable Banking, lecture seule ; terminal interactif)
     python -m jarvis portfolio import <export.csv>     (copie l'export de transactions Trade Republic dans ~/.jarvis/, lecture seule)
     python -m jarvis binance fetch [catégorie ...]      (historique Binance en lecture seule -> ~/.jarvis/binance-history.json ; clé dans .env)
-    python -m jarvis device add | list | revoke <id>   (terminal interactif)
+    python -m jarvis device add | list | revoke <id|all>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
@@ -157,7 +157,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         for row in devices.list():
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
-    if sub == "add" and len(argv) == 2 or sub == "revoke" and len(argv) == 3 and argv[2].isdigit():
+    if sub == "add" and len(argv) == 2 or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
         if not sys.stdin.isatty():  # action d'un humain devant le PC, comme une confirmation N3
             print("Refusé : cette commande exige un terminal interactif.")
             return 1
@@ -176,7 +176,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
         print("Appareil révoqué." if ok else "Appareil introuvable ou déjà révoqué.")
         return 0 if ok else 1
-    print("Usage : device add | device list | device revoke <id> | serve")
+    print("Usage : device add | device list | device revoke <id|all> | serve")
     return 2
 
 
