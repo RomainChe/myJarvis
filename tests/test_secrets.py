@@ -90,6 +90,13 @@ class TestSecrets(unittest.TestCase):
             if os.name == "posix":
                 self.assertEqual(old.stat().st_mode & 0o777, 0o600)
 
+    def test_export_refuse_un_dossier_synchronise_onedrive(self):
+        secrets.set_secret("ha_token", "TOP-SECRET")
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(ValueError):
+                secrets.export_all(Path(d) / "OneDrive - Perso" / "export")
+            self.assertFalse((Path(d) / "OneDrive - Perso").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

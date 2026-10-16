@@ -70,7 +70,9 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
   **Reste** : service Windows de l'agent, pare-feu limité au mini-PC, essai entre deux machines (lot 5).
 
 ### Lot 4 : voix, jeu, Claude Code
-- Micro, réveil, Whisper, Piper restent sur le PC (agent) : voix indisponible PC éteint.
+- Micro, réveil, Whisper, Piper : **pas codé**. La voix tourne dans le processus du Core (`start_mic`) : après la
+  bascule (lot 5), plus de voix ni de rappels parlés. Accepté le 2026-10-16 (voix inutilisée pour l'instant).
+  **Lot 4b** (plus tard) : petit client voix sur le PC qui envoie le texte au Core du mini-PC par Tailscale.
 - Mode jeu : le Core interroge l'agent (outil N0 `game_running`, cache 5 s, échec = pas de jeu) ; pas de push de
   l'agent vers le Core. **Fait le 2026-10-13** (`feat/jeu-agent`).
 - Outil `claude_code` : reste sur le PC (CLI et dépôt locaux), via l'agent, `owner_only` inchangé.
@@ -89,17 +91,73 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
   key: Permission denied », clé hôte en lecture root) ; `deploy/creds.sh` déchiffre via `systemd-creds decrypt --user`
   vers un dossier 0700 de `$XDG_RUNTIME_DIR`, supprimé à l'arrêt. Vérifié : le Core reçoit `ha_token`, arrêt propre.
   **Reste** : revue Sécurité (script de pare-feu, `creds.sh`), essai sur le mini-PC et entre deux machines.
-- Installation (mini-PC, dépôt dans `~/jarvis`, venv dans `~/venv`) :
-  1. Sur le PC : `python -m jarvis secret export <dossier hors dépôt>` ; copier le dossier sur le mini-PC (Tailscale/scp).
-  2. `deploy/creds.sh import <dossier>` (chiffre puis supprime les fichiers), `cp deploy/env.example ~/.config/jarvis/env`
-     et le remplir (`chmod 600`).
-  3. `cp deploy/systemd/* ~/.config/systemd/user/ && systemctl --user daemon-reload`, `loginctl enable-linger $USER`,
-     `systemctl --user enable --now jarvis-core.service jarvis-doctor.timer jarvis-backup.timer jarvis-purge.timer`.
-  4. Vérifier : `python -m jarvis doctor`.
+- **Complété le 2026-10-16** (`feat/lot5-bascule`) : `agent-task.ps1` expose aussi Ollama sur l'IP Tailscale du PC
+  (D15, `OLLAMA_HOST`, jamais `0.0.0.0`) avec pare-feu limité au mini-PC, signale les règles plus larges, relançable ;
+  unités `jarvis-banque` (+ timer 07:00, remplace la tâche Windows « JARVIS - banque »). Procédure ci-dessous.
+
+#### A. Préparation (le Core tourne encore sur le PC, aucune coupure)
+Sur le **mini-PC** (SSH, dépôt dans `~/jarvis`, venv dans `~/venv`) :
+1. `sudo apt install git python3-venv`, `git clone https://github.com/RomainChe/myJarvis ~/jarvis`,
+   `python3 -m venv ~/venv && ~/venv/bin/pip install -e ~/jarvis`.
+2. `cd ~/jarvis && ~/venv/bin/python -B -m unittest discover -s tests` : vert (outils Windows et `voice` sautés).
+
+Sur le **PC** (PowerShell administrateur, adresses lues dans `tailscale status`, jamais écrites dans le dépôt) :
+3. `python -m jarvis secret set agent_key` si absente (valeur : `python -c "import secrets; print(secrets.token_urlsafe(48))"`).
+4. `winget upgrade Ollama.Ollama` (dernière version stable, `ollama --version` ; jamais `OLLAMA_ORIGINS`), puis
+   `deploy\windows\agent-task.ps1 -TailscaleHost <IP-TS-PC> -MiniPc <IP-TS-minipc>` ; quitter puis relancer Ollama ;
+   si Windows demande « Autoriser l'accès », **refuser** ; **relancer le script** et désactiver toute règle signalée
+   « plus large » (`Disable-NetFirewallRule -DisplayName <nom>`, ex. la règle `python.exe` créée par Python). Dans `.env` du PC : `JARVIS_OLLAMA_URL=http://<IP-TS-PC>:11434`
+   (Ollama n'est plus sur `127.0.0.1`), relancer « JARVIS - core » et vérifier une question au LLM.
+5. Se déconnecter puis se reconnecter (la tâche de l'agent démarre à l'ouverture de session).
+6. `python -m jarvis secret export "$env:LOCALAPPDATA\Temp\jarvis-export"` (jamais sous OneDrive : les secrets sont en
+   clair et 0600 est sans effet sous Windows ; refusé par le code), `scp -r "$env:LOCALAPPDATA\Temp\jarvis-export"
+   jarvis@<IP-minipc>:export`, puis `Remove-Item -Recurse "$env:LOCALAPPDATA\Temp\jarvis-export"`.
+
+Sur le **mini-PC** :
+7. `~/jarvis/deploy/creds.sh import ~/export` (chiffre puis supprime), `mkdir -p ~/.config/jarvis`,
+   `cp ~/jarvis/deploy/env.example ~/.config/jarvis/env && chmod 600 ~/.config/jarvis/env`, le remplir :
+   `JARVIS_HA_URL=http://127.0.0.1:8123`, `JARVIS_OLLAMA_URL=http://<IP-TS-PC>:11434`,
+   `JARVIS_AGENT_URL=http://<IP-TS-PC>:8788`, `JARVIS_TS_HOST=<ancien nom du PC>.<tailnet>.ts.net`, le reste
+   recopié du `.env` du PC.
+8. **ACL Tailscale (D15, exigée par la Sécurité avant B)**, console Tailscale > Access controls, en gardant une session
+   SSH ouverte vers le mini-PC pendant l'enregistrement : téléphone → mini-PC:443 ; mini-PC → PC:8788 et PC:11434 ;
+   PC → mini-PC:22, 443, 8123 ; téléphone → PC:443 jusqu'à la bascule (retiré au 12). Rien d'autre (la règle par défaut « tout vers tout » est retirée).
+9. Contrôles de frontière, après l'ACL et la relance d'Ollama : `curl -s http://<IP-TS-PC>:11434/api/version` répond
+   depuis le mini-PC ; la même URL **échoue** depuis le téléphone (Tailscale actif) et depuis un autre PC du réseau
+   local. Idem pour le port 8788. Raison : Ollama n'a pas d'authentification, quiconque l'atteint peut remplacer le
+   modèle (`/api/create`, `/api/pull`) par un modèle piégé qui proposerait des outils N1.
+
+#### B. Bascule (coupure de quelques minutes)
+Sur le **PC** :
+10. `Disable-ScheduledTask` sur « JARVIS - garde-fou » (d'abord, sinon il relance le Core), « JARVIS - core »,
+   « JARVIS - banque », « JARVIS - sauvegarde » ; arrêter le processus `serve` restant ; `tailscale serve reset`.
+11. `python -m scripts.backup --verify` (chaîne d'audit et ancre), puis `scp -r "$HOME\.jarvis" jarvis@<IP-minipc>:` (PowerShell ne développe pas `~`
+    pour `scp`).
+12. Console Tailscale : renommer le PC (ex. `pc-bureau`), puis donner au mini-PC **l'ancien nom du PC** (D16).
+
+Sur le **mini-PC** :
+13. `cd ~/jarvis && ~/venv/bin/python -m scripts.backup --verify` (même résultat qu'au 11).
+14. `sudo tailscale serve --bg --https=443 http://127.0.0.1:8765` (**jamais `funnel`**) ; `tailscale funnel status` vide.
+15. `mkdir -p ~/.config/systemd/user && cp ~/jarvis/deploy/systemd/* ~/.config/systemd/user/`,
+    `systemctl --user daemon-reload`, `sudo loginctl enable-linger jarvis`,
+    `systemctl --user enable --now jarvis-core.service jarvis-doctor.timer jarvis-backup.timer jarvis-purge.timer jarvis-banque.timer`.
+
+#### C. Vérifications (critères de fin du lot 5)
+- [ ] `~/venv/bin/python -m jarvis doctor` vert sur le mini-PC.
+- [ ] ACL en place, `tailscale funnel status` vide, `agent-task.ps1` relancé sans règle « plus large » signalée.
+- [ ] PWA depuis le téléphone : connexion par passkey sans ré-enrôlement, notification push reçue.
+- [ ] « allume la télé » (routeur + HA local) ; une question au LLM (Ollama du PC) ; un outil PC (ex. volume) via l'agent,
+      présent au journal d'audit du Core.
+- [ ] PC éteint : PWA, domotique et rappels OK ; LLM et outils PC renvoient une erreur claire.
+- [ ] Le lendemain : `jarvis-backup` et `jarvis-banque` ont tourné (`systemctl --user list-timers`).
+- [ ] Une semaine sans retour arrière : supprimer la VM Hyper-V et les tâches Windows désactivées au 10.
+
 - Maintenance : arrêter `jarvis-doctor.timer` avant d'arrêter le Core (le garde-fou le relance sinon en < 1 min).
-- Retour arrière : `systemctl --user disable --now` des quatre unités sur le mini-PC, puis relancer la tâche
-  « JARVIS - core » sur le PC (un seul Core actif à la fois, principe 3) ; `jarvis.db` du mini-PC, plus récent,
-  est à recopier sur le PC après `scripts.backup --verify`.
+- Retour arrière : `systemctl --user disable --now` des cinq unités et `sudo tailscale serve reset` sur le mini-PC ;
+  rendre son nom Tailscale au PC ; recopier `~/.jarvis` du mini-PC (plus récent) sur le PC après `scripts.backup --verify` ;
+  sur le PC, réactiver les quatre tâches du 10 et relancer `tailscale serve` (un seul Core actif à la fois, principe 3).
+  Ollama et l'agent restent sur l'IP Tailscale (`agent-task.ps1 -Remove` pour revenir à `127.0.0.1`, puis retirer
+  `JARVIS_OLLAMA_URL` du `.env`).
 
 ### Lot 6 : règles d'alimentation (remplace le script HA)
 - `pc_off_plug` orchestré par le Core : confirmation N2 → arrêt par l'agent → attente de chute de puissance

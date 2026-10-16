@@ -43,7 +43,8 @@ Invoke-RestMethod http://127.0.0.1:11434/api/version
 
 - Ollama doit écouter sur `127.0.0.1` uniquement : ne **jamais** définir `OLLAMA_HOST=0.0.0.0`
   (cela exposerait le modèle au réseau local). Tout changement d'exposition passe par
-  l'Expert Sécurité.
+  l'Expert Sécurité. Seule exception validée (2026-10-16) : Core sur le mini-PC, `OLLAMA_HOST` = IP Tailscale du PC,
+  pare-feu et ACL limités au mini-PC (docs/MIGRATION_CORE_MINIPC.md, lot 5, `deploy/windows/agent-task.ps1`).
 - L'installateur ajoute Ollama au démarrage de Windows.
 - Le modèle n'est pas encore choisi (ROADMAP, Phase 1 étape 5) : rien à télécharger pour l'instant.
   Le code actuel n'appelle pas encore Ollama.
