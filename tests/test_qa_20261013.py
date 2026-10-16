@@ -9,15 +9,19 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import numpy as np
+try:  # extra « voice » : absent du mini-PC, seuls les tests MicRun en dépendent
+    import numpy as np
+    from jarvis.core import mic as micmod
+    from tests.test_mic import FakeSpeaker, FakeWake
+except (ImportError, unittest.SkipTest):
+    np = None
 
 import jarvis.core.chat  # noqa: F401  (enregistre tous les outils)
 import jarvis.tools.voyages  # noqa: F401
-from jarvis.core import llm, memory, mic as micmod, reminders, voyages
+from jarvis.core import llm, memory, reminders, voyages
 from jarvis.core.audit import Audit
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.tools import REGISTRY, Level
-from tests.test_mic import FakeSpeaker, FakeWake
 from tests.test_voyages import HEAD, RESUME, hotel_project, project, row
 
 
@@ -151,6 +155,7 @@ class Memoire(DbCase):
         self.assertTrue(REGISTRY["memory_list"].private)
 
 
+@unittest.skipIf(np is None, "numpy absent (extra voice)")
 class MicRun(unittest.TestCase):
     def make(self, sd, speaker=None):
         tmp = Path(tempfile.mkdtemp())
