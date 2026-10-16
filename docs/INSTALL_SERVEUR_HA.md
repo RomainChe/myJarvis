@@ -200,6 +200,18 @@ restauration est manuelle. **À vérifier au premier essai** (point ouvert du lo
    de longue durée de `jarvis` reste valide.
 6. Efface le `.tar` et les fichiers extraits du mini-PC (jetons dedans).
 
+Constats du premier essai (2026-10-16, HA 2026.10) :
+- La sauvegarde HAOS restaure bien `data/` (`.storage`, base, comptes, intégrations). Pas d'entrée `hassio` à retirer.
+- Le port est un réglage de l'interface (`.storage`) depuis HA 2026.8 : la config restaurée de HAOS écoute sur **80** et
+  ignore `http: server_port`. Ouvre temporairement le 80 dans ufw, connecte-toi par l'IP, **Paramètres → Système →
+  Réseau** : port 8123, puis **Confirmer** sous 5 min (sinon retour au 80), puis referme le 80. Ne passe pas par
+  `homeassistant.local` : le nom désigne aussi l'ancienne VM.
+- Mot de passe inconnu : `sudo docker exec -it homeassistant hass --script auth -c /config change_password <compte>`
+  (sans le mot de passe en argument), puis `sudo docker compose restart`.
+- `JARVIS_HA_URL` peut aussi exister en variable d'environnement Windows (elle passe avant `.env`) : vérifie
+  `$env:JARVIS_HA_URL` et `ha check` (la version affichée doit être celle du conteneur).
+- Une commande SSH distante avec `sudo` demande `ssh -t`.
+
 Si la restauration ne tient pas : démarre HA sur un `config/` vide, crée le compte propriétaire et refais les
 appareils (§9.2). Les modules complémentaires (add-ons) de l'ancienne VM ne reviennent pas en Container ; la
 configuration actuelle n'en utilise pas.

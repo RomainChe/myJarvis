@@ -7,7 +7,7 @@ Règle : cette section reste sous ~2 Ko (en cours, prochaines actions, attentes 
 
 - **Phase en cours : 5 (durcissement)**, plan et décisions D1–D13 : docs/SECURITY_REVIEW_PHASE_5.md. Phase 6 (intégrations) et Phase 7 (pistes) avancent en parallèle à la demande du propriétaire.
 - **Consommation** (étapes 1–3 dans `main`) : revues QA et Sécurité de l'étape 3 faites le 2026-10-14 ; reste essai navigateur 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente d'une décision (répartition horaire).
-- **Migration mini-PC** (docs/MIGRATION_CORE_MINIPC.md, lots 1–6 codés) : reste revue Sécurité de `pc_off_plug`, installation du mini-PC (guide INSTALL_SERVEUR_HA.md), essais réels.
+- **Migration mini-PC** (docs/MIGRATION_CORE_MINIPC.md, lots 1–6 codés) : reste revue Sécurité de `pc_off_plug`, essais réels. **Lot 0 fait le 2026-10-16** (INSTALL_SERVEUR_HA.md §1–§9 : Debian, SSH par clé, ufw, Docker, HA Container restauré, Tailscale, IP fixe, Jarvis→HA OK) ; sauvegardes HA actives, VM Hyper-V arrêtée (non supprimée avant la fin du lot 5), commandes dans docs/MINIPC_COMMANDES.md ; reste §10 (prise Tapo, pas encore livrée).
 - **Mot de réveil `jarvis_fr`** : le propriétaire active `JARVIS_WAKE_WORD=jarvis_fr` + `JARVIS_WAKE_THRESHOLD=0.7` dans `.env`, un jour d'usage pour compter les faux réveils, puis revue Sécurité.
 - **Voyages étape 5** (fusionnée le 2026-10-14) : outil `voyage_recherche` (N1, `gh workflow run search.yml`), revue Sécurité faite (DECISIONS.md), 1158 tests ; reste premier essai réel (envoie un e-mail).
 - **Hôtels** (`feat/hotel-liens-aeroport` en cours) : reste fusion côté tracker (`resume.json`), premier relevé réel, revue Sécurité.
