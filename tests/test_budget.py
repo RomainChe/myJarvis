@@ -2,7 +2,7 @@
 import unittest
 from datetime import date
 
-from jarvis.core.budget import CM, TR, report
+from jarvis.core.budget import CM, TR, classify, report
 
 
 def tx(bank, day, amount, label=""):
@@ -30,7 +30,7 @@ CYCLE = [
     tx(TR, "2026-09-19", -126.99),
     tx(TR, "2026-09-26", -216.00),
     tx(TR, "2026-09-05", -81.45, "TICKETMASTER"),
-    tx(TR, "2026-09-04", -3.90),
+    tx(TR, "2026-09-04", -9.90),
 ]
 
 
@@ -71,11 +71,22 @@ class BudgetTest(unittest.TestCase):
         r = report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")]
                    + [tx(TR, "2026-10-16", a) for a in (-10.0,) * 5 + (-7.0, -13.0, -15.0, -69.72, -1.55)]
                    + [tx(TR, "2026-10-09", -69.72)]  # seul, un vendredi : des courses
-                   + [tx(TR, "2026-10-15", a) for a in (-10.0, -10.0, -7.0, -13.0, -15.0, -69.72, -1.55)], date(2026, 10, 17))  # lot incomplet
+                   + [tx(TR, "2026-10-02", a) for a in (-10.0, -10.0, -69.61)]  # un seul plan : pas un lot
+                   + [tx(TR, "2026-10-14", a) for a in (-10.0, -7.0, -13.0)]  # lot qui arrive au fil de l'eau, 3 plans sur 4
+                   + [tx(TR, "2026-10-15", -10.0)], date(2026, 10, 17))  # le jeudi suivant, même fenêtre
         prog = next(x for x in r["saving"]["items"] if x["name"] == "Épargne programmée")
-        self.assertEqual(prog["amount"], 154.72)
+        self.assertEqual(prog["amount"], 154.72 + 40)
         self.assertEqual(next(x for x in r["saving"]["items"] if x["name"] == "Saveback + arrondis")["amount"], 1.55)
-        self.assertGreater(r["conso"]["total"], 69.72 * 2)  # courses isolées + lot incomplet
+        self.assertAlmostEqual(r["conso"]["total"], 69.72 + 10 + 10 + 69.61)  # courses isolées + plan unique du 2 octobre
+
+    def test_pea_exceptionnel_et_fourchette_80(self):
+        d = frozenset({"2026-10-09"})
+        self.assertEqual(classify(tx(TR, "2026-10-09", -35.27), d)[0], "saving")
+        self.assertEqual(classify(tx(TR, "2026-10-09", -79.5), d)[0], "saving")
+        self.assertEqual(classify(tx(TR, "2026-10-09", -35.27))[0], "conso")  # hors jour de lot
+
+    def test_petits_achats_en_courses(self):
+        self.assertEqual(classify(tx(TR, "2026-10-11", -6.16))[1]["cat"], "Courses")
 
     def test_virements_internes_et_dividendes_hors_budget(self):
         total = sum(x["amount"] for x in self.r["conso"]["detail"])

@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 CM, TR = "Crédit Mutuel", "Trade Republic"
 PAY_MIN = 1000  # un crédit Crédit Mutuel ≥ 1 000 € hors virement interne = la paie
-PLANS = (10, 15, 13, 7)  # plans d'épargne du mercredi ; 60–75 € = PEA
+PLANS = (10, 15, 13, 7)  # plans d'épargne du mercredi ; 60–80 € = PEA (+ 35,27 € exceptionnel : une seule action le 2026-10-09)
 # (mot du libellé, emoji, nom, catégorie) pour les marchands reconnaissables ; le reste va en Loisirs
 MERCHANTS = (
     ("CARREFOUR", "🛒", "Courses", "Courses"), ("LECLERC", "🛒", "Courses", "Courses"), ("LIDL", "🛒", "Courses", "Courses"),
@@ -26,14 +26,14 @@ def _fr(day: str) -> str:
 
 
 def savings_days(txs: list[dict]) -> set[str]:
-    """Jours d'épargne hebdomadaire Trade Republic, même si la banque date les opérations du jeudi ou du vendredi : le jour
-    compte 5 × 10 €, un 15, un 13, un 7, un montant de 60–75 € (PEA) et un arrondi de moins de 3 €."""
-    by = defaultdict(list)
+    """Jours d'épargne hebdomadaire Trade Republic, même si la banque date les opérations du jeudi au samedi ou si le lot
+    arrive au fil de l'eau : une fenêtre mercredi→samedi qui contient au moins 3 des 4 plans (10, 15, 13, 7 €) est un lot."""
+    by = defaultdict(lambda: defaultdict(set))  # mercredi → jour → montants
     for t in txs:
-        if t.get("bank") == TR and t["amount"] < 0:
-            by[t["date"]].append(-t["amount"])
-    return {d for d, a in by.items() if a.count(10) >= 5 and all(p in a for p in (15, 13, 7))
-            and any(60 <= x <= 75 for x in a) and any(0 < x < 3 for x in a)}
+        d = date.fromisoformat(t["date"])
+        if t.get("bank") == TR and t["amount"] < 0 and 2 <= d.weekday() <= 5:  # ponytail: un achat de 60–75 € dans une fenêtre de lot passe pour le PEA
+            by[d - timedelta(days=d.weekday() - 2)][t["date"]].add(-t["amount"])
+    return {day for days in by.values() if len(set().union(*days.values()) & set(PLANS)) >= 3 for day in days}
 
 
 def classify(t: dict, plan_days: frozenset | set = frozenset()) -> tuple[str, dict]:
@@ -82,13 +82,13 @@ def classify(t: dict, plan_days: frozenset | set = frozenset()) -> tuple[str, di
     if 200 <= out <= 230 and d.month == 9 and d.day >= 22:
         return "conso", mk("🤖", "Claude Code Pro", out, "Abonnements")
     wed = d.weekday() == 2 or day in plan_days
-    if wed and (out in PLANS or 60 <= out <= 75):
+    if wed and (out in PLANS or 60 <= out <= 80 or out == 35.27):
         return "saving", mk("📈", "Épargne programmée", out, "Épargne")
-    if cents and (d.day <= 3 and out < 5 or wed and out <= 22):
+    if cents and (d.day <= 3 and out < 5 or wed and out <= (22 if d.weekday() == 2 else 5)):  # jour décalé par la banque : arrondi < 5 € seulement
         return "saving", mk("💸", "Saveback + arrondis", out, "Épargne")
     if 80 <= out <= 90:
         return "conso", mk("⛽", "Essence", out, "Transport")
-    if 60 <= out <= 130:
+    if 60 <= out <= 130 or 2 <= out < 7:  # courses (Carrefour) ou petits achats
         return "conso", mk("🛒", "Courses", out, "Courses")
     return "conso", mk("🎲", "Loisirs divers (déduits)", out, "Loisirs")
 
@@ -111,7 +111,7 @@ def _group(rows: list[dict]) -> list[dict]:
         amounts = " + ".join(f"{r['amount']:.2f}".replace(".", ",") + " €" for r in sorted(rs, key=lambda r: -r["amount"]))
         notes = {
             "Crédit": lambda x: f"{len(x)} prêts : {amounts}",
-            "Épargne programmée": lambda x: f"{len({r['date'] for r in x})} mercredis · plans {sum(r['amount'] for r in x if r['amount'] in PLANS):.0f} € + PEA "
+            "Épargne programmée": lambda x: f"{len({date.fromisoformat(r['date']).isocalendar()[:2] for r in x})} mercredis · plans {sum(r['amount'] for r in x if r['amount'] in PLANS):.0f} € + PEA "
                                            f"{sum(r['amount'] for r in x if r['amount'] not in PLANS):.0f} €",
         }
         note = notes.get(name, lambda x: f"{len(x)} paiements · " + ", ".join(_fr(r["date"]) for r in x[:3]) + (" …" if len(x) > 3 else ""))
