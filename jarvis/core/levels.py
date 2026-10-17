@@ -90,8 +90,6 @@ LABELS = {
     "pc_off_plug": ("Éteindre le PC et sa prise", "Arrêt du PC, puis coupe la multiprise (PC et écrans)."),
     "power_cancel": ("Annuler l'arrêt", "Annule un redémarrage ou un arrêt en attente."),
     "mail_recent": ("Résumer les mails", "Lit expéditeur, objet et début des mails récents, en lecture seule."),
-    "social_schedule": ("Planning des publications", "Liste les vidéos programmées de lol-clipper."),
-    "social_reschedule": ("Décaler une publication", "Change l'heure de mise en ligne d'une vidéo programmée de lol-clipper."),
     "voyage_prix": ("Prix des vols", "Meilleur prix suivi par flight-price-tracker, tendance, départ et dates."),
     "voyage_recherche": ("Recherche de vols", "Lance une recherche ponctuelle de flight-price-tracker, résultat par e-mail."),
     "hotel_itineraire": ("Prix des hôtels", "Total d'hébergement du voyage suivi par hotel-price-tracker, hôtel recommandé par ville."),

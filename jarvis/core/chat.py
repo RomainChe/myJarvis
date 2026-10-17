@@ -15,7 +15,6 @@ import jarvis.tools.assist  # noqa: F401  (enregistre minuteurs, rappels et brie
 import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
-import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 import jarvis.tools.voyages  # noqa: F401  (enregistre le changement de destination)
 import jarvis.tools.conso  # noqa: F401  (enregistre conso_pc)
 from jarvis.core.agentlink import AgentError

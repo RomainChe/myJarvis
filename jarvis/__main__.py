@@ -54,7 +54,6 @@ import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 from jarvis.tools.home import pcplug
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
-import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 import jarvis.tools.voyages  # noqa: F401  (enregistre les outils voyages)
 import jarvis.tools.conso  # noqa: F401  (enregistre conso_pc)
 from jarvis.core.host import load_pc_tools
