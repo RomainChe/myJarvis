@@ -351,6 +351,7 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 
 | Outil | Niveau | Paramètres | Retour | Exemple |
 |---|---|---|---|---|
+| `current_time` | N0 | aucun | « Il est 22 h 05, samedi 17 octobre 2026. » | « quelle heure est-il », « quel jour sommes-nous » (routeur, sans LLM) |
 | `timer_set` | N1, `taint_blocked` | `duration` (« 20 minutes », « 1h30 », « une demi-heure »), `label` (peut être vide) | heure de fin | « mets un minuteur de 10 minutes pour les pâtes », « rappelle-moi de sortir le linge dans 20 minutes » |
 | `reminder_set` | N1, `taint_blocked` | `when` (« dans 2 heures », « à 7h30 », « demain à 8h »), `label` | heure du rappel | « réveille-moi à 7h », « rappelle-moi à 18h30 d'appeler Paul » |
 | `reminder_list` | N0 | aucun | une ligne par rappel : `#id à HH:MM : minuteur/rappel` (jamais le texte, qui reste journal-safe et lisible à la voix) | « mes rappels » |

@@ -112,6 +112,7 @@ LABELS = {
     "memory_set": ("Retenir un fait", "Mémorise une préférence ou une habitude, ajoutée au contexte du LLM."),
     "memory_list": ("Liste des souvenirs", "Ce que Jarvis a retenu sur toi, avec le texte."),
     "memory_forget": ("Oublier un souvenir", "Supprime un souvenir par mot ou par numéro."),
+    "current_time": ("Heure et date", "Dit l'heure et la date du jour, sans réseau."),
     "weather_now": ("Météo", "Température, ciel, vent, pluie et signaux d'alerte du lieu de la maison."),
     "scene_cinema": ("Mode cinéma", "Allume la TV et lance l'appli demandée."),
     "claude_code": ("Modifier le code de Jarvis", "Claude Code sur une branche ; fusion si les tests passent, puis redémarrage."),

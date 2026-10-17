@@ -20,6 +20,12 @@ def _at(due: float) -> str:
     return datetime.fromtimestamp(due).strftime("%H:%M")
 
 
+@tool("current_time", "Heure et date actuelles (« quelle heure est-il », « quel jour sommes-nous »).", Level.N0)
+def current_time() -> str:
+    now = datetime.fromtimestamp(reminders.now())
+    return f"Il est {now.hour} h {now.minute:02d}, {DAYS[now.weekday()]} {now.day} {MONTHS[now.month - 1]} {now.year}."
+
+
 @tool("timer_set", "Minuteur : prévient dans `duration` (« 20 minutes », « 1h30 », 1 minute à 24 h). `label` : ce que le minuteur annonce (« les pâtes », « minuteur » si rien de précis).",
       Level.N1, taint_blocked=True, hidden=("label",), duration=str, label=str)
 def timer_set(duration: str, label: str) -> str:
