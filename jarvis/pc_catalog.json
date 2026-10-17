@@ -252,6 +252,22 @@
   "owner_only": false
  },
  {
+  "name": "say",
+  "description": "Lit un court texte à voix haute sur le PC (rappels, minuteurs).",
+  "level": 1,
+  "params": {
+   "text": "str"
+  },
+  "hidden": [
+   "text"
+  ],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
   "name": "screen_off",
   "description": "Éteint les écrans (le PC reste allumé ; un mouvement de souris les rallume).",
   "level": 1,
