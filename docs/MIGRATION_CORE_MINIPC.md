@@ -159,7 +159,7 @@ Sur le **mini-PC** :
 14. `sudo tailscale serve --bg --https=443 http://127.0.0.1:8765` (**jamais `funnel`**) ; `tailscale funnel status` vide.
 15. `mkdir -p ~/.config/systemd/user && cp ~/jarvis/deploy/systemd/* ~/.config/systemd/user/`,
     `systemctl --user daemon-reload`, `sudo loginctl enable-linger jarvis`,
-    `systemctl --user enable --now jarvis-core.service jarvis-doctor.timer jarvis-backup.timer jarvis-purge.timer jarvis-banque.timer`.
+    `systemctl --user enable --now jarvis-core.service jarvis-doctor.timer jarvis-backup.timer jarvis-purge.timer jarvis-banque.timer jarvis-update.timer`.
 
 #### C. Vérifications (critères de fin du lot 5)
 - [x] `doctor` vert sur le mini-PC (2026-10-17), avec les réglages et identifiants du service (sinon Ollama et HA sont KO à tort) :

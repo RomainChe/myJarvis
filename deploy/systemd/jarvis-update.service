@@ -1,0 +1,10 @@
+[Unit]
+Description=JARVIS mise à jour depuis GitHub (main, fast-forward seulement)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/jarvis
+# Redémarre le Core seulement si main a avancé ; un pull refusé (historique divergent) ne change rien.
+ExecStart=/bin/sh -c 'old=$(git rev-parse HEAD) && git pull --ff-only -q && [ "$old" != "$(git rev-parse HEAD)" ] && systemctl --user restart jarvis-core || true'
+NoNewPrivileges=yes
+PrivateTmp=yes
