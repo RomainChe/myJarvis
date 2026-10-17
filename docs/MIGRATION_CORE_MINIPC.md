@@ -156,7 +156,8 @@ Sur le **mini-PC** :
     `systemctl --user enable --now jarvis-core.service jarvis-doctor.timer jarvis-backup.timer jarvis-purge.timer jarvis-banque.timer`.
 
 #### C. Vérifications (critères de fin du lot 5)
-- [ ] `~/venv/bin/python -m jarvis doctor` vert sur le mini-PC.
+- [ ] `doctor` vert sur le mini-PC, avec les réglages et identifiants du service (sinon Ollama et HA sont KO à tort) :
+      `set -a; . ~/.config/jarvis/env; set +a; ~/jarvis/deploy/creds.sh run ~/venv/bin/python -m jarvis doctor`.
 - [ ] ACL en place, `tailscale funnel status` vide, `agent-task.ps1` relancé sans règle « plus large » signalée.
 - [ ] PWA depuis le téléphone : connexion par passkey sans ré-enrôlement, notification push reçue.
 - [ ] « allume la télé » (routeur + HA local) ; une question au LLM (Ollama du PC) ; un outil PC (ex. volume) via l'agent,
