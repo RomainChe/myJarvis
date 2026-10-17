@@ -186,6 +186,19 @@ Register-ScheduledTask -TaskName "JARVIS - banque" -Principal $principal `
   -Trigger $trigger -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries)
 ```
 
+### 7.4 Mise à jour automatique du Core (créée le 2026-10-17)
+
+Toutes les 5 min, `python -m scripts.update` fait `git pull --ff-only` (seulement si le dépôt est sur `main`) et relance
+la tâche « JARVIS - core » si le commit courant diffère de celui mémorisé dans `~/.jarvis/deployed-head` (une fusion
+locale compte aussi). Premier passage : mémorise sans redémarrer. Équivalent Linux : `jarvis-update.timer`.
+
+```powershell
+Register-ScheduledTask -TaskName "JARVIS - mise à jour" -Principal $principal `
+  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m scripts.update" -WorkingDirectory $repo) `
+  -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5)) `
+  -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -MultipleInstances IgnoreNew)
+```
+
 Vérifier, lancer à la main, supprimer :
 
 ```powershell
