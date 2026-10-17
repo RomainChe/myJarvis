@@ -264,7 +264,7 @@
   "describe": false,
   "private": false,
   "external": false,
-  "taint_blocked": false,
+  "taint_blocked": true,
   "owner_only": false
  },
  {

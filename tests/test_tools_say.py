@@ -10,6 +10,13 @@ class SayTest(PcBase):
     def test_niveau(self):
         self.assertEqual(REGISTRY["say"].level, Level.N1)
 
+    def test_refuse_au_llm_apres_contenu_externe(self):
+        self.assertTrue(REGISTRY["say"].taint_blocked)
+        import json
+        from jarvis.core import agentlink
+        entry = next(e for e in json.loads(agentlink.CATALOG.read_text(encoding="utf-8")) if e["name"] == "say")
+        self.assertTrue(entry["taint_blocked"])  # le Core applique le drapeau du catalogue
+
     def test_nominal_lit_sans_bloquer(self):
         sp = mock.Mock(is_speaking=mock.Mock(return_value=False))
         with mock.patch.object(say_mod, "_get_speaker", return_value=sp):

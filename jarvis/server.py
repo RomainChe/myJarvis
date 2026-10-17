@@ -58,6 +58,7 @@ else:
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192
 AUTH_FAIL_MAX, AUTH_FAIL_WINDOW_S = 10, 60
+VOICES_MAX = 64  # micros distincts (appareil/client) gardés en mémoire
 VOICE_MAX = 20  # phrases par appareil et par minute : une phrase dite en prend ~5 s
 # ponytail: plafond par appareil et par minute sur toutes les routes (l'écran en fait ~60) : borne le journal gonflé par un pair
 # valide à QUOTA_MAX + 1 lignes/min ; un quota par route si l'usage légitime s'en approche.
@@ -301,7 +302,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         job = chat.start(auth[0], body.text)
         return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
 
-    voice = Voice(chat)  # sans lecteur : la réponse est lue par le client voix du PC
+    voices: dict[str, Voice] = {}  # (appareil/client) -> Voice : « hors ligne » ne vaut que pour le micro qui l'a dit
     voice_calls: dict[int, deque[float]] = {}
 
     @app.post("/api/voice")
@@ -319,7 +320,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
                 recent.append(_now())
         if over:
             return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
-        return {"answer": voice.handle(body.text, f"{auth[0]}/{body.client}")}
+        key = f"{auth[0]}/{body.client}"
+        with counters:
+            voice = voices.get(key)
+            if voice is None:
+                if len(voices) >= VOICES_MAX:  # `client` est libre : la table ne grandit pas sans limite
+                    return reply(429, "trop de micros")
+                voice = voices[key] = Voice(chat)  # sans lecteur : la réponse est lue par le client voix du PC
+        return {"answer": voice.handle(body.text, key)}
 
     @app.get("/api/chat/{job_id}")
     def chat_status(job_id: str, request: Request):

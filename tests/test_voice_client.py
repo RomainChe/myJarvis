@@ -41,6 +41,43 @@ class VoiceRouteTest(ServerBase):
         self.assertEqual(status, 200)
         self.assertEqual(self.audit.db.execute("SELECT count(*) FROM audit WHERE decision='confirmé'").fetchone()[0], 0)
 
+    def test_hors_ligne_ne_vaut_que_pour_son_micro(self):
+        _, a = self.enroll("a")
+        _, b = self.enroll("b")
+        with mock.patch.object(voice_mod, "execute", return_value="ok"):
+            self.assertEqual(self.call("POST", "/api/voice", {"text": "Jarvis hors ligne"}, token=a)[1],
+                             {"answer": voice_mod.OFFLINE_MSG})
+            self.assertEqual(self.call("POST", "/api/voice", {"text": "allume la télé"}, token=a)[1], {"answer": ""})
+            self.assertEqual(self.call("POST", "/api/voice", {"text": "allume la télé"}, token=b)[1], {"answer": "ok"})
+            self.assertEqual(self.call("POST", "/api/voice", {"text": "allume la télé", "client": "autre"}, token=a)[1],
+                             {"answer": "ok"})
+
+    def test_route_n2_message_fixe_rien_execute(self):
+        _, token = self.enroll()
+        fake = lambda text, *, audit, confirm, strong_auth, source: (  # noqa: E731
+            self._try("power", {"action": "shutdown"}, audit, confirm, strong_auth, source), "fait")[1]
+        with mock.patch.object(voice_mod, "ask", fake), mock.patch("subprocess.run") as run:
+            status, body, _ = self.call("POST", "/api/voice", {"text": "un truc inhabituel"}, token=token)
+        self.assertEqual((status, body), (200, {"answer": voice_mod.N2_MSG}))
+        run.assert_not_called()
+
+    def test_route_n3_refuse(self):
+        _, token = self.enroll()
+        fake = lambda text, *, audit, confirm, strong_auth, source: (  # noqa: E731
+            self._try("power", {"action": "shutdown"}, audit, confirm, strong_auth, source), "C'est fait")[1]
+        with mock.patch.object(voice_mod, "ask", fake), mock.patch.object(voice_mod, "effective", return_value=3),                 mock.patch("jarvis.core.permissions.effective", return_value=3), mock.patch("subprocess.run") as run:
+            body = self.call("POST", "/api/voice", {"text": "un truc inhabituel"}, token=token)[1]
+        self.assertEqual(body, {"answer": voice_mod.N3_MSG})
+        run.assert_not_called()
+
+    @staticmethod
+    def _try(name, args, audit, confirm, strong_auth, source):
+        from jarvis.core.permissions import Refused, execute
+        try:
+            execute(name, args, source=source, audit=audit, confirm=confirm, strong_auth=strong_auth)
+        except Refused:
+            pass
+
     def test_limite_de_debit(self):
         _, token = self.enroll()
         with mock.patch.object(voice_mod, "execute", return_value="ok"):
@@ -79,6 +116,11 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(seen["auth"], "Bearer cle-de-test")
         self.assertEqual(seen["origin"], URL)
         self.assertEqual(seen["body"], {"text": "allume la lumière", "client": "pc"})
+
+    def test_429_vu_par_le_client(self):
+        import urllib.error
+        err = urllib.error.HTTPError(URL, 429, "trop", {}, None)
+        self.assertEqual(self.remote(mock.Mock(side_effect=err)).handle("salut"), voice_client.UNREACHABLE_MSG)
 
     def test_texte_vide_invalide(self):
         with self.assertRaises(ValueError):

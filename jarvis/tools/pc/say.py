@@ -13,7 +13,7 @@ def _get_speaker():
     return _speaker
 
 
-@tool("say", "Lit un court texte à voix haute sur le PC (rappels, minuteurs).", Level.N1, hidden=("text",), text=str)
+@tool("say", "Lit un court texte à voix haute sur le PC (rappels, minuteurs).", Level.N1, hidden=("text",), taint_blocked=True, text=str)
 def say(text: str) -> dict:
     if not text.strip():
         raise ValueError("texte vide")
