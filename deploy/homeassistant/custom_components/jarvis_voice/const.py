@@ -1,0 +1,9 @@
+DOMAIN = "jarvis_voice"
+CONF_URL = "url"
+CONF_KEY = "key"
+CONF_CLIENT = "client"
+DEFAULT_URL = "http://127.0.0.1:8765"  # le Core du mini-PC écoute en local ; HA (réseau hôte) l'atteint sans quitter la machine
+DEFAULT_CLIENT = "salon"
+TIMEOUT_S = 60  # un tour LLM local peut durer
+REPLY_MAX = 16384
+FALLBACK_MSG = "Le Core ne répond pas."
