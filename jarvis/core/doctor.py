@@ -22,6 +22,11 @@ ALERT = {"title": "Jarvis", "body": "Le Core s'était arrêté, il a été relan
 HEALTH_ALERT = {"title": "Jarvis", "body": "Journal d'audit rompu ou anormal : lance « python -m jarvis doctor »."}
 HEALTH_EVERY_S = 3600
 SYSTEM32 = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
+MODELS = Path(__file__).resolve().parents[2] / "models"
+
+
+def backup_dir() -> Path:
+    return Path(os.environ.get("JARVIS_BACKUP_DIR") or Path.home() / ".jarvis" / "backups")
 
 
 def http_up(url: str, timeout: float = 5) -> bool:

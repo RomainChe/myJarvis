@@ -92,7 +92,6 @@ LABELS = {
     "mail_recent": ("Résumer les mails", "Lit expéditeur, objet et début des mails récents, en lecture seule."),
     "voyage_prix": ("Prix des vols", "Meilleur prix suivi par flight-price-tracker, tendance, départ et dates."),
     "voyage_recherche": ("Recherche de vols", "Lance une recherche ponctuelle de flight-price-tracker, résultat par e-mail."),
-    "hotel_itineraire": ("Prix des hôtels", "Total d'hébergement du voyage suivi par hotel-price-tracker, hôtel recommandé par ville."),
     "conso_conseils": ("Conseils de consommation", "Conseils déterministes pour consommer moins, chacun justifié par un chiffre de la semaine."),
     "conso_totale": ("Consommation du logement", "kWh et € du compteur Linky (relevé de la veille) sur le jour, la semaine ou le mois, avec la part du PC."),
     "conso_pc": ("Consommation du PC", "kWh et € de la prise du PC sur le jour, la semaine ou le mois, comparés à la période d'avant."),

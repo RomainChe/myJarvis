@@ -149,11 +149,6 @@
                 "ou en sont les vols", "ou en est le vol", "meilleur prix du vol", "meilleur prix des vols", "prix du voyage",
                 "le point sur les vols", "ou en sont les prix des vols"]
   },
-  {
-    "tool": "hotel_itineraire",
-    "phrases": ["prix des hotels", "le prix des hotels", "prix de l hotel", "ou en sont les hotels", "ou en est l hebergement",
-                "combien coute l hebergement", "combien coutent les hotels", "le point sur les hotels", "prix de l hebergement"]
-  },
   {"tool": "conso_conseils", "patterns": ["((des |mes )?conseils( pour| de| sur)?( la| ma| mes)? (consommer moins|conso(mmation)?( [eé]lectrique)?|[eé]conomiser( l.[eé]lectricit[eé])?)|conseils conso(mmation)?|comment (r[eé]duire|baisser|diminuer) ma conso(mmation)?( [eé]lectrique)?|comment consommer moins)"]},
   {"tool": "conso_totale", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (de la maison|du logement|totale|de chez moi)|combien (j.ai|on a|a-t-on) consomm[eé]( chez moi| en tout| au total)?)( hier)?"], "defaults": {"periode": "jour"}},
   {"tool": "conso_totale", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (de la maison|du logement|totale|de chez moi)|combien (j.ai|on a|a-t-on) consomm[eé]( chez moi| en tout| au total)?) (cette semaine|sur la semaine|sur (les )?7 jours|depuis une semaine)"], "defaults": {"periode": "semaine"}},
