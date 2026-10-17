@@ -19,6 +19,7 @@
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
     python -m jarvis say "<texte>"                     (lit le texte à voix haute, source `voix`)
+    python -m jarvis voice   (PC : micro + Whisper + Piper en local, texte envoyé au Core ; JARVIS_CORE_URL, clé voice_key)
     python -m jarvis mic [listen] | on | off | devices (écoute « hey jarvis » ; `off` = kill switch persistant ; JARVIS_AUDIO_IN)
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
@@ -105,6 +106,9 @@ def check_models(audit: Audit) -> None:
 
 def start_mic(audit: Audit):
     """Micro toujours à l'écoute tant que `~/.jarvis/mic_off` n'existe pas ; échec = serveur sans micro, jamais bloquant."""
+    from jarvis.core.host import HAS_PC_TOOLS
+    if not HAS_PC_TOOLS:  # Core du mini-PC : ni micro ni GPU, la voix vient du client du PC (`python -m jarvis voice`)
+        return None
     try:
         from jarvis.core.chat import Chat
         from jarvis.core.mic import Mic, threshold_from_env, wake_name_from_env
@@ -361,7 +365,7 @@ def _conso_watch() -> None:
 def _reminders(audit, mic) -> None:
     """Annonce minuteurs, rappels et briefing du matin : voix du PC (sauf hors ligne) + push sans le texte."""
     import time
-    from jarvis.core import doctor
+    from jarvis.core import agentlink, doctor
     from jarvis.tools.assist import build_briefing
     try:
         at = reminders.briefing_time()
@@ -382,6 +386,13 @@ def _reminders(audit, mic) -> None:
             done.append("push")
         except Exception:  # noqa: BLE001 (clé ou réseau : la voix passe quand même)
             pass
+        if voice is None:  # Core du mini-PC : le PC lit par l'agent (PC éteint ou agent absent = push seul)
+            try:
+                if agentlink.agent_url():
+                    agentlink.call("run", "say", {"text": spoken}, timeout=5)
+                    done.insert(0, "voix")
+            except (agentlink.AgentError, ValueError):
+                pass
         if voice is not None and not voice.offline and voice.speaker is not None and not voice.muted:
             for _ in range(40):  # une réponse en cours se termine d'abord (20 s au plus)
                 if not voice.speaker.is_speaking():
@@ -533,6 +544,9 @@ def main(argv: list[str]) -> int:
             print(voice.speaker.error)
             return 1
         return 0
+    if argv == ["voice"]:  # client voix du PC : le Core est sur le mini-PC
+        from jarvis import voice_client
+        return voice_client.run(audit)
     if argv[0] == "mic":
         return mic_cmd(argv, audit)
     if argv[0] == "passkey":
