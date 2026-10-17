@@ -159,11 +159,18 @@ Sur le **mini-PC** :
 - [x] `doctor` vert sur le mini-PC (2026-10-17), avec les réglages et identifiants du service (sinon Ollama et HA sont KO à tort) :
       `set -a; . ~/.config/jarvis/env; set +a; ~/jarvis/deploy/creds.sh run ~/venv/bin/python -m jarvis doctor`.
 - [ ] ACL en place, `tailscale funnel status` vide, `agent-task.ps1` relancé sans règle « plus large » signalée.
+      2026-10-17 : tags vérifiés (PC `tag:pc`, mini-PC étiqueté), funnel sans entrée publique (`serve` « tailnet only »),
+      Ollama et agent n'écoutent que sur l'IP Tailscale, règles « mini-PC seul » actives, aucune règle programme plus
+      large ; reste la recherche par port (`agent-task.ps1` en administrateur).
 - [ ] PWA depuis le téléphone : connexion par passkey sans ré-enrôlement, notification push reçue.
+      2026-10-17 : appareils enrôlés avant la bascule (`pwa:1`, `pwa:4`) utilisés sans ré-enrôlement ; reste le push.
 - [ ] « allume la télé » (routeur + HA local) ; une question au LLM (Ollama du PC) ; un outil PC (ex. volume) via l'agent,
       présent au journal d'audit du Core.
+      2026-10-17 : `tv_on` par le chat au journal ; Ollama du PC joint depuis le mini-PC ; `bienetre_read` (agent) au
+      journal ; reste une réponse du LLM et un outil PC N1 (volume).
 - [ ] PC éteint : PWA, domotique et rappels OK ; LLM et outils PC renvoient une erreur claire.
 - [ ] Le lendemain : `jarvis-backup` et `jarvis-banque` ont tourné (`systemctl --user list-timers`).
+      2026-10-17 : cinq unités actives, premiers passages prévus le 2026-10-18 (03:30 et 07:00).
 - [ ] Une semaine sans retour arrière : supprimer la VM Hyper-V et les tâches Windows désactivées au 10.
 
 - Maintenance : arrêter `jarvis-doctor.timer` avant d'arrêter le Core (le garde-fou le relance sinon en < 1 min).
