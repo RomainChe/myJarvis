@@ -1,0 +1,24 @@
+# Voix du salon (lot 4c) : reconnaissance Vosk et voix Piper pour l'Assist de Home Assistant.
+# Projet Compose SÉPARÉ de celui de HA (/srv/voice-salon) : un échec ici ne touche pas HA.
+# Les ports ne sont publiés que sur 127.0.0.1 (HA est en réseau hôte et les atteint par là) : rien n'est joignable
+# depuis le réseau local ni depuis Tailscale. Le port 5000 de wyoming-piper (interface web) n'est volontairement pas publié.
+# Versions épinglées, vérifiées le 2026-10-17 (Vosk : la 1.6.0 du dépôt n'a pas d'étiquette ni d'image, 1.5.1 = code v1.5.0).
+services:
+  wyoming-vosk:
+    image: rhasspy/wyoming-vosk:1.5.1
+    command: ["--language", "fr", "--data-dir", "/data"]   # modèle vosk-model-small-fr-0.22 (42 Mo) téléchargé au premier démarrage
+    ports: ["127.0.0.1:10300:10300"]
+    volumes: ["./vosk-data:/data"]
+    restart: unless-stopped
+    mem_limit: 768m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+  wyoming-piper:
+    image: rhasspy/wyoming-piper:2.5.2   # piper-tts 1.8.0 (onnxruntime), mesuré sans AVX sur le mini-PC
+    command: ["--voice", "fr_FR-tom-medium"]   # voix téléchargée au premier démarrage (63 Mo)
+    ports: ["127.0.0.1:10200:10200"]
+    volumes: ["./piper-data:/data"]
+    restart: unless-stopped
+    mem_limit: 768m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

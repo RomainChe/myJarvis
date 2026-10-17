@@ -14,7 +14,7 @@
                                                        (Enable Banking, lecture seule ; terminal interactif)
     python -m jarvis portfolio import <export.csv>     (copie l'export de transactions Trade Republic dans ~/.jarvis/, lecture seule)
     python -m jarvis binance fetch [catégorie ...]      (historique Binance en lecture seule -> ~/.jarvis/binance-history.json ; clé dans .env)
-    python -m jarvis device add | list | revoke <id|all>   (terminal interactif)
+    python -m jarvis device add [--voice <nom>] | list | revoke <id|all>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
@@ -160,10 +160,19 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         for row in devices.list():
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
-    if sub == "add" and len(argv) == 2 or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
+    if sub == "add" and len(argv) in (2, 4) and (len(argv) == 2 or argv[2] == "--voice") or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
         if not sys.stdin.isatty():  # action d'un humain devant le PC, comme une confirmation N3
             print("Refusé : cette commande exige un terminal interactif.")
             return 1
+        if sub == "add" and len(argv) == 4:  # appareil de portée voix : la clé n'ouvre que /api/voice (micro du salon)
+            try:
+                dev_id, token = devices.add_scoped(argv[3], "voice")
+            except ValueError as e:
+                print(e)
+                return 2
+            audit.log("cli", "device_add", {"scope": "voice", "id": dev_id}, 3, "confirmé", "appareil de portée voix créé")
+            print(f"Appareil {dev_id} (portée voix). Clé, affichée une seule fois, à coller dans Home Assistant : {token}")
+            return 0
         if sub == "add":
             code = devices.new_code()
             audit.log("cli", "device_add", {}, 3, "confirmé", "code d'enrôlement créé")
@@ -179,7 +188,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
         print("Appareil révoqué." if ok else "Appareil introuvable ou déjà révoqué.")
         return 0 if ok else 1
-    print("Usage : device add | device list | device revoke <id|all> | serve")
+    print("Usage : device add [--voice <nom>] | device list | device revoke <id|all> | serve")
     return 2
 
 

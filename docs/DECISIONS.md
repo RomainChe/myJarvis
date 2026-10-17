@@ -143,3 +143,9 @@
 - **Corrigé** : (1) `say` est `taint_blocked` (le LLM ayant lu du contenu externe ne fait pas parler le PC ; les rappels passent par `agentlink.call` direct) ; (2) l'état « hors ligne » de la voix est tenu par (appareil, client) sur `/api/voice`, 64 micros au plus, la voix locale et la CLI ne changent pas.
 - **Risque accepté** : le client voix utilise un appareil dédié `voix-pc` (`device add`, TTL 90 j, jamais la clé d'un téléphone). Sa clé est une clé d'appareil complète (toute la PWA). **Reporté** : jeton limité à `/api/voice` (colonne `scope` dans `devices`), à faire en phase 3 ou avec un second micro.
 - **Reporté** : `voice_client` suit les redirections d'urllib ; prévoir un opener sans suivi de redirection (la clé et l'en-tête Authorization ne doivent partir que vers `JARVIS_CORE_URL`).
+
+## 2026-10-17 — Lot 4c, voix du salon (Voice PE) : N1 à la voix
+- **Décision du propriétaire** : au salon, tous les outils N1 sont acceptés (pas de liste blanche), sauf `clipboard_write` et `driverwatch_accept`, ajoutés à `VOICE_BLOCKED` (refusés à la voix partout, salon et PC), sur avis de l'Expert Sécurité (un son entendu ne doit ni écrire dans le presse-papiers ni lancer une installation de pilotes). Autres décisions : Vosk à la place de Whisper (CPU du mini-PC sans AVX), « Hey Jarvis » au réglage le moins sensible, état « hors ligne » non persistant, clé d'appareil de portée voix (`device add --voice`).
+- **Risque accepté** : `open_app`, `close_app`, `lock_session`, `screen_off` restent déclenchables par une phrase entendue (TV, voisin, faux réveil) ; atténuations : plafond N0/N1, 20 phrases/min, journal `client=salon`, interrupteur matériel du micro.
+- **Reporté** : conteneurs sans `read_only` ni utilisateur non-root (non vérifiés pour ces images), modèles Vosk / Piper téléchargés sans somme de contrôle, images sans condensat `@sha256` (MIGRATION §Lot 4c).
+

@@ -83,7 +83,175 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 - Mode jeu : le Core interroge l'agent (outil N0 `game_running`, cache 5 s, échec = pas de jeu) ; pas de push de
   l'agent vers le Core. **Fait le 2026-10-13** (`feat/jeu-agent`).
 - Outil `claude_code` : reste sur le PC (CLI et dépôt locaux), via l'agent, `owner_only` inchangé.
-- Option plus tard : petit Whisper sur le mini-PC pour la voix PC éteint (plus lent, moins précis).
+- Voix du salon, PC éteint : **lot 4c** (ci-dessous), micro Home Assistant Voice PE + reconnaissance sur le mini-PC.
+
+### Lot 4c : voix du salon (Voice PE + reconnaissance sur le mini-PC), étape A : mesures et plan (2026-10-17)
+Décision du propriétaire (2026-10-17) : micro du salon = Home Assistant Voice Preview Edition (ESP32-S3, ESPHome, mot de
+réveil sur le boîtier, haut-parleur intégré). Chaîne : Voice PE -> pipeline Assist de HA -> reconnaissance sur le mini-PC
+(marche PC éteint) -> agent de conversation -> `POST /api/voice` du Core -> réponse lue par le boîtier.
+**Décisions du propriétaire (2026-10-17)** : Vosk à la place de Whisper ; « Hey Jarvis » du boîtier au réglage le moins sensible
+(« Jarvis » français plus tard) ; au salon, **tous les outils N1 sont acceptés** (garde = plafond N0/N1 de `/api/voice`, N2 / N3
+refusés, règle `taint_blocked` inchangée) ; clé de portée voix avant l'étape B ; pas de whisper.cpp ; l'état « hors ligne » ne
+persiste pas au redémarrage du Core.
+**Étape B : code et préparation faits le 2026-10-17 (`feat/lot4c-salon`), RIEN n'est déployé sur le mini-PC ni dans HA** ; procédure
+ci-dessous, à valider par le propriétaire.
+
+#### Mesures (mini-PC, 2026-10-17)
+Machine : Intel Pentium G4400T (Skylake, **2 coeurs, sans AVX ni AVX2**, SSE4.2 seulement), 7,8 Go de RAM (0,9 Go utilisés
+par HA + Core), Debian 13. Test dans un venv jetable (supprimé ensuite), rien d'installé au niveau système.
+Échantillons : 5 commandes (« allume le PC », « éteins le salon », « quelle heure est-il », « mets la TV sur TF1 »,
+« rappelle-moi dans vingt minutes ») x 2 voix Piper (`tom`, `siwis`) x propre / bruit blanc 15 dB = 20 clips de 1 à 2 s,
+0,5 s de silence de chaque côté. Whisper : faster-whisper 1.2.1, `int8`, 2 threads, `beam_size=1`, `language=fr`, VAD.
+Erreurs = mots faux sur 40 ; « 20 » écrit pour « vingt » compte comme une erreur (environ un tiers des erreurs de Whisper,
+sans gravité pour le routeur).
+
+| Moteur | Latence par commande | Erreurs propre / bruit | RAM (RSS) | CPU |
+|---|---|---|---|---|
+| Whisper `tiny` | 1,2 s | 55 % / 85 % (inutilisable) | ~0,6 Go | 190 % |
+| Whisper `base` | 2,5 s | 40 % / 38 % | ~0,75 Go (pic 0,95) | 190 % |
+| Whisper `small` | **7,3 s** (constant : fenêtre fixe de 30 s) | 15 % / 28 % | ~1,5 Go | 195 % |
+| **Vosk `small-fr-0.22`** (Kaldi) | 1,2 s en lot ; **0,06 s (max 0,12 s) après la fin de la phrase en flux** | 18 % / 22 % | ~0,36 Go, modèle ~40 Mo | 100 % (1 coeur) |
+| Piper `tom-medium` (réponse) | 0,35 à 0,55 s pour 1,2 à 1,9 s de voix | - | - | - |
+| Piper `siwis-medium` | 0,16 à 0,27 s pour 1,0 à 1,7 s | - | - | - |
+
+- Whisper : même `small`, le seul acceptable en précision, met 7 s : hors de la cible (< 1,5 s). Cause probable : le CPU sans
+  AVX (CTranslate2 retombe sur le code générique) et l'encodeur à fenêtre fixe de 30 s. Pas d'amélioration par réglage.
+  **whisper.cpp non testé** (pas de compilateur sur le mini-PC, il faudrait `apt install build-essential cmake`, à valider
+  avec le propriétaire) ; sans AVX, pas de gain attendu suffisant. Recommandation : ne pas insister.
+- Vosk : les erreurs restantes sont des homophones (« éteint » pour « éteins », « mais la TV » pour « mets la TV », « très fin »
+  pour « TF1 », « a vu le pc » avec bruit). Le routeur doit donc tolérer ces variantes (étape B).
+- **Limite du test** : voix synthétique, propre et régulière, une phrase isolée, micro parfait. Une vraie voix, à 2 à 4 m du
+  boîtier, TV allumée, sera moins bien reconnue : ces chiffres sont un plafond, pas une promesse. À refaire avec des
+  enregistrements réels du salon à l'étape B.
+- Latence de bout en bout **estimée, non mesurée** (commande du routeur, sans LLM) : Vosk ~0,1 s + Core quelques ms + premier son
+  de Piper 0,4 à 0,6 s = environ 0,7 s, plus la latence réseau du boîtier. Une question qui passe par le LLM (Ollama sur le PC)
+  dépend du PC : PC éteint = message « modèle indisponible », déjà géré.
+
+#### Modèle recommandé : Vosk `vosk-model-small-fr-0.22` via `wyoming-vosk`
+Seul moteur mesuré qui tient la cible sur ce CPU, marche PC éteint et laisse ~7 Go de RAM libres. Whisper `base` / `small`
+écartés (2,5 s / 7,3 s). Pas de grammaire fermée au départ (le Core doit aussi comprendre les questions libres) ;
+`--limit-sentences` (précision maximale sur une liste de phrases) reste une option si les erreurs gênent, au prix de ne plus
+comprendre que les phrases listées. Si le matériel change (CPU avec AVX2, ex. Intel N100) : refaire la mesure, Whisper `small`
+redeviendrait possible.
+
+#### Conteneurs (`deploy/voice-salon/docker-compose.yml`, projet Compose séparé de HA)
+Vérifié le 2026-10-17 (registre Docker, dépôts, et exécution réelle des deux serveurs dans des venv jetables du mini-PC, supprimés ensuite) :
+
+| Conteneur | Image épinglée | Port (publié sur 127.0.0.1 seulement) | Vérifié |
+|---|---|---|---|
+| `wyoming-vosk` | `rhasspy/wyoming-vosk:1.5.1` (code v1.5.0, mars 2024 ; la 1.6.0 du dépôt n'a ni étiquette ni image) | 10300 | `--language fr` télécharge `vosk-model-small-fr-0.22` (42 Mo) ; écoute, Describe et transcription OK sur ce CPU |
+| `wyoming-piper` | `rhasspy/wyoming-piper:2.5.2` (sept. 2026, `piper-tts` 1.8.0 / onnxruntime) | 10200 (le 5000 de l'interface web n'est pas publié) | `--voice fr_FR-tom-medium` téléchargée au démarrage ; synthèse OK |
+
+- **AVX** : l'ancienne image Piper (binaire C++) n'est pas retenue ; 2.5.2 utilise le paquet `piper-tts` 1.8.0 que j'ai exécuté sans AVX.
+  Les images elles-mêmes n'ont pas été lancées (Docker demande `sudo`) : seul le Python qu'elles contiennent a été exécuté, avec les mêmes versions.
+- Mesure en chaîne par le protocole Wyoming (client wyoming 1.10.2 contre serveur Vosk avec wyoming 1.5.2 : compatible) : premier son de Piper 0,36 à
+  0,58 s ; Vosk rend le texte 1,0 à 1,5 s après la fin d'un audio envoyé d'un bloc (en direct, il décode pendant la parole : voir
+  les 0,1 s mesurés plus haut). RAM : Vosk ~210 Mo, Piper ~250 Mo. Premier appel à froid plus lent (2,8 s Piper, 3,4 s Vosk).
+- Les images écoutent sur `0.0.0.0` **dans** le conteneur ; la publication `127.0.0.1:port:port` les garde invisibles du réseau.
+  Aucune règle ufw à ajouter (rien n'entre sur 10200 / 10300 depuis l'extérieur). Le boîtier lit l'audio de la réponse sur HA
+  (`8123`, déjà ouvert au réseau local) ; HA ouvre lui-même la connexion API ESPHome vers le boîtier. Comparer `sudo ufw status verbose` avant / après.
+- Non vérifié : lancement réel sous Docker avec `cap_drop: ALL` (si un conteneur ne démarre pas, retirer cette ligne et le dire).
+- Repli si une image pose problème : venv + unité systemd utilisateur avec les mêmes commandes (`python -m wyoming_vosk --uri tcp://127.0.0.1:10300 --data-dir … --language fr`, `python -m wyoming_piper --uri tcp://127.0.0.1:10200 --data-dir … --voice fr_FR-tom-medium`) ; Vosk et Piper veulent des venv séparés (versions de `wyoming` incompatibles).
+
+#### Agent de conversation vers `/api/voice`
+Option retenue : **composant personnalisé HA** `jarvis_voice` (`deploy/homeassistant/custom_components/jarvis_voice/` : `ConversationEntity`,
+configuration par l'interface : URL du Core, clé, nom du micro ; sans secret dans le dépôt, la clé reste dans le stockage de HA).
+**Écrit sans HA sous la main : la partie sans HA (`core.py`) est testée, le reste (`conversation.py`, `config_flow.py`) n'a jamais tourné** ; à valider au premier essai (voir procédure).
+`_async_handle_message` envoie `{"text": ..., "client": "salon"}` à `POST http://127.0.0.1:8765/api/voice` (le Core écoute déjà
+en local sur 8765 ; pas besoin du HTTPS Tailscale sur la même machine) avec `Authorization: Bearer`, et rend `answer` à Assist.
+Réponse vide (Core « hors ligne ») -> rien n'est lu. Erreur 429 / réseau -> une phrase fixe.
+- Pourquoi pas un agent en YAML : un déclencheur de phrase avec joker + `rest_command` + `set_conversation_response` éviterait le
+  code, mais la documentation lue ne dit pas si une phrase faite uniquement d'un joker est acceptée, ni la priorité sur les
+  intentions intégrées de HA (qui exécuteraient « allume le salon » **sans passer par le Core ni son journal**). Non vérifié, donc
+  écarté. Avec un agent personnalisé, tout le texte passe par le Core et son journal.
+- La clé est dans le stockage de HA (dossier `config` du conteneur, hors dépôt). Le composant refuse `http` hors `127.0.0.1`.
+
+#### Appareil dédié `voix-salon`
+`python -m jarvis device add --voice voix-salon` (terminal interactif, 90 jours d'inactivité, jamais la clé d'un téléphone ni de `voix-pc`) :
+la clé est affichée une seule fois. **Fait** : colonne `devices.scope` (`full` par défaut, migration automatique : les appareils
+existants restent complets), `Devices.check_scoped`, `authenticate(voice_route=True)` réservé à `POST /api/voice` ; une clé `voice` sur toute
+autre route donne 403 « portée insuffisante » (une ligne de journal `scope` par minute), sans compter comme échec d'authentification.
+Une clé `full` (voix-pc) garde l'accès à `/api/voice`. Pourra servir à `voix-pc` plus tard. `client=salon` est fixé dans la configuration de HA.
+
+#### Mot de réveil du boîtier
+Vérifié dans les dépôts officiels le 2026-10-17 :
+- `esphome/micro-wake-word-models`, dossier `models/v2` : **`hey_jarvis`**, `okay_nabu`, `hey_mycroft`, `alexa` (+ `vad`). Entraînés
+  en **anglais** (`trained_languages: ["en"]`, Kevin Ahrendt, Apache 2.0). Dossier `experiments` : `hey_home_assistant`,
+  `okay_computer`, `choo_choo_homie`, `hey_peppa_pig`. **Il n'existe pas de modèle « Jarvis » seul, ni de modèle français.**
+- Le micrologiciel du Voice PE (`esphome/home-assistant-voice-pe`) embarque `okay_nabu`, `hey_jarvis`, `hey_mycroft` et `stop` ; le mot
+  actif et la sensibilité se règlent dans HA, sans compiler. Faux réveils annoncés dans le micrologiciel (corpus anglais DipCo)
+  pour `hey_jarvis` : 0,56 par heure au réglage par défaut (seuil 0,97), 0,94/h au réglage intermédiaire (0,92), 1,5/h au plus sensible
+  (0,83). Un accent français sera moins bien détecté que ce corpus.
+- « Jarvis » seul ou une prononciation française : entraînement maison avec `kahrendt/microWakeWord`, puis micrologiciel ESPHome
+  compilé avec le `.tflite` (et refait à chaque mise à jour du micrologiciel officiel). Le modèle openWakeWord `jarvis_fr` du PC
+  n'est **pas utilisable** sur le boîtier (autre format). **Plus tard** ; départ avec `hey_jarvis` au réglage le moins sensible (YAGNI).
+
+#### « Jarvis, hors ligne »
+Le boîtier consomme le mot de réveil ; la phrase reçue par le Core est « hors ligne ». Le Core la reconnaît déjà (`Voice.handle`,
+état par appareil + `client`, journalisé) : il répond « Je me mets hors ligne. », puis **ignore tout** (réponse vide) sauf « online »
+/ « en ligne ». Limites à dire au propriétaire :
+- Le boîtier continue de se réveiller et d'envoyer l'audio à Vosk (LED allumée) ; seul le Core n'agit plus. Le **vrai** silence est
+  l'interrupteur matériel de coupure du micro du boîtier (nuit, visite).
+- L'état « hors ligne » est en mémoire : perdu au redémarrage du Core (retour « en ligne »), décision du propriétaire : non persistant.
+- Option plus tard : le Core demande à HA de couper le micro du boîtier (entité de mute du Voice PE) quand il passe hors ligne.
+
+#### Risques de sécurité (à soumettre à l'Expert Sécurité avant l'étape B)
+1. **Faux réveils et ordres diffusés** : TV, vidéo, publicité ou voisin qui dit « Hey Jarvis, éteins tout » déclenche la
+   commande. Aucune identification du locuteur sur le Voice PE (S12). Atténuations : seuil le moins sensible, plafond N0/N1,
+   20 phrases/min/appareil, journal avec `client=salon`, interrupteur matériel.
+2. **Plafond N1 trop large pour un micro ouvert** : « N0/N1 » inclut des outils sans rapport avec un salon (ci-dessous), et le
+   propriétaire peut abaisser `power`, `delete_file`, `move_file`, `kill_process`, `run_script` jusqu'à N1 (planchers), ce qui les
+   ouvrirait à la voix.
+3. **Texte reconnu = donnée** : un mauvais décodage produit n'importe quelle phrase ; le Core la traite déjà comme non fiable.
+4. **Clé dans HA** : jeton à portée limitée recommandé (voir « Appareil dédié »).
+5. **Vie privée** : l'audio reste sur le réseau local (boîtier, HA, Vosk, Piper) et n'est envoyé à HA qu'après le mot de réveil.
+   À confirmer à l'étape B : pas d'enregistrement conservé des audios dans HA, journal HA sans le texte des phrases. Nouvelle
+   donnée personnelle traitée : la voix du foyer et le texte reconnu (journal du Core : longueur + SHA-256 seulement).
+
+**Décision du propriétaire : tous les outils N1 sont acceptés depuis le salon**, sauf `clipboard_write` et `driverwatch_accept`, ajoutés le
+2026-10-17 à `VOICE_BLOCKED` (`permissions.py`, comme `memory_set` / `memory_forget`) : refusés à la voix (salon et PC), utilisables dans
+l'application et au terminal (refus testé : tests/test_voice_blocked.py). Garde : plafond N0/N1 de `/api/voice`, N2 / N3 refusés, règle
+`taint_blocked` inchangée (elle vise le contenu externe lu par le LLM). Restent atteignables par une phrase entendue (TV, voisin) :
+`open_app`, `close_app`, `lock_session`, `screen_off`, et `power`, `delete_file`, `move_file`, `kill_process`, `run_script` si le
+propriétaire les abaisse en N1 (planchers). Les lectures de contenu privé rendent « Fait, voir l'application ».
+
+#### Procédure de déploiement (étape B, à valider par le propriétaire avant exécution)
+Depuis PowerShell sur le PC (`ssh -t jarvis@<IP-minipc>` pour `sudo`). Sauvegarde HA récente avant de commencer.
+1. **Clé voix** (sur le mini-PC, terminal interactif) : `cd ~/jarvis && git pull` (branche fusionnée), redémarrer le Core
+   (`systemctl --user restart jarvis-core`, la migration du schéma est automatique), puis
+   `~/venv/bin/python -m jarvis device add --voice voix-salon` ; garder la clé affichée pour l'étape 5, ne pas la copier ailleurs.
+2. **Conteneurs** : `sudo mkdir -p /srv/voice-salon && sudo chown jarvis /srv/voice-salon`, copier `deploy/voice-salon/docker-compose.yml`
+   dans ce dossier, `cd /srv/voice-salon && sudo docker compose up -d`, puis `sudo docker compose logs --tail 30` (« Ready » côté
+   Piper, modèle chargé côté Vosk) et `sudo ss -tlnp | grep -E '1020|1030'` : les deux ports en `127.0.0.1` seulement.
+   `sudo ufw status verbose` inchangé.
+3. **Composant** : copier `deploy/homeassistant/custom_components/jarvis_voice/` dans `/srv/homeassistant/config/custom_components/`
+   (`scp -r`), `cd /srv/homeassistant && sudo docker compose restart` (HA indisponible 1 à 2 min).
+4. **Wyoming** dans HA : Paramètres > Appareils et services > Ajouter une intégration > Wyoming Protocol, hôte `127.0.0.1`, port 10300
+   puis 10200 (deux entrées).
+5. **JARVIS Voice** : Ajouter une intégration > JARVIS Voice : URL `http://127.0.0.1:8765`, la clé de l'étape 1, nom du micro `salon`.
+6. **Pipeline** : Paramètres > Assistants vocaux > Ajouter : nom « Jarvis », langue français, agent de conversation = JARVIS (salon),
+   reconnaissance = vosk, synthèse = piper (voix `fr_FR-tom-medium`), mot de réveil = aucun (il est sur le boîtier).
+7. **Boîtier** : adopter le Voice PE dans HA (ESPHome), lui assigner le pipeline « Jarvis », mot de réveil `hey_jarvis`, sensibilité la
+   plus basse. Premiers essais : « Hey Jarvis, quelle heure est-il », « allume le PC » PC éteint (journal du Core : source `voix`,
+   client `salon`), « Hey Jarvis, hors ligne » puis « en ligne ».
+8. **Contrôles** : (a) clé voix refusée ailleurs : `curl -H "Authorization: Bearer <clé>" http://127.0.0.1:8765/api/ping` depuis le
+   mini-PC -> 403 ; (b) journal du Core sans texte de phrase ; (c) HA : pas d'enregistrement audio conservé (réglages Assist) ;
+   (d) compter les faux réveils TV allumée sur une journée (seuil à ajuster, ou « Jarvis » français à entraîner).
+Retour arrière (et en cas de doute sur la clé, ou de boîtier perdu ou revendu) : `~/venv/bin/python -m jarvis device list` pour trouver l'id de
+`voix-salon`, puis `~/venv/bin/python -m jarvis device revoke <id>` (effet immédiat) ; `sudo docker compose down` dans `/srv/voice-salon` ;
+retirer `custom_components/jarvis_voice` et redémarrer HA.
+**Reportés (revue Sécurité lot 4c)** : (1) conteneurs sans `read_only` ni `user` non-root, car non vérifiés pour ces images (Docker demande
+`sudo`, rien n'a été lancé) ; à essayer au déploiement (`read_only: true` + `tmpfs: [/tmp]`, volume `/data` inscriptible) ; images épinglées par
+version et non par condensat `@sha256`. (2) Les modèles (Vosk 42 Mo, voix Piper) sont téléchargés depuis Hugging Face au premier démarrage
+sans somme de contrôle (le lot 4b en vérifie une pour le PC, `models/MANIFEST.json`) ; à faire : télécharger une fois, vérifier le SHA-256,
+puis monter le fichier en lecture seule.
+**À vérifier au premier essai** (non testé sans HA) : l'entité `JarvisConversation` apparaît dans la liste des agents ; une réponse
+vide (Core hors ligne) ne fait pas planter Assist ; `async_process` encore accepté par la version de HA installée.
+
+**Code de l'étape B** : clé de portée voix (`jarvis/core/devices.py`, `server.py`, `__main__.py`, tests/test_voice_scope.py) ;
+tolérance aux homophones de Vosk (`router.voice_fix`, appelée par `Voice.handle` ; (phrase entière `<verbe> <article> <objet connu>`, « a vu / a lu » limités à 4 mots) « a vu le pc », « éteint la télé »,
+« mais la TV », « sur très fin / tf un » -> TF1 ; ancrée en début de phrase, tests/test_voice_homophones.py) ; composant HA et
+compose (`deploy/`, tests/test_ha_component.py).
 
 ### Lot 5 : données et bascule
 - Copie à froid de `~/.jarvis` (`scripts/backup.py --verify` avant et après : chaîne d'audit et ancre).
@@ -201,7 +369,7 @@ Sur le **mini-PC** :
 | D15 | Accès d'Ollama par le Core | Tailscale, pas de port LAN ; ACL Tailscale limitée mini-PC → PC |
 | D16 | Nom Tailscale conservé ou appareils ré-enrôlés | Conserver (renommer le PC) |
 | D17 | Raccourci routeur pour « éteins le PC » | Non (S12/C4), garder LLM + confirmation |
-| D18 | Whisper sur le mini-PC (voix PC éteint) | Plus tard, après mesure de latence |
+| D18 | Whisper sur le mini-PC (voix PC éteint) | **Mesuré le 2026-10-17 : Whisper inutilisable sur ce CPU (sans AVX), Vosk à la place** (lot 4c) |
 
 ## Ordre et dépendances
 
