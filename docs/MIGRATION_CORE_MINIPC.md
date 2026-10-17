@@ -106,7 +106,7 @@ Sur le **PC** (PowerShell administrateur, adresses lues dans `tailscale status`,
 4. `winget upgrade Ollama.Ollama` (dernière version stable, `ollama --version` ; jamais `OLLAMA_ORIGINS`), puis
    `deploy\windows\agent-task.ps1 -TailscaleHost <IP-TS-PC> -MiniPc <IP-TS-minipc>` ; quitter puis relancer Ollama ;
    si Windows demande « Autoriser l'accès », **refuser** ; **relancer le script** et désactiver toute règle signalée
-   « plus large » (`Disable-NetFirewallRule -DisplayName <nom>`, ex. la règle `python.exe` créée par Python). Dans `.env` du PC : `JARVIS_OLLAMA_URL=http://<IP-TS-PC>:11434`
+   « plus large » (`Disable-NetFirewallRule -DisplayName <nom>`, ex. la règle `python.exe` créée par Python). Variable Windows (le Core du PC ne lit pas `.env`) : `setx JARVIS_OLLAMA_URL http://<IP-TS-PC>:11434`
    (Ollama n'est plus sur `127.0.0.1`), relancer « JARVIS - core » et vérifier une question au LLM.
 5. Se déconnecter puis se reconnecter (la tâche de l'agent démarre à l'ouverture de session).
 6. `python -m jarvis secret export "$env:LOCALAPPDATA\Temp\jarvis-export"` (jamais sous OneDrive : les secrets sont en
@@ -118,7 +118,7 @@ Sur le **mini-PC** :
    `cp ~/jarvis/deploy/env.example ~/.config/jarvis/env && chmod 600 ~/.config/jarvis/env`, le remplir :
    `JARVIS_HA_URL=http://127.0.0.1:8123`, `JARVIS_OLLAMA_URL=http://<IP-TS-PC>:11434`,
    `JARVIS_AGENT_URL=http://<IP-TS-PC>:8788`, `JARVIS_TS_HOST=<ancien nom du PC>.<tailnet>.ts.net`, le reste
-   recopié du `.env` du PC.
+   recopié des variables Windows `JARVIS_*` du PC (`Get-ChildItem env:JARVIS_*`).
 8. **ACL Tailscale (D15, exigée par la Sécurité avant B)**, console Tailscale > Access controls, en gardant une session
    SSH ouverte vers le mini-PC pendant l'enregistrement : téléphone → mini-PC:443 ; mini-PC → PC:8788 et PC:11434 ;
    PC → mini-PC:22, 443, 8123 ; téléphone → PC:443 jusqu'à la bascule (retiré au 12). Rien d'autre (la règle par défaut « tout vers tout » est retirée).
@@ -157,7 +157,7 @@ Sur le **mini-PC** :
   rendre son nom Tailscale au PC ; recopier `~/.jarvis` du mini-PC (plus récent) sur le PC après `scripts.backup --verify` ;
   sur le PC, réactiver les quatre tâches du 10 et relancer `tailscale serve` (un seul Core actif à la fois, principe 3).
   Ollama et l'agent restent sur l'IP Tailscale (`agent-task.ps1 -Remove` pour revenir à `127.0.0.1`, puis retirer
-  `JARVIS_OLLAMA_URL` du `.env`).
+  la variable Windows `JARVIS_OLLAMA_URL` : `[Environment]::SetEnvironmentVariable("JARVIS_OLLAMA_URL", $null, "User")`).
 
 ### Lot 6 : règles d'alimentation (remplace le script HA)
 - `pc_off_plug` orchestré par le Core : confirmation N2 → arrêt par l'agent → attente de chute de puissance
