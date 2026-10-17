@@ -1,3 +1,4 @@
+    déplacer `tag:jarvis` du PC vers le mini-PC (PC : `tag:pc` seul ; mini-PC : `tag:minipc` + `tag:jarvis`).
 # Migration du Core sur le mini-PC (option A, décidée le 2026-10-13)
 
 Objectif (propriétaire) : le **Core tourne en permanence sur le mini-PC** ; le PC principal est déchargé. Le PC garde
@@ -120,8 +121,20 @@ Sur le **mini-PC** :
    `JARVIS_AGENT_URL=http://<IP-TS-PC>:8788`, `JARVIS_TS_HOST=<ancien nom du PC>.<tailnet>.ts.net`, le reste
    recopié des variables Windows `JARVIS_*` du PC (`Get-ChildItem env:JARVIS_*`).
 8. **ACL Tailscale (D15, exigée par la Sécurité avant B)**, console Tailscale > Access controls, en gardant une session
-   SSH ouverte vers le mini-PC pendant l'enregistrement : téléphone → mini-PC:443 ; mini-PC → PC:8788 et PC:11434 ;
-   PC → mini-PC:22, 443, 8123 ; téléphone → PC:443 jusqu'à la bascule (retiré au 12). Rien d'autre (la règle par défaut « tout vers tout » est retirée).
+   SSH ouverte vers le mini-PC par l'IP locale. Un tag par rôle : `tag:jarvis` = machine du Core (PWA, se déplace au 12),
+   `tag:pc` = Ollama et agent, `tag:minipc`. Machines > Edit ACL tags : PC `tag:jarvis` + `tag:pc`, mini-PC `tag:minipc`,
+   téléphone sans tag. Un appareil étiqueté n'est plus `autogroup:member` : sans règle, il ne joint plus rien.
+   ```json
+   {"tagOwners": {"tag:jarvis": ["autogroup:admin"], "tag:pc": ["autogroup:admin"], "tag:minipc": ["autogroup:admin"]},
+    "acls": [
+      {"action": "accept", "src": ["autogroup:member"], "dst": ["tag:jarvis:443"]},
+      {"action": "accept", "src": ["tag:minipc"], "dst": ["tag:pc:8788,11434"]},
+      {"action": "accept", "src": ["tag:pc"], "dst": ["tag:minipc:22,8123", "tag:jarvis:443"]}],
+    "tests": [
+      {"src": "tag:minipc", "accept": ["tag:pc:11434", "tag:pc:8788"], "deny": ["tag:pc:22", "tag:pc:443"]},
+      {"src": "tag:pc", "accept": ["tag:minipc:22", "tag:minipc:8123"], "deny": ["tag:minipc:8788"]},
+      {"src": "<ton e-mail>", "accept": ["tag:jarvis:443"], "deny": ["tag:pc:11434", "tag:pc:8788", "tag:minipc:22"]}]}
+   ```
 9. Contrôles de frontière, après l'ACL et la relance d'Ollama : `curl -s http://<IP-TS-PC>:11434/api/version` répond
    depuis le mini-PC ; la même URL **échoue** depuis le téléphone (Tailscale actif) et depuis un autre PC du réseau
    local. Idem pour le port 8788. Raison : Ollama n'a pas d'authentification, quiconque l'atteint peut remplacer le
@@ -154,7 +167,7 @@ Sur le **mini-PC** :
 
 - Maintenance : arrêter `jarvis-doctor.timer` avant d'arrêter le Core (le garde-fou le relance sinon en < 1 min).
 - Retour arrière : `systemctl --user disable --now` des cinq unités et `sudo tailscale serve reset` sur le mini-PC ;
-  rendre son nom Tailscale au PC ; recopier `~/.jarvis` du mini-PC (plus récent) sur le PC après `scripts.backup --verify` ;
+  rendre son nom Tailscale et `tag:jarvis` au PC ; recopier `~/.jarvis` du mini-PC (plus récent) sur le PC après `scripts.backup --verify` ;
   sur le PC, réactiver les quatre tâches du 10 et relancer `tailscale serve` (un seul Core actif à la fois, principe 3).
   Ollama et l'agent restent sur l'IP Tailscale (`agent-task.ps1 -Remove` pour revenir à `127.0.0.1`, puis retirer
   la variable Windows `JARVIS_OLLAMA_URL` : `[Environment]::SetEnvironmentVariable("JARVIS_OLLAMA_URL", $null, "User")`).
@@ -178,4 +191,4 @@ Sur le **mini-PC** :
 ## Ordre et dépendances
 
 0 → 1 → 2 (les lots 1 et 2 peuvent se faire sur le PC actuel, sans acheter ni installer) → 3 → 4 → 5 → 6.
-Le lot 1 est la condition de tout le reste : il se fait en premier, avant même l'arrivée du mini-PC.
+12. Console Tailscale : renommer le PC (ex. `pc-bureau`), puis donner au mini-PC **l'ancien nom du PC** (D16) ;
