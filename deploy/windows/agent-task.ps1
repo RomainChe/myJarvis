@@ -2,6 +2,7 @@
 # À lancer en administrateur :
 #   .\agent-task.ps1 -TailscaleHost 100.x.y.z -MiniPc 100.a.b.c
 # Aucune adresse n'est dans le dépôt : elles se passent en paramètres. Relançable. Retrait : -Remove.
+#Requires -RunAsAdministrator
 param([string]$TailscaleHost, [string]$MiniPc, [int]$Port = 8788, [switch]$Remove)
 $ErrorActionPreference = "Stop"
 $task = "JARVIS - agent PC"
