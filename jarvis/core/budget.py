@@ -26,13 +26,13 @@ def _fr(day: str) -> str:
 
 
 def savings_days(txs: list[dict]) -> set[str]:
-    """Jours d'épargne hebdomadaire Trade Republic, même si la banque date les opérations du jeudi au samedi ou si le lot
-    arrive au fil de l'eau : une fenêtre mercredi→samedi qui contient au moins 3 des 4 plans (10, 15, 13, 7 €) est un lot."""
+    """Jours d'épargne hebdomadaire Trade Republic, même si la banque date les opérations du jeudi au mardi ou si le lot
+    arrive au fil de l'eau : une semaine mercredi→mardi qui contient au moins 3 des 4 plans (10, 15, 13, 7 €) est un lot."""
     by = defaultdict(lambda: defaultdict(set))  # mercredi → jour → montants
     for t in txs:
         d = date.fromisoformat(t["date"])
-        if t.get("bank") == TR and t["amount"] < 0 and 2 <= d.weekday() <= 5:  # ponytail: un achat de 60–75 € dans une fenêtre de lot passe pour le PEA
-            by[d - timedelta(days=d.weekday() - 2)][t["date"]].add(-t["amount"])
+        if t.get("bank") == TR and t["amount"] < 0:  # ponytail: un achat de 60–80 € dans une semaine de lot passe pour le PEA
+            by[d - timedelta(days=(d.weekday() - 2) % 7)][t["date"]].add(-t["amount"])
     return {day for days in by.values() if len(set().union(*days.values()) & set(PLANS)) >= 3 for day in days}
 
 
