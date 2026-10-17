@@ -25,7 +25,18 @@ def _fr(day: str) -> str:
     return f"{day[8:10]}/{day[5:7]}"
 
 
-def classify(t: dict) -> tuple[str, dict]:
+def savings_days(txs: list[dict]) -> set[str]:
+    """Jours d'épargne hebdomadaire Trade Republic, même si la banque date les opérations du jeudi ou du vendredi : le jour
+    compte 5 × 10 €, un 15, un 13, un 7, un montant de 60–75 € (PEA) et un arrondi de moins de 3 €."""
+    by = defaultdict(list)
+    for t in txs:
+        if t.get("bank") == TR and t["amount"] < 0:
+            by[t["date"]].append(-t["amount"])
+    return {d for d, a in by.items() if a.count(10) >= 5 and all(p in a for p in (15, 13, 7))
+            and any(60 <= x <= 75 for x in a) and any(0 < x < 3 for x in a)}
+
+
+def classify(t: dict, plan_days: frozenset | set = frozenset()) -> tuple[str, dict]:
     """(genre, ligne) : income, internal, refund, ignore, fixed, saving, conso. `t` = {date, amount, label, bank}."""
     label, amount, bank, day = (t.get("label") or "").upper(), t["amount"], t["bank"], t["date"]
     d = date.fromisoformat(day)
@@ -70,9 +81,10 @@ def classify(t: dict) -> tuple[str, dict]:
         return "conso", mk("❤️", "Dons Fondation de France", out, "Dons")
     if 200 <= out <= 230 and d.month == 9 and d.day >= 22:
         return "conso", mk("🤖", "Claude Code Pro", out, "Abonnements")
-    if d.weekday() == 2 and out in PLANS or d.weekday() == 2 and 60 <= out <= 75:
+    wed = d.weekday() == 2 or day in plan_days
+    if wed and (out in PLANS or 60 <= out <= 75):
         return "saving", mk("📈", "Épargne programmée", out, "Épargne")
-    if cents and (d.day <= 3 and out < 5 or d.weekday() == 2 and out <= 22):
+    if cents and (d.day <= 3 and out < 5 or wed and out <= 22):
         return "saving", mk("💸", "Saveback + arrondis", out, "Épargne")
     if 80 <= out <= 90:
         return "conso", mk("⛽", "Essence", out, "Transport")
@@ -114,7 +126,9 @@ def _pct(a: float, b: float) -> int:
 def report(txs: list[dict], today: date | None = None) -> dict | None:
     """Bilan du cycle en cours (depuis la dernière paie). None si aucune paie n'est visible dans l'historique."""
     today = today or date.today()
-    kinds = [(k, r) for k, r in (classify(t) for t in txs if t.get("date") and t.get("bank") in (CM, TR)) if r["date"] <= today.isoformat()]
+    txs = [t for t in txs if t.get("date") and t.get("bank") in (CM, TR)]
+    plan_days = savings_days(txs)
+    kinds = [(k, r) for k, r in (classify(t, plan_days) for t in txs) if r["date"] <= today.isoformat()]
     pays = [r for k, r in kinds if k == "income" and r["bank"] == CM]
     if not pays:
         return None

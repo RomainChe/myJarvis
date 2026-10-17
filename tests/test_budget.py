@@ -66,6 +66,17 @@ class BudgetTest(unittest.TestCase):
         self.assertEqual(prog["amount"], 92.0)
         self.assertEqual(self.r["saving"]["rate"], round(self.r["saving"]["total"] / 2500 * 100))
 
+    def test_epargne_datee_du_vendredi(self):
+        """Trade Republic comptabilise parfois les plans du mercredi un autre jour : le lot de plans identifie le jour."""
+        r = report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")]
+                   + [tx(TR, "2026-10-16", a) for a in (-10.0,) * 5 + (-7.0, -13.0, -15.0, -69.72, -1.55)]
+                   + [tx(TR, "2026-10-09", -69.72)]  # seul, un vendredi : des courses
+                   + [tx(TR, "2026-10-15", a) for a in (-10.0, -10.0, -7.0, -13.0, -15.0, -69.72, -1.55)], date(2026, 10, 17))  # lot incomplet
+        prog = next(x for x in r["saving"]["items"] if x["name"] == "Épargne programmée")
+        self.assertEqual(prog["amount"], 154.72)
+        self.assertEqual(next(x for x in r["saving"]["items"] if x["name"] == "Saveback + arrondis")["amount"], 1.55)
+        self.assertGreater(r["conso"]["total"], 69.72 * 2)  # courses isolées + lot incomplet
+
     def test_virements_internes_et_dividendes_hors_budget(self):
         total = sum(x["amount"] for x in self.r["conso"]["detail"])
         self.assertNotIn(500.0, [x["amount"] for x in self.r["conso"]["detail"]])
