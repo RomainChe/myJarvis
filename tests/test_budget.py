@@ -87,8 +87,10 @@ class BudgetTest(unittest.TestCase):
 
     def test_lot_date_du_lundi(self):
         r = report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")]
-                   + [tx(TR, "2026-10-12", a) for a in (-10.0, -10.0, -7.0, -13.0, -15.0)], date(2026, 10, 17))  # lundi
+                   + [tx(TR, "2026-10-12", a) for a in (-10.0, -10.0, -7.0, -13.0, -15.0)]
+                   + [tx(TR, "2026-10-15", -78.0)], date(2026, 10, 17))  # lundi ; 78 € le jeudi sans plan : des courses
         self.assertEqual(next(x for x in r["saving"]["items"] if x["name"] == "Épargne programmée")["amount"], 55)
+        self.assertEqual(next(x for x in r["conso"]["detail"] if x["name"] == "Courses")["amount"], 78)
 
     def test_petits_achats_en_courses(self):
         self.assertEqual(classify(tx(TR, "2026-10-11", -6.16))[1]["cat"], "Courses")
