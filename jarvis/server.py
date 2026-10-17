@@ -36,17 +36,22 @@ from jarvis.core import conseils
 from jarvis.core import conso as conso_core
 from jarvis.core import voyages as voyages_core
 from jarvis.core.voyages import hotel_snapshot, snapshot as voyages_snapshot
-from jarvis.core.social import snapshot as social_snapshot, with_youtube
+from jarvis.core.social import kept as social_kept, snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
 from jarvis.core.push import Push, subject_from_env
 from jarvis.core.webauthn import Passkeys
+from jarvis.core import agentlink
 from jarvis.core.host import HAS_PC_TOOLS
+
+PANEL_TIMEOUT_S, SOCIAL_TIMEOUT_S = 3, 20  # PC éteint : l'encart ne bloque pas ; pc_social : 3 appels YouTube de 5 s au pire
+BIENETRE_OFFLINE = {"configured": True, "offline": True, "running": False, "error": None, "at": None, "items": [],
+                    "counts": None, "previous": None}
 
 if HAS_PC_TOOLS:
     from jarvis.tools.pc.system import system_status
 else:
-    def system_status():  # Core sans PC : le tableau n'affiche pas l'encart système (l'agent PC le fournira, lot 3)
-        raise OSError("outils PC absents")
+    def system_status():  # Core du mini-PC : mesures du PC par l'agent ; PC éteint, l'encart système reste vide
+        return agentlink.call("run", "system_status", {}, timeout=PANEL_TIMEOUT_S)
 
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192
@@ -423,7 +428,9 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return with_youtube(social_snapshot(), youtube)
+        if HAS_PC_TOOLS:
+            return with_youtube(social_snapshot(), youtube)
+        return social_kept(lambda: agentlink.call("run", "pc_social", {}, timeout=SOCIAL_TIMEOUT_S))
 
     voyages_core.on_fetch = lambda ok: audit.log("pwa:voyages", "voyages_sync", {}, 0, "auto", "ok" if ok else "échec")
 
@@ -487,7 +494,17 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         log_read(auth[0], "bienetre_read", "bilan de santé du PC lu")
-        return bienetre_core.snapshot()
+        if HAS_PC_TOOLS:
+            return bienetre_core.snapshot()
+        try:
+            snap = agentlink.call("run", "pc_bienetre", {}, timeout=PANEL_TIMEOUT_S)
+            if not isinstance(snap, dict):
+                return BIENETRE_OFFLINE
+            if snap.pop("started", False):
+                audit.log("serve", "bienetre_run", {}, 0, "auto", "lancé sur le PC")
+            return snap
+        except agentlink.AgentError:
+            return BIENETRE_OFFLINE
 
     @app.get("/api/veille")
     def veille_state(request: Request):

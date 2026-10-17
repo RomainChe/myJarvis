@@ -11,6 +11,7 @@ async function loadBienetre() {
     if (views.bienetre.hidden) return; // vue quittée pendant le chargement
     const d = r.data;
     if (!d.configured) { state.textContent = 'Projet bien-etre-pc introuvable.'; return; }
+    if (d.offline) { state.textContent = 'PC éteint ou injoignable : bilan indisponible.'; return; }
     if (d.running) bienetreTimer = setTimeout(loadBienetre, 15000); // mesure en cours (~5 s) : on relit
     if (!d.counts) { state.textContent = d.running ? 'Première mesure en cours…' : (d.error ?? 'Aucun bilan pour le moment.'); return; }
     state.hidden = true;

@@ -6,11 +6,16 @@ Lit les fichiers que lol-clipper dépose à côté de ses vidéos : `<vidéo>.yo
 vérifié) en sortent, le titre vient du nom de fichier. Pas de ligne d'audit : lecture N0.
 """
 import json
+import os
+import tempfile
 from itertools import islice
 from datetime import datetime
 from pathlib import Path
 
+from .agentlink import AgentError
+
 CONFIG = Path.home() / ".jarvis" / "social.json"
+CACHE = Path.home() / ".jarvis" / "social-cache.json"
 DEFAULT_DIR = Path.home() / "Videos" / "LoL Clips"
 FOLDERS = ("Montage", "Parties")
 LINKS = {"youtube": "https://youtu.be/", "tiktok": "https://www.tiktok.com/"}
@@ -77,3 +82,27 @@ def with_youtube(snap: dict, stats) -> dict:
     if yt:
         yt = {k: v for k, v in yt.items() if k != "video_views"}
     return {**snap, "youtube": yt}
+
+
+def kept(fetch, path: Path | None = None, now=datetime.now) -> dict:
+    """Core du mini-PC : relevé du PC par l'agent (`fetch`), gardé sur disque. PC injoignable : le dernier relevé, daté
+    par `stale` (lol-clipper publie depuis le PC : PC éteint, rien ne change), ou `stale: None` s'il n'y en a aucun."""
+    path = Path(path) if path else CACHE
+    try:
+        snap = fetch()
+    except AgentError:
+        try:
+            last = json.loads(Path(path).read_text(encoding="utf-8"))
+            return {**last["snap"], "stale": last["at"]}
+        except (OSError, ValueError, KeyError, TypeError):
+            return {"configured": True, "published": [], "scheduled": [], "youtube": None, "stale": None}
+    tmp = None
+    try:  # mkstemp (0600, nom unique) puis os.replace : deux requêtes simultanées ne laissent pas un JSON tronqué
+        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump({"at": now().isoformat(timespec="minutes"), "snap": snap}, f)
+        os.replace(tmp, path)
+    except OSError:  # le relevé s'affiche quand même ; seule la copie pour « PC éteint » manque
+        if tmp:
+            Path(tmp).unlink(missing_ok=True)
+    return snap

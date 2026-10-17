@@ -460,7 +460,7 @@ async function loadHome() {
     }
     $('sys-list').replaceChildren(...rows);
     $('sys-error').hidden = rows.length > 0;
-    $('sys-error').textContent = 'État du système indisponible.';
+    $('sys-error').textContent = 'État du PC indisponible (PC éteint ?).';
   } catch (e) {
     $('sys-error').hidden = false;
     $('sys-error').textContent = unavailable('Tableau de bord indisponible', e);

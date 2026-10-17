@@ -17,8 +17,9 @@ async function loadSocial() {
   try {
     const r = await api('/api/social');
     if (!r.ok || !r.data) throw new Error('bad');
-    err.hidden = r.data.configured;
-    err.textContent = 'Dossier de lol-clipper introuvable.';
+    const stale = r.data.stale; // présent seulement si le PC est injoignable : relevé gardé par le Core du mini-PC
+    err.hidden = r.data.configured && stale === undefined;
+    err.textContent = stale === undefined ? 'Dossier de lol-clipper introuvable.' : stale ? `PC éteint : relevé du ${fmtDate(stale)}.` : 'PC éteint : aucun relevé gardé.';
     const fill = (id, rows, empty, link) => $(id).replaceChildren(...(rows.length ? rows.map((x) => socialRow(x, link)) : [el('li', 'row muted', empty)]));
     const yt = r.data.youtube;
     $('social-yt').hidden = !yt;

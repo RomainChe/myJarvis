@@ -42,7 +42,19 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
   `vram_total_mb`, `temperature_c`) ou `null` si `nvidia-smi` est absent ou ne répond pas.
 - **Exemple** : « Jarvis, état du système » ou `python -m jarvis run system_status`.
 - **Notes** : API Windows via `ctypes` ; `nvidia-smi` est appelé par son chemin absolu dans
-  `System32` (pas de recherche dans le `PATH`), avec un délai maximal de 5 s.
+  `System32` (pas de recherche dans le `PATH`), avec un délai maximal de 5 s. Core sur le mini-PC : l'encart
+  Système du tableau de bord l'appelle par l'agent (délai 3 s, vide si le PC est éteint).
+
+## pc_bienetre / pc_social
+
+- **Description** : onglets Bien-être et Réseaux pour le Core du mini-PC, lus sur le PC par l'agent.
+- **Niveau** : N0, `owner_only` (jamais proposés au LLM, appelés seulement par `/api/bienetre` et `/api/social`).
+- **Paramètres** : aucun.
+- **Retour** : `pc_bienetre` = `core.bienetre.snapshot()` ; `pc_social` = `core.social.snapshot()` + compteurs YouTube
+  (le jeton de lol-clipper reste sur le PC).
+- **Exemple** : ouvrir l'onglet Réseaux de la PWA.
+- **Notes** : PC éteint, Bien-être affiche « PC éteint » ; Réseaux affiche le dernier relevé gardé par le Core
+  (`~/.jarvis/social-cache.json`) avec sa date. Après ajout : `python -m jarvis.agent catalog` et relance de l'agent.
 
 ## list_processes
 

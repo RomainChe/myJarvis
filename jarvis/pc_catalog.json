@@ -188,6 +188,30 @@
   "owner_only": false
  },
  {
+  "name": "pc_bienetre",
+  "description": "Bilan de santé du PC (onglet Bien-être).",
+  "level": 0,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": true
+ },
+ {
+  "name": "pc_social",
+  "description": "Clips publiés et programmés, compteurs YouTube (onglet Réseaux).",
+  "level": 0,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": true
+ },
+ {
   "name": "power",
   "description": "Veille, redémarrage ou arrêt du PC (action : sleep, restart, shutdown). Redémarrage et arrêt coupent Jarvis et Home Assistant.",
   "level": 2,
