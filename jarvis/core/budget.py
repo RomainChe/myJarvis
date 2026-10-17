@@ -14,7 +14,11 @@ MERCHANTS = (
     ("RESTAURANT", "🍽️", "Restaurant", "Restaurants"), ("SHELL", "⛽", "Essence", "Transport"), ("TOTAL", "⛽", "Essence", "Transport"),
     ("SNCF", "🚆", "SNCF", "Transport"), ("TICKETMASTER", "🎟️", "Ticketmaster", "Loisirs"), ("BILLETWEB", "🎫", "Billetweb", "Loisirs"),
     ("BASIC", "🏋️", "Basic Fit", "Sport"), ("PHARMACIE", "💊", "Pharmacie", "Santé"), ("AMAZON", "📦", "Amazon", "Shopping"),
+    ("AIRBNB", "🏨", "Airbnb", "Voyage"), ("BOOKING", "🏨", "Booking", "Voyage"), ("HOTEL", "🏨", "Hôtel", "Voyage"),
+    ("AIR FRANCE", "✈️", "Air France", "Voyage"), ("RYANAIR", "✈️", "Ryanair", "Voyage"), ("EASYJET", "✈️", "easyJet", "Voyage"),
+    ("TRANSAVIA", "✈️", "Transavia", "Voyage"), ("VUELING", "✈️", "Vueling", "Voyage"),
 )
+ONE_OFF = ("Voyage", "Impôts")  # dépenses ponctuelles, isolées de la consommation courante
 
 
 def _row(emoji, name, amount, cat=None, detail="", bank="", day=""):
@@ -119,6 +123,22 @@ def _group(rows: list[dict]) -> list[dict]:
     return sorted(out, key=lambda r: (r["date"], r["name"]))
 
 
+def _by_cat(rows: list[dict]) -> dict:
+    cats = defaultdict(float)
+    for r in rows:
+        cats[r["cat"]] += r["amount"]
+    return {n: round(a, 2) for n, a in cats.items()}
+
+
+def _previous(kinds: list, start: str) -> dict | None:
+    """Consommation par catégorie du cycle de paie précédent (de la paie d'avant à `start`), si cette paie est dans l'historique."""
+    dates = sorted({r["date"] for k, r in kinds if k == "income" and r["bank"] == CM and r["date"] < start})
+    if not dates:
+        return None
+    rows = [r for k, r in kinds if k == "conso" and dates[-1] <= r["date"] < start]
+    return {"start": dates[-1], "cats": _by_cat(rows), "total": round(sum(r["amount"] for r in rows), 2)}
+
+
 def _pct(a: float, b: float) -> int:
     return round(a / b * 100) if b else 0
 
@@ -142,14 +162,20 @@ def report(txs: list[dict], today: date | None = None) -> dict | None:
     refunded = round(sum(r["amount"] for r in refunds), 2)
     consumed = round(gross - refunded, 2)
     left = round(pay_amount - fixed_total - saved_total - consumed, 2)
-    cats = defaultdict(float)
-    for r in conso:
-        cats[r["cat"]] += r["amount"]
-    cats = [{"name": n, "amount": round(a, 2)} for n, a in sorted(cats.items(), key=lambda x: -x[1])]
+    prev = _previous(kinds, pay["date"])
+    cats = [{"name": n, "amount": a, "prev": prev["cats"].get(n, 0) if prev else None}
+            for n, a in sorted(_by_cat(conso).items(), key=lambda x: -x[1])]
     rate = _pct(saved_total, pay_amount)
     covered = [r for r in internal if r["amount"] > 0 and r["bank"] == CM]
     points = [{"icon": "✅", "text": f"Taux d'épargne de {rate} % — {saved_total:.2f} € mis de côté sur {pay_amount:.2f} € de paie.".replace(".", ",")}]
-    if cats and gross and cats[0]["amount"] / gross >= .3 and cats[0]["name"] not in ("Loisirs",):
+    one_off = round(sum(c["amount"] for c in cats if c["name"] in ONE_OFF), 2)
+    if one_off:
+        names = ", ".join(f"{c['name']} {c['amount']:.2f} €" for c in cats if c["name"] in ONE_OFF)
+        points.append({"icon": "✈️", "text": f"Dépenses ponctuelles ({names}) : hors ponctuel, la consommation est de {consumed - one_off:.2f} €.".replace(".", ",")})
+    rise = max((c for c in cats if c["prev"] is not None and c["name"] not in ONE_OFF and c["amount"] - c["prev"] >= 20), key=lambda c: c["amount"] - c["prev"], default=None)
+    if rise:
+        points.append({"icon": "💡", "text": f"{rise['name']} dépasse déjà le cycle précédent : {rise['amount']:.2f} € contre {rise['prev']:.2f} €.".replace(".", ",")})
+    elif cats and gross and cats[0]["amount"] / gross >= .3 and cats[0]["name"] not in ("Loisirs",) + ONE_OFF:
         points.append({"icon": "💡", "text": f"{cats[0]['name']} pèse {_pct(cats[0]['amount'], gross)} % de la consommation ({cats[0]['amount']:.2f} €).".replace(".", ",")})
     if left < 0:
         points.append({"icon": "⚠️", "text": f"Sorties supérieures à la paie de {-left:.2f} €".replace(".", ",") + (f" — couvert par ton autre compte ({sum(r['amount'] for r in covered):.2f} €).".replace(".", ",") if covered else ".")})
@@ -174,7 +200,7 @@ def report(txs: list[dict], today: date | None = None) -> dict | None:
         "start": pay["date"], "pay": {"amount": round(pay_amount, 2), "date": pay["date"]},
         "fixed": {"total": fixed_total, "pct": _pct(fixed_total, pay_amount), "items": fixed},
         "saving": {"total": saved_total, "rate": rate, "items": saving},
-        "conso": {"total": consumed, "gross": gross, "cats": cats, "refunds": {"total": refunded, "items": refunds},
+        "conso": {"total": consumed, "gross": gross, "cats": cats, "prev_total": prev["total"] if prev else None, "refunds": {"total": refunded, "items": refunds},
                   "detail": sorted(conso, key=lambda r: -r["amount"])},
         "left": left, "covered": {"total": round(sum(r["amount"] for r in covered), 2), "items": covered},
         "points": points, "subs": subs, "recos": recos[:3], "week": week,

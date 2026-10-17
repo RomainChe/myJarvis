@@ -35,13 +35,13 @@ function cardTitle(text, logo) {
   return h;
 }
 // Comptes Enable Banking : libellés = contenu externe, posés en textContent seulement
-const CONSENT_WARN = 14; // jours : à partir de là, la commande de renouvellement s'affiche
+const CONSENT_WARN = 10; // jours : en dessous, la commande de renouvellement s'affiche
 function renderBank(b) {
   if (!b) return;
   const at = new Date(b.fetched_at);
   $('fin-bank-at').textContent = Number.isNaN(at.getTime()) ? '' : `Comptes mis à jour le ${at.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
   $('fin-consent').replaceChildren(...(b.consent || []).map((c) => {
-    const late = !Number.isInteger(c.days_left) || c.days_left <= CONSENT_WARN;
+    const late = !Number.isInteger(c.days_left) || c.days_left < CONSENT_WARN;
     const li = el('li', late ? 'warn' : 'muted', !Number.isInteger(c.days_left) ? `${c.bank} : échéance du consentement inconnue`
       : c.days_left < 0 ? `${c.bank} : consentement expiré` : `${c.bank} : consentement valable encore ${c.days_left} j`);
     if (late && c.renew) li.append(el('code', '', c.renew)); // construite et filtrée côté serveur (banking.renew_cmd)
@@ -132,7 +132,9 @@ function renderCycle(c) {
     tag.dataset.cat = f.dataset.cat = x.name;
     f.style.width = `${(x.amount / top) * 100}%`;
     w.append(f);
-    li.append(tag, w, el('span', 'cyc-amt', eur(x.amount)));
+    const amt = el('span', 'cyc-amt', eur(x.amount));
+    if (x.prev != null) amt.append(el('small', 'muted', `préc. ${eur(x.prev)}`));
+    li.append(tag, w, amt);
     return li;
   }));
   cats.append(cycTotal('Total consommation', c.conso.total, 'gold'));

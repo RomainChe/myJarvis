@@ -92,6 +92,17 @@ class BudgetTest(unittest.TestCase):
         self.assertEqual(next(x for x in r["saving"]["items"] if x["name"] == "Épargne programmée")["amount"], 55)
         self.assertEqual(next(x for x in r["conso"]["detail"] if x["name"] == "Courses")["amount"], 78)
 
+    def test_voyage_et_comparaison_cycle_precedent(self):
+        r = report([tx(CM, "2026-09-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE"), tx(CM, "2026-09-10", -100.00, "CB CARREFOUR"),
+                    tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE"), tx(CM, "2026-10-05", -180.00, "CB CARREFOUR"),
+                    tx(CM, "2026-10-06", -300.00, "CB RYANAIR")], date(2026, 10, 17))
+        courses = next(c for c in r["conso"]["cats"] if c["name"] == "Courses")
+        self.assertEqual((courses["amount"], courses["prev"]), (180, 100))
+        texts = {p["icon"]: p["text"] for p in r["points"]}
+        self.assertIn("Voyage 300,00 €", texts["✈️"])
+        self.assertIn("180,00 € contre 100,00 €", texts["💡"])
+        self.assertIsNone(report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")], date(2026, 10, 17))["conso"]["prev_total"])
+
     def test_petits_achats_en_courses(self):
         self.assertEqual(classify(tx(TR, "2026-10-11", -6.16))[1]["cat"], "Courses")
 
