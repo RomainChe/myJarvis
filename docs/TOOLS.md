@@ -326,6 +326,23 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 - **Exemples** : « mets le mode cinéma », « lance le mode cinéma sur Netflix » (motifs exacts du routeur) ; `python -m jarvis run scene_cinema app=netflix`.
 - **Notes** : écart au plan (script HA) : l'utilisateur `jarvis` n'est pas administrateur et ne peut pas créer de script HA ; à migrer quand les volets (Shelly) seront posés.
 
+## say (`jarvis/tools/pc/say.py`)
+
+- **Description** : lit un court texte à voix haute sur le PC (Piper, sortie `JARVIS_AUDIO_OUT` de l'agent).
+- **Niveau** : N1.
+- **Paramètres** : `text` (texte, 1 000 caractères au plus, 500 lus).
+- **Retour** : `say` = `ok` ou `occupé` (déjà en train de parler : rien n'est lu, rien n'est mis en file).
+- **Exemple** : `python -m jarvis run say text="Minuteur terminé."`.
+- **Notes** : exécuté par l'agent PC. Le Core du mini-PC l'appelle pour les minuteurs, rappels et le briefing (`_reminders`) ; PC éteint ou agent muet, seul le push part. `hidden=("text",)` : le journal écrit `<n car.>`.
+
+## POST /api/voice (client voix du PC, `jarvis/voice_client.py`)
+
+- **Rôle** : le client `python -m jarvis voice` (PC) garde micro, Whisper et Piper en local et n'envoie que le texte reconnu. Le Core appelle `Voice.handle` : routeur puis LLM, source `voix`, journal d'audit côté Core.
+- **Plafond** : N0 et N1 seulement. N2 : « Action sensible : fais-la depuis l'application » (aucune demande créée). N3 : refusé. Texte = donnée, jamais un ordre.
+- **Authentification** : clé d'appareil (`Bearer`, `python -m jarvis device add` sur le Core). Côté PC elle est dans le coffre Windows : `python -m jarvis secret set voice_key`. Jamais dans un fichier ni `.env`.
+- **Requête** : `{"text": 1 à 1 000 car., "client": "pc"}` ; `client` (a-z, 0-9, `_`, `-`, 32 au plus) identifie le micro et est journalisé `appareil/client`. **Réponse** : `{"answer": ...}` (4 000 car. au plus). Limite : 20 phrases par minute et par appareil (429), en plus du quota général.
+- **Réglages du client** : `JARVIS_CORE_URL` (`https://<nom>.ts.net`, https obligatoire), `JARVIS_VOICE_CLIENT` (défaut `pc`), `JARVIS_AUDIO_IN` / `JARVIS_AUDIO_OUT` (casque), `JARVIS_WAKE_WORD`. Core injoignable : « Le Core ne répond pas. », rien d'autre.
+
 ## Minuteurs, rappels et briefing (`jarvis/tools/assist.py`, `jarvis/core/reminders.py`)
 
 Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur le PC (sauf voix « hors ligne ») et push **sans le texte** à tous les appareils. Le texte d'un rappel est supprimé de la base une fois annoncé et n'entre jamais dans le journal (id et longueur seulement : `args` masqués, résultats sans texte). 50 rappels en attente au plus, 24 h au plus.

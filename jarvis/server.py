@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field, StrictBool, StrictInt
 from jarvis.core import levels, memory, reminders
 from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
+from jarvis.core.voice import Voice
 from jarvis.core.dashboard import Dashboard
 from jarvis.core.devices import Devices
 from jarvis.core.banking import view as bank_view
@@ -57,6 +58,8 @@ else:
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192
 AUTH_FAIL_MAX, AUTH_FAIL_WINDOW_S = 10, 60
+VOICES_MAX = 64  # micros distincts (appareil/client) gardés en mémoire
+VOICE_MAX = 20  # phrases par appareil et par minute : une phrase dite en prend ~5 s
 # ponytail: plafond par appareil et par minute sur toutes les routes (l'écran en fait ~60) : borne le journal gonflé par un pair
 # valide à QUOTA_MAX + 1 lignes/min ; un quota par route si l'usage légitime s'en approche.
 QUOTA_MAX, QUOTA_WINDOW_S = 240, 60
@@ -113,6 +116,11 @@ class Enroll(BaseModel):
 
 class ChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=TEXT_MAX)
+
+
+class VoiceIn(BaseModel):
+    text: str = Field(min_length=1, max_length=TEXT_MAX)
+    client: str = Field(default="pc", max_length=32, pattern=r"^[a-z0-9_-]+$")  # micro d'origine (multi-micros plus tard)
 
 
 B64 = Field(max_length=1400, pattern=r"^[A-Za-z0-9_-]+$")
@@ -293,6 +301,33 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         job = chat.start(auth[0], body.text)
         return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
+
+    voices: dict[str, Voice] = {}  # (appareil/client) -> Voice : « hors ligne » ne vaut que pour le micro qui l'a dit
+    voice_calls: dict[int, deque[float]] = {}
+
+    @app.post("/api/voice")
+    def voice_say(body: VoiceIn, request: Request):
+        """Texte reconnu par un client voix -> réponse à lire. Plafond N0/N1 (cf. Voice.handle) ; le texte est une donnée."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        with counters:
+            recent = voice_calls.setdefault(auth[0], deque())
+            while recent and _now() - recent[0] > QUOTA_WINDOW_S:
+                recent.popleft()
+            over = len(recent) >= VOICE_MAX
+            if not over:
+                recent.append(_now())
+        if over:
+            return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
+        key = f"{auth[0]}/{body.client}"
+        with counters:
+            voice = voices.get(key)
+            if voice is None:
+                if len(voices) >= VOICES_MAX:  # `client` est libre : la table ne grandit pas sans limite
+                    return reply(429, "trop de micros")
+                voice = voices[key] = Voice(chat)  # sans lecteur : la réponse est lue par le client voix du PC
+        return {"answer": voice.handle(body.text, key)}
 
     @app.get("/api/chat/{job_id}")
     def chat_status(job_id: str, request: Request):

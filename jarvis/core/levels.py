@@ -75,6 +75,7 @@ LABELS = {
     "kill_process": ("Forcer l'arrêt d'un processus", "Termine un programme sans lui laisser le temps d'enregistrer."),
     "set_volume": ("Volume du PC", "Règle le volume principal."),
     "mute": ("Son du PC", "Coupe ou rétablit le son."),
+    "say": ("Parler sur le PC", "Lit un court texte à voix haute (rappels et minuteurs du Core)."),
     "media_control": ("Lecture multimédia", "Lecture, pause, arrêt, piste suivante ou précédente."),
     "clipboard_write": ("Écrire dans le presse-papiers", "Remplace le texte copié."),
     "clipboard_read": ("Lire le presse-papiers", "Le texte copié peut contenir des mots de passe."),
