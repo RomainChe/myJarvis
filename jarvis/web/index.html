@@ -242,9 +242,8 @@
   <section id="view-finance" class="view" aria-labelledby="t-finance" hidden>
     <h1 id="t-finance" class="title">Finances</h1>
     <p id="fin-error" class="error" hidden></p>
-    <div class="strip" id="fin-crypto" hidden></div>
-    <div class="strip" id="fin-portfolio" hidden></div>
     <div id="fin-bank" hidden>
+      <h2 class="section fin-split">Comptes</h2>
       <div class="strip" id="fin-accounts"></div>
       <div id="fin-cycle" hidden></div>
       <section class="panel hud"><h2>Dernières opérations</h2><ul id="fin-tx" class="plain tx"></ul></section>
@@ -253,6 +252,11 @@
         <ul id="fin-consent" class="plain consent"></ul>
       </footer>
     </div>
+    <section id="fin-invest" class="fin-invest" aria-labelledby="t-fin-invest" hidden>
+      <h2 id="t-fin-invest" class="section fin-split">Investissement</h2>
+      <div class="strip" id="fin-portfolio" hidden></div>
+      <div class="strip" id="fin-crypto" hidden></div>
+    </section>
     <p id="fin-state" class="muted">Chargement…</p>
   </section>
 

@@ -28,12 +28,17 @@ async function loadBienetre() {
       stat('À surveiller', String(d.counts['à surveiller'])), stat('Tout va bien', String(d.counts.OK), `${d.counts['non mesuré']} non mesuré(s)`));
     const note = d.running ? 'Nouvelle mesure en cours…' : d.error ? `Mesure du jour : ${d.error}.` : `Bilan du ${when}, renouvelé chaque jour.`;
     const row = (i) => {
-      const li = el('li', 'be-item');
-      const head = el('p', 'be-head');
-      head.append(el('span', `badge be-${i.statut === 'problème' ? 'bad' : i.statut === 'à surveiller' ? 'warn' : 'none'}`, i.statut),
-        el('strong', '', ` ${i.composant} · ${i.point}`));
+      const k = i.statut === 'problème' ? 'bad' : i.statut === 'à surveiller' ? 'warn' : 'none';
+      const li = el('li', `be-item be-card-${k}`);
+      const head = el('div', 'be-head'), t = el('p', 'be-title');
+      t.append(el('strong', '', i.composant), el('span', 'be-point', i.point));
+      head.append(t, el('span', `badge be-${k}`, i.statut));
       li.append(head, el('p', 'be-value', i.valeur));
-      if (i.statut !== 'OK') li.append(el('p', 'be-tip', i.conseil));
+      if (i.statut !== 'OK' && i.conseil) {
+        const tip = el('p', 'be-tip');
+        tip.append(el('span', 'be-tip-l', 'Conseil'), document.createTextNode(i.conseil));
+        li.append(tip);
+      }
       return li;
     };
     const section = (title, items) => {

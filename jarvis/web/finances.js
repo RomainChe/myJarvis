@@ -7,7 +7,7 @@ const money = (n, cur) => {
 };
 function clearFinance() {
   for (const id of ['fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle', 'fin-portfolio']) $(id).replaceChildren();
-  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = $('fin-portfolio').hidden = true;
+  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = $('fin-portfolio').hidden = $('fin-invest').hidden = true;
   $('fin-bank-at').textContent = '';
 }
 async function loadFinance() {
@@ -18,6 +18,7 @@ async function loadFinance() {
     if (!b.ok) throw new Error('bad');
     if (views.finance.hidden) return; // vue quittée pendant le chargement
     renderBank(b.data?.bank); renderCrypto(b.data?.crypto); renderPortfolio(b.data?.portfolio);
+    $('fin-invest').hidden = $('fin-crypto').hidden && $('fin-portfolio').hidden; // partie Investissement : titres-PEA puis Ledger
     state.hidden = !!b.data?.bank || !$('fin-crypto').hidden || !$('fin-portfolio').hidden ? true : false;
     if (!state.hidden) state.textContent = 'Aucune donnée bancaire : lance « python -m jarvis bank fetch ».';
   } catch (e) {
