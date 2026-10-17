@@ -12,6 +12,7 @@ from unittest import mock
 
 from jarvis import __main__ as cli
 from jarvis import server
+from jarvis.core import chat as chat_mod, permissions
 from jarvis.core import devices as dev
 from jarvis.core.audit import Audit
 from jarvis.core.chat import Chat
@@ -28,6 +29,11 @@ class ServerBase(unittest.TestCase):
     mic = None  # remplacé par les tests du bouton micro
 
     def setUp(self):
+        # D2 : kill_process sert ici de N2 ordinaire ; la clé d'accès exigée par STRONG_N2 est testée à part (test_webauthn).
+        for module in (chat_mod, permissions):
+            patch = mock.patch.object(module, "STRONG_N2", frozenset())
+            patch.start()
+            self.addCleanup(patch.stop)
         self.port = free_port()
         self.devices, self.audit = Devices(":memory:"), Audit(":memory:")
         self.chat = Chat(self.audit)

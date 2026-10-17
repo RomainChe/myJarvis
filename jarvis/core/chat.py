@@ -25,7 +25,7 @@ from jarvis.core.host import load_pc_tools
 load_pc_tools()  # outils PC réels, ou proxys vers l'agent PC sur le mini-PC
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable, ask
-from jarvis.core.permissions import Refused, execute
+from jarvis.core.permissions import STRONG_N2, Refused, execute
 from jarvis.core.router import Router
 from jarvis.core.push import Push
 from jarvis.core.tools import REGISTRY, Level, Tool
@@ -163,7 +163,8 @@ class Chat:
         return False
 
     def _confirm(self, job: Job, tool: Tool, args: dict) -> bool:
-        level = max(effective(tool), Level.N3) if tool.owner_only else effective(tool)  # le chat est la PWA : clé d'accès (cf. permissions.execute)
+        # le chat est la PWA : clé d'accès pour les outils du propriétaire et les N2 forts D2 (cf. permissions.execute)
+        level = max(effective(tool), Level.N3) if tool.owner_only or tool.name in STRONG_N2 else effective(tool)
         job.strong = False
         if level >= Level.N3 and not (self.passkeys and self.passkeys.has(job.device)):  # inutile de demander
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé",

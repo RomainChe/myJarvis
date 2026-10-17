@@ -327,6 +327,14 @@ class N3ChatTest(WebAuthnServerBase):
         done = wait_for(lambda: (lambda r: r[1] if r[1] and r[1]["status"] == "done" else None)(self.poll(job, body["token"])))
         self.assertEqual((done["answer"], done["pending"]), ("refusé", None))
 
+    def test_n2_fort_d2_sans_cle_refuse_sans_demander(self):
+        def ask(text, *, audit, confirm, strong_auth, source):
+            return str(confirm(REGISTRY["kill_process"], {"pid": 4242, "name": "notepad.exe"}))
+        with mock.patch.object(chat_mod, "ask", ask), mock.patch.object(chat_mod, "STRONG_N2", frozenset({"kill_process"})):
+            result = self.done(self.start()[1]["job"])
+        self.assertEqual((result["answer"], result["pending"]), ("False", None))
+        self.assertIn("aucune clé d'accès", str(self.audit.last(10)))
+
     def test_le_n2_ne_demande_pas_de_cle(self):
         def ask(text, *, audit, confirm, strong_auth, source):
             return str(confirm(REGISTRY["kill_process"], {"pid": 4242, "name": "notepad.exe"}))
