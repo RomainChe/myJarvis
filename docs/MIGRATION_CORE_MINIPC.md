@@ -73,7 +73,13 @@ importe `jarvis.tools.pc`, dont les modules appellent `ctypes.WinDLL` à l'impor
 ### Lot 4 : voix, jeu, Claude Code
 - Micro, réveil, Whisper, Piper : **pas codé**. La voix tourne dans le processus du Core (`start_mic`) : après la
   bascule (lot 5), plus de voix ni de rappels parlés. Accepté le 2026-10-16 (voix inutilisée pour l'instant).
-  **Lot 4b** (plus tard) : petit client voix sur le PC qui envoie le texte au Core du mini-PC par Tailscale.
+  **Lot 4b codé le 2026-10-17** (`feat/lot4b-voix`) : `python -m jarvis voice` sur le PC (micro, Whisper GPU et Piper
+  en local) envoie le texte à `POST /api/voice` du Core (HTTPS Tailscale, ACL `tag:pc` -> `tag:jarvis:443` déjà en place).
+  Plafond N0/N1 (N2 « depuis l'application », N3 refusé), source `voix`, clé d'appareil dans le coffre Windows
+  (`secret set voice_key`), 20 phrases/min/appareil, identifiant de micro `client` journalisé (multi-micros : un autre
+  processus avec un autre `JARVIS_VOICE_CLIENT`, pas codé). Rappels parlés : le Core appelle l'outil `say` (N1) de l'agent ;
+  PC éteint = push seul. `start_mic` ne fait rien sur un Core sans outils PC. **Reste** : QA, revue Sécurité, essai réel
+  avec le casque (créer l'appareil `voix-pc` avec `device add`, poser `JARVIS_CORE_URL`).
 - Mode jeu : le Core interroge l'agent (outil N0 `game_running`, cache 5 s, échec = pas de jeu) ; pas de push de
   l'agent vers le Core. **Fait le 2026-10-13** (`feat/jeu-agent`).
 - Outil `claude_code` : reste sur le PC (CLI et dépôt locaux), via l'agent, `owner_only` inchangé.
