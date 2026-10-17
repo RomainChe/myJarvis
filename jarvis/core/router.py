@@ -104,3 +104,23 @@ class Router:
         if not best or (set(core.split()) & ACTION_VERBS) - set(best[0].split()):
             return None
         return self.phrases[best[0]], {}
+
+
+# Homophones que le petit modèle Vosk du salon écrit mal (mesurés au lot 4c). Corrections étroites, ancrées en début de phrase ou
+# derrière « sur » / « chaîne » : elles ne font que redonner le texte voulu au routeur (motifs en fullmatch) et au LLM ; la garde
+# de permissions et le plafond N0/N1 de la voix restent seuls juges de l'action.
+_ART = r"(?=(?:le|la|l['’]|les|mon|ma)(?:\b|(?<=['’])))"  # article derrière : « alume le pc » oui, « allure lampe » non
+_VOICE_FIXES = [
+    (re.compile(r"^(?:a vu|avume|alume|allure|a lu|a lume|allumé)\s+" + _ART, re.IGNORECASE), "allume "),
+    (re.compile(r"^(?:éteint|éteignent|etant|et tant)\s+" + _ART, re.IGNORECASE), "éteins "),
+    (re.compile(r"^mais\s+(?=(?:la|le|les|l['’]|mon|ma)\s+(?:tv|télé|tele|télévision|television|volume|son|mode|pc|écran|ecran|musique)\b)",
+                re.IGNORECASE), "mets "),
+    (re.compile(r"\b(sur|chaîne|chaine)\s+(?:très fin|tres fin|t f un|t f 1|tf un|té éf un|tef un)\b", re.IGNORECASE), r"\1 TF1"),
+]
+
+
+def voice_fix(text: str) -> str:
+    """Texte d'une reconnaissance vocale (Vosk) -> texte à router. Inchangé s'il ne contient aucun de ces homophones."""
+    for pattern, repl in _VOICE_FIXES:
+        text = pattern.sub(repl, text, count=1)
+    return text

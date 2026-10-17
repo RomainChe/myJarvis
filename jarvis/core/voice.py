@@ -13,7 +13,7 @@ from jarvis.core.chat import ANSWER_MAX, REGISTRY, TEXT_MAX, Chat, ask, execute
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable
 from jarvis.core.permissions import Refused
-from jarvis.core.router import normalize
+from jarvis.core.router import normalize, voice_fix
 from jarvis.core.tools import Level
 
 SOURCE = "voix"
@@ -86,9 +86,10 @@ class Voice:
             tap = _Tap(chat.audit)
             strong = lambda tool, args: False  # noqa: E731  (N3 jamais à la voix)
             try:
-                routed = chat.router.route(text)
+                heard = voice_fix(text)  # le journal garde la longueur et l'empreinte du texte reconnu, pas de la correction
+                routed = chat.router.route(heard)
                 if routed is None:
-                    answer = ask(text, audit=tap, confirm=confirm, strong_auth=strong, source=f"{SOURCE}/llm")
+                    answer = ask(heard, audit=tap, confirm=confirm, strong_auth=strong, source=f"{SOURCE}/llm")
                 else:
                     name, args = routed
                     result = execute(name, args, source=SOURCE, audit=tap, confirm=confirm, strong_auth=strong)
