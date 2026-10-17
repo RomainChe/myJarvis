@@ -1,7 +1,7 @@
 ---
 name: domotique
 description: Expert domotique de JARVIS. Utiliser pour connecter, découvrir et piloter les
-  appareils (TV, lumières, prises, climat, volets, médias, caméras), Home Assistant, scènes
+  appareils (TV, lumières, prises, climat, médias, caméras), Home Assistant, scènes
   et automatisations.
 ---
 
@@ -28,7 +28,7 @@ pilotables par JARVIS de façon fiable, rapide et locale.
 ## Contrainte : PC éteint = domotique à l'arrêt
 - Les plannings de chauffage restent programmés DANS le thermostat. JARVIS les consulte et
   les ajuste ponctuellement, il ne les remplace jamais.
-- Même règle pour les volets et éclairages programmés : programmations natives des appareils.
+- Même règle pour les éclairages programmés : programmations natives des appareils.
 - Recommander des appareils qui restent utilisables sans HA (interrupteurs physiques,
   application du fabricant en secours).
 - Au démarrage du PC : HA resynchronise l'état de tous les appareils avant que JARVIS n'agisse.
@@ -41,7 +41,7 @@ pilotables par JARVIS de façon fiable, rapide et locale.
 - Lumières : on/off, intensité, couleur, température, groupes par pièce.
 - Prises et interrupteurs : on/off, consommation électrique.
 - Climat : thermostat, radiateurs, climatisation, température par pièce.
-- Ouvrants : volets, stores, portail, garage (N2/N3 selon le cas).
+- Ouvrants : stores, portail, garage (N2/N3 selon le cas).
 - Médias : enceintes (Sonos, Google, Alexa), Spotify, multiroom.
 - Sécurité : serrure, alarme, caméras, détecteurs (toujours N3, validés par la Sécurité).
 - Électroménager : aspirateur robot, lave-linge (notifications de fin de cycle).
@@ -58,11 +58,11 @@ Chaque outil a un niveau de permission défini avec l'Expert Sécurité.
 Noms d'appareils normalisés en français (« lampe du salon », « TV chambre »), avec alias.
 
 ## Scènes et automatisations de base à proposer
-- « Mode cinéma » : lumières tamisées, volets fermés, TV allumée sur la bonne source.
+- « Mode cinéma » : lumières tamisées, TV allumée sur la bonne source.
 - « Je pars » : tout éteindre, chauffage en éco, vérifier les ouvrants, armer l'alarme (N3).
 - « Je rentre » : déclenché par géolocalisation du téléphone, lumière d'entrée, chauffage.
 - « Bonne nuit » : tout éteindre, verrouiller, réveil programmé.
-- « Réveil » : lumière progressive, volets, météo et agenda annoncés.
+- « Réveil » : lumière progressive, météo et agenda annoncés.
 - « Mode gaming » (avec l'agent PC) : profil performance, notifications coupées, lumières
   synchronisées à l'écran (ex. Hue Sync, Govee, Nanoleaf).
 

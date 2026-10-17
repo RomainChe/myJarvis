@@ -34,7 +34,7 @@ Rappel des principes (ARCHITECTURE §3.4) : Home Assistant (HA) est le hub uniqu
    `Set-VM -Name "HomeAssistant" -AutomaticStartAction Start -AutomaticStartDelay 30 -AutomaticStopAction ShutDown`
    À vérifier au premier test : si l'arrêt propre n'aboutit pas, passer à `-AutomaticStopAction Save`.
 6. Démarrer la VM, ouvrir `http://homeassistant.local:8123`, créer le compte administrateur (mot de passe fort + 2FA TOTP).
-7. Réserver l'IP de la VM dans le DHCP de la Bbox (idem Shelly et TV), pour des intégrations stables.
+7. Réserver l'IP de la VM dans le DHCP de la Bbox (idem TV), pour des intégrations stables.
 8. Créer l'utilisateur `jarvis` **non administrateur**, générer son token longue durée et le ranger dans le keyring Windows (jamais dans le dépôt).
 
 Mise en veille du PC : la VM est suspendue avec lui ; au réveil, HA resynchronise les états, et JARVIS attend cette resynchro avant d'agir.
@@ -89,19 +89,7 @@ Le MSZ-HR n'a **pas de Wi-Fi intégré** : il faut un adaptateur sur le connecte
 | Régler la consigne entre 17 et 24 °C, mode chaud/froid/auto, ventilation | N1 |
 | Éteindre le chauffage, consigne hors de cette plage (« forcer ») | N2 (Roadmap Phase 2) |
 
-### 2.4 Volets roulants Turol Industries (filaires) → Shelly 2PM
-- **Intégration** : *Shelly* (officielle, locale, découverte automatique), module en **mode volet** (cover). Le Shelly 2PM Gen4 ajoute la détection d'obstacle et la calibration de la course (position en %). Cloud Shelly désactivé.
-- **Matériel** : **un Shelly 2PM Gen4 par volet, ~35 €** (Gen3 ~30 €). Posé dans la boîte de l'interrupteur mural, qui reste câblé sur les entrées SW1/SW2 et continue de fonctionner sans HA.
-- **Prérequis** : **neutre** présent dans la boîte (Q2) ; moteur filaire classique 4 fils (montée, descente, neutre, terre) ; place dans la boîte (sinon boîte plus profonde). Pose en 230 V : électricien recommandé si le propriétaire n'est pas habilité (~60-100 € de main-d'œuvre, à chiffrer).
-- **Limites** : position estimée par le temps de course (calibration à refaire si le volet est modifié) ; réglage du type d'entrée selon l'interrupteur existant, à bascule ou à poussoir (Q2).
-- **Secours** : interrupteur mural. Réinitialisation : appui long sur le bouton du module, ou 5 bascules de l'interrupteur dans la minute suivant la mise sous tension.
-
-| Action | Niveau |
-|---|---|
-| Position, état, consommation | N0 |
-| Ouvrir, fermer, stop, position en % (un volet, une pièce, tous) | N1 |
-
-### 2.4 bis Lumière du salon : plafonnier LED TYJY 105 W (télécommande RF 2,4 GHz)
+### 2.4 Lumière du salon : plafonnier LED TYJY 105 W (télécommande RF 2,4 GHz)
 - **Intégration** : aucune directe. Pas d'appli, pas de Wi-Fi : la télécommande parle un protocole RF 2,4 GHz propriétaire (ni Mi-Light, ni 433 MHz, donc pas de Broadlink).
 - **Solution retenue** : un **Shelly 1 Mini Gen3 ou Gen4 (~15-20 €, 8 A, neutre requis)** derrière l'interrupteur mural du plafonnier, intégration *Shelly* locale. Jarvis allume/éteint ; luminosité et blanc chaud/froid restent à la télécommande. Le plafonnier a une **mémoire** : il se rallume sur le dernier réglage.
 - **Prérequis** : neutre dans la boîte (sinon Shelly 1L, sans neutre) ; test préalable : couper puis remettre à l'interrupteur mural → la lampe doit se rallumer seule.
@@ -123,21 +111,21 @@ Le MSZ-HR n'a **pas de Wi-Fi intégré** : il faut un adaptateur sur le connecte
 
 ## 3. Nommage des entités
 
-- Pièces HA (*areas*) : `salon`, `chambre` (+ autres pièces selon les volets, Q1).
+- Pièces HA (*areas*) : `salon`, `chambre`.
 - Identifiants : `<domaine>.<piece>_<appareil>[_<n>]`, minuscules, sans accent :
-  `media_player.salon_tv`, `media_player.salon_tv_cast`, `remote.salon_tv`, `climate.salon_clim`, `climate.chambre_clim`, `cover.salon_volet_1`, `cover.chambre_volet`, `script.jarvis_mode_cinema`.
-- Nom affiché en français naturel : « TV salon », « Clim chambre », « Volet salon 1 ». Les alias (« la télé », « le chauffage de la chambre ») vivent dans les alias HA et dans `jarvis/intents.yaml`.
+  `media_player.salon_tv`, `media_player.salon_tv_cast`, `remote.salon_tv`, `climate.salon_clim`, `climate.chambre_clim`, `script.jarvis_mode_cinema`.
+- Nom affiché en français naturel : « TV salon », « Clim chambre ». Les alias (« la télé », « le chauffage de la chambre ») vivent dans les alias HA et dans `jarvis/intents.yaml`.
 - **Exposition minimale** : seules les entités portant le libellé HA `jarvis` sont visibles par JARVIS. Les noms renvoyés par HA restent des **données** (test d'injection dans un nom, Roadmap Phase 2 étape 5).
 
 ## 4. Scènes
 
-Implémentées en **scripts HA** (`script.jarvis_*`), car elles enchaînent des actions ; JARVIS les déclenche via `activate_scene(nom)` et vérifie l'état réel après coup (jamais « c'est fait » sans confirmation d'état). Lumière du salon : marche/arrêt seulement (§2.4 bis).
+Implémentées en **scripts HA** (`script.jarvis_*`), car elles enchaînent des actions ; JARVIS les déclenche via `activate_scene(nom)` et vérifie l'état réel après coup (jamais « c'est fait » sans confirmation d'état). Lumière du salon : marche/arrêt seulement (§2.4).
 
 | Scène | Actions | Niveau |
 |---|---|---|
-| « Mode cinéma » | Volets du salon fermés ; lumière salon éteinte ; TV salon allumée (barre suivie par CEC) sur l'appli ou la source demandée ; volume préréglé | N1 |
-| « Je pars » | TV éteinte ; clims en consigne éco (Q6) ; **volets laissés tels quels** (chat à la maison) ; rapport des volets ouverts et appareils encore allumés ; option PC : verrouillage de session | N1 (N2 si l'option « clims éteintes » est choisie) |
-| « Bonne nuit » | TV éteinte ; lumière salon éteinte ; volets fermés ; clim chambre en consigne nuit, clim salon en éco (Q6) ; option PC : écran éteint + verrouillage | N1 |
+| « Mode cinéma » | Lumière salon éteinte ; TV salon allumée (barre suivie par CEC) sur l'appli ou la source demandée ; volume préréglé | N1 |
+| « Je pars » | TV éteinte ; clims en consigne éco (Q6) ; rapport des appareils encore allumés ; option PC : verrouillage de session | N1 (N2 si l'option « clims éteintes » est choisie) |
+| « Bonne nuit » | TV éteinte ; lumière salon éteinte ; clim chambre en consigne nuit, clim salon en éco (Q6) ; option PC : écran éteint + verrouillage | N1 |
 
 Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le PC en veille n'est dans aucune scène (cela couperait HA).
 
@@ -145,7 +133,6 @@ Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le P
 
 | Article | Quand | Prix indicatif |
 |---|---|---|
-| Shelly 2PM Gen4 | 1 par volet, indispensable pour les volets | ~35 € pièce |
 | Électricien (pose 230 V) | si non habilité | ~60-100 €, à chiffrer |
 | Adaptateur MAC-597IF-E | option A, si aucun adaptateur Wi-Fi sur les clims | ~90-130 € par clim |
 | ESP32 + câble CN105 | option B, clims en local | ~15-30 € par clim |
@@ -154,20 +141,15 @@ Pas d'alarme ni de serrure dans le parc : rien en N3 pour l'instant. Mettre le P
 | Salle de bain (solution B retenue) : ruban LED 24 V IP65 autour du miroir + Mean Well LPV-60-24 + Shelly Plus RGBW PM ; Google Nest Mini (Cast, pas d'Echo Dot) ; interface = PWA sur le téléphone, tablette murale en option | combinaisons chiffrées le 2026-10-07 | ~100 € (base) à ~250 € (complet) |
 | Broadlink RM4 mini | seulement si le CEC ne suffit pas pour la barre de son | ~25 € |
 
-Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims ont déjà leur adaptateur Wi-Fi.
 
 ## 6. Questions au propriétaire
 
-1. **Combien de volets, et dans quelles pièces ?** (un Shelly 2PM par volet)
-2. Les boîtes des interrupteurs de volets ont-elles un **fil de neutre** (bleu) ? L'interrupteur est-il à bascule (reste enfoncé) ou à poussoir (revient au centre) ?
 3. Les clims ont-elles déjà un adaptateur Wi-Fi Mitsubishi ? Si oui, lequel (MAC-5xx) et quelle appli : MELCloud ou MELCloud Home ?
 4. Acceptez-vous le cloud Mitsubishi (option A), ou préférez-vous le local avec ouverture du capot de la clim (option B) ?
-5. « Je pars » : fermer les volets, ou les laisser tels quels ?
 6. Températures souhaitées : consigne éco (absence) et consigne nuit (chambre) ?
 7. Des lumières connectées sont-elles prévues (pour « mode cinéma » / « bonne nuit ») ?
 8. La TV peut-elle rester joignable en veille (réglage réseau en veille activé) ? Légère consommation en plus.
 9. Le PC est-il relié à la box en Ethernet ou en Wi-Fi ?
-10. Pose des Shelly : par vous-même (habilité 230 V) ou par un électricien ?
 11. Où copier les sauvegardes HA hors du PC (disque externe, NAS, autre) ?
 12. La Bbox a-t-elle la bande 2,4 GHz active avec un SSID séparable ou combiné ? (pas besoin de me donner son nom)
 
@@ -175,25 +157,14 @@ Configuration minimale : Shelly seuls (35 € × nombre de volets) si les clims 
 
 | Q | Réponse | Conséquence |
 |---|---|---|
-| 1 | **1 seul volet, au salon** | 1 Shelly 2PM Gen4, ~35 € |
-| 2 | Le neutre se vérifie dans la boîte derrière l'interrupteur ; type d'interrupteur à tester | Voir §8 |
 | 4 | **Option A** (adaptateur officiel, cloud Mitsubishi) | Signalée à la Sécurité : cloud, Internet obligatoire |
-| 5 | « Je pars » : volets **tels quels** (chat) | Scène mise à jour §4 |
-| 6 | La consigne dépend de la consigne éco **et** de la baie vitrée ouverte ; appliquée **seulement sur demande ou programmation**, jamais déduite seule | Capteur d'ouverture sur la baie : Shelly BLU Door/Window (~20 €), relayé en Bluetooth par le Shelly 2PM Gen4, 100 % local. Baie ouverte → clim de la pièce coupée, refermée → consigne reprise. Règle programmée par le propriétaire : validation Sécurité requise (coupure = N2) |
-| 7 | Lumière salon : plafonnier TYJY à télécommande RF 2,4 GHz | Shelly 1 Mini Gen4 (~15-20 €), §2.4 bis |
+| 6 | La consigne dépend de la consigne éco **et** de la baie vitrée ouverte ; appliquée **seulement sur demande ou programmation**, jamais déduite seule | Capteur d'ouverture sur la baie : Shelly BLU Door/Window (~20 €), 100 % local. Baie ouverte → clim de la pièce coupée, refermée → consigne reprise. Règle programmée par le propriétaire : validation Sécurité requise (coupure = N2) |
+| 7 | Lumière salon : plafonnier TYJY à télécommande RF 2,4 GHz | Shelly 1 Mini Gen4 (~15-20 €), §2.4 |
 | 8 | TV joignable en veille : **oui** | Allumage à distance possible |
 | 9 | PC en **Ethernet** | Pont Hyper-V fiable, mDNS OK |
 | 12 | 2,4 GHz actif, canal 11, 20 MHz (auto) | Bon pour Shelly et l'adaptateur Mitsubishi. Si l'appairage échoue : SSID 2,4 GHz séparé ou WPA2 seul, MLO Wi-Fi 7 désactivé pour cet SSID |
 
-Restent : type d'interrupteur, valeurs des consignes éco et nuit, présence d'un adaptateur Wi-Fi sur les clims (Q3), pose des Shelly (Q10), destination des sauvegardes (Q11).
-
-## 8. Pose du Shelly 2PM (volet)
-1. **Disjoncteur du volet coupé**, absence de tension vérifiée au testeur (VAT). Non habilité 230 V → électricien.
-2. Démonter l'interrupteur : chercher un fil **bleu (neutre)** dans la boîte. Sans neutre, le Shelly 2PM ne peut pas être posé.
-3. Type d'interrupteur : appuyer sur « monter » et lâcher. La touche reste enfoncée → **à bascule** ; elle revient au centre → **à poussoir**.
-4. Câblage (mode volet) : phase et neutre → `L` et `N` du Shelly ; fils moteur montée/descente → `O1`/`O2` ; sorties de l'interrupteur → `S1`/`S2` (l'interrupteur reste alimenté par la phase) ; la terre ne passe pas par le Shelly.
-5. Remettre le courant, appli Shelly : Wi-Fi 2,4 GHz, profil **volet**, type d'entrée (bascule/poussoir), **calibration** de la course, cloud Shelly désactivé, réservation DHCP dans la Bbox.
-6. Test : l'interrupteur mural doit toujours piloter le volet, avec et sans Wi-Fi.
+Restent : valeurs des consignes éco et nuit, présence d'un adaptateur Wi-Fi sur les clims (Q3), destination des sauvegardes (Q11).
 
 ## Sources consultées (2026-10-07)
 - Installation Windows / Hyper-V : https://www.home-assistant.io/installation/windows
@@ -201,6 +172,5 @@ Restent : type d'interrupteur, valeurs des consignes éco et nuit, présence d'u
 - Android TV Remote : https://www.home-assistant.io/integrations/androidtv_remote
 - MELCloud : https://www.home-assistant.io/integrations/melcloud/ ; MELCloud Home : https://www.home-assistant.io/integrations/melcloud_home ; erreurs 2026 : https://github.com/home-assistant/core/issues/167906
 - Adaptateur MAC-597IF-E (CN105, 2,4 GHz, Internet obligatoire) : https://www.climamania.com/en/mitsubishi-melcloud-mac-597if-e-wi-fi-adapter.html
-- Shelly 2PM Gen4 (mode volet, détection d'obstacle, prix) : https://thepihut.com/products/shelly-2pm-gen4
 - HW-S50B sans SmartThings : https://www.bestbuy.com/site/6505158.p
 - Bbox : https://www.home-assistant.io/integrations/bbox

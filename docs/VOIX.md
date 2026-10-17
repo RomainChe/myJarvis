@@ -35,7 +35,7 @@ notification + PWA) pendant l'écoute.
 
 - Paramètres : `language="fr"` forcé (évite la détection de langue), `compute_type="int8_float16"`,
   `beam_size=1` pour la latence, `vad_filter=True` (Silero VAD intégré).
-- `initial_prompt` court avec le vocabulaire de la maison (« Jarvis, salon, chambre, volets, clim »)
+- `initial_prompt` court avec le vocabulaire de la maison (« Jarvis, salon, chambre, clim »)
   pour mieux reconnaître les noms. À garder court : il coûte du temps de décodage.
 - **RTX 5070 Ti (Blackwell, sm_120)** : exige CUDA 12.8+, cuDNN 9 et CTranslate2 ≥ 4.5. Les anciennes
   images CUDA 11.8 ne marchent pas. À vérifier en premier lors de l'installation.

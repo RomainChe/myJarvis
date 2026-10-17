@@ -9,7 +9,7 @@ Statut : **validée** par le propriétaire et l'Expert Sécurité le 2026-10-07.
 | PC | Windows 11 Pro, i5-14600KF, 32 Go RAM, RTX 5070 Ti 16 Go | Assez puissant pour faire tourner un LLM et Whisper en local |
 | Serveur 24 h/24 | Aucun : tout tourne sur le PC | Jarvis et la domotique sont indisponibles quand le PC est éteint |
 | Smartphone | Android | Une PWA installable suffit (pas de store, pas de Mac) |
-| Appareils | TV Google TV, 2 clims réversibles, volets roulants | Intégrations Home Assistant en Phase 2 (§3.4) |
+| Appareils | TV Google TV, 2 clims réversibles | Intégrations Home Assistant en Phase 2 (§3.4) |
 | Budget IA | **0 €** | Aucun appel d'API payante : LLM local via Ollama |
 
 Tout ce qui est retenu est gratuit et open source, ou gratuit pour un usage personnel (Tailscale).
@@ -34,7 +34,7 @@ flowchart LR
       HA[Home Assistant OS]
     end
   end
-  DEV[TV, enceintes,<br/>volets, chauffage]
+  DEV[TV, enceintes,<br/>chauffage]
   PWA -- Tailscale HTTPS --> CORE
   CLI --> CORE
   MIC --> CORE
@@ -82,7 +82,6 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 | 2 clims Mitsubishi MSZ-HR25VFK2 | MELCloud (officielle) | non, cloud Mitsubishi | aucun si le Wi-Fi est déjà configuré |
 | idem, option locale | ESPHome sur le connecteur CN105 | oui | un ESP32 par clim (~15 €), ouverture de l'unité intérieure |
 | Barre de son Samsung HW-S50B | via la TV (HDMI ARC/CEC) ; SmartThings en option, compatibilité non garantie | oui (via la TV) | aucun |
-| Volets Turol Industries (filaires, interrupteur mural double) | Shelly (module « 2PM » en mode volet, derrière l'interrupteur existant, qui reste fonctionnel) | oui, Wi-Fi local, cloud Shelly désactivé | un module par volet (~30 €), neutre requis dans la boîte, pose en 230 V |
 | Bbox Wi-Fi 7 XT | aucune nécessaire | — | aucun (Tailscale n'ouvre aucun port) |
 
 ### 3.5 Applications : une PWA d'abord

@@ -28,7 +28,7 @@ Aucun ordre envoyé à la vraie TV, aucune requête vers le vrai Home Assistant 
 | Appli visible après 14 / 15 s ; 16 s | OK « youtube » ; « non confirmée » |
 | Appli jamais confirmée | OK : « non confirmée », durée ≤ 16 s simulées |
 | Deux scènes de suite | OK : même résultat, la TV n'est pas rallumée (l'appli est relancée, inoffensif) |
-| `non_traité` | OK : volets, lumière, volume ; clés du résultat = `tv`, `app`, `non_traité` |
+| `non_traité` | OK : lumière, volume ; clés du résultat = `tv`, `app`, `non_traité` |
 | HA tombe à la 1re lecture | OK : HAError propre, aucun ordre, erreur journalisée |
 | HA tombe après `tv_on` / après `tv_open_app` | OK : « non confirmée » (TV), « allumée » + « non confirmée » (appli) |
 | HA tombe puis revient pendant l'attente | OK : « allumée » |
