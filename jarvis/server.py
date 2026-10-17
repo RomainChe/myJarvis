@@ -221,13 +221,22 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         with counters:
             reads_logged[(device, tool)] = _now()
 
-    def authenticate(request: Request) -> tuple[int, str] | JSONResponse:
+    def authenticate(request: Request, voice_route: bool = False) -> tuple[int, str] | JSONResponse:
         header = request.headers.get("authorization")
         if header is None:  # une page web ne peut pas poser cet en-tête (pas de CORS) : ni compté, ni journalisé,
             return reply(401, "non autorisé")  # sinon elle bloquerait les appareils légitimes (constat 2)
         scheme, _, token = header.partition(" ")
-        found = devices.check(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
+        found = devices.check_scoped(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
+        if found is not None and found[2] != "full" and not voice_route:  # clé de portée limitée : refusée partout sauf /api/voice
+            with counters:
+                log_it = _now() - quota_logged.get(found[0], -QUOTA_WINDOW_S) >= QUOTA_WINDOW_S
+                if log_it:
+                    quota_logged[found[0]] = _now()
+            if log_it:  # une ligne par minute : une clé voix détournée ne gonfle pas le journal
+                audit.log(f"pwa:{found[0]}", "scope", {}, None, "refusé", f"clé de portée {found[2]} hors /api/voice")
+            return reply(403, "portée insuffisante")
         if found is not None:  # un token valide n'est jamais bloqué par le compteur d'échecs
+            found = found[:2]
             with counters:
                 recent = quota.setdefault(found[0], deque())
                 while recent and _now() - recent[0] > QUOTA_WINDOW_S:
@@ -308,7 +317,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     @app.post("/api/voice")
     def voice_say(body: VoiceIn, request: Request):
         """Texte reconnu par un client voix -> réponse à lire. Plafond N0/N1 (cf. Voice.handle) ; le texte est une donnée."""
-        auth = authenticate(request)
+        auth = authenticate(request, voice_route=True)
         if isinstance(auth, JSONResponse):
             return auth
         with counters:
