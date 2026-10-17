@@ -9,6 +9,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.request
 
 import keyring.errors
@@ -60,6 +61,14 @@ class RemoteVoice(Voice):
         return answer if isinstance(answer, str) and len(answer) <= REPLY_MAX else UNREACHABLE_MSG
 
 
+def _timed(timings: dict, key: str, fn, arg):
+    start = time.monotonic()
+    try:
+        return fn(arg)
+    finally:
+        timings[key] = time.monotonic() - start
+
+
 def run(audit) -> int:
     try:
         url, client = core_url(), client_id()
@@ -78,7 +87,12 @@ def run(audit) -> int:
     from jarvis.core.tts import Speaker
     from jarvis.core.voice import Listener
     voice = RemoteVoice(url, key, client, Speaker(audit))
-    listener = Listener(voice, Transcriber(), lambda text, answer: print(f"> {text}\n{answer}") if sys.stdout.isatty() else None)
+    stt, timings = Transcriber(), {}
+    _transcribe, _handle = stt.transcribe, voice.handle
+    stt.transcribe = lambda audio: _timed(timings, "stt", _transcribe, audio)
+    voice.handle = lambda text: _timed(timings, "core", _handle, text)
+    show = lambda text, answer: print(f"> {text}\n{answer}\n[stt {timings['stt']:.1f} s, core {timings['core']:.1f} s]") if sys.stdout.isatty() else None
+    listener = Listener(voice, stt, show)
     mic = Mic(listener, audit, voice.speaker, on_state=lambda s: print(f"[{s}]"), threshold=threshold_from_env(), wake_name=wake_name_from_env())
     print(f"Client voix « {client} » vers {url}. Dis le mot d'appel puis une phrase. Ctrl+C pour quitter.")
     try:
