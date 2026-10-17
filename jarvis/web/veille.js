@@ -1,6 +1,7 @@
 'use strict';
 // ---- Veille IA : envois hebdo du projet veille-ia (contenu écrit par un agent qui lit le web : texte seul, liens https) ----
 const VEILLE = { actus: 'Actus IA', plugins: 'Plugins' };
+const SCORE = /(\d{1,3})\s*\/\s*100/, SRC = /^sources?\s*:?$/i, WHY = /^pourquoi[^:]{0,30}:\s*/i;
 async function loadVeille() {
   const err = $('veille-error'), state = $('veille-state'), list = $('veille-list');
   err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren();
@@ -15,18 +16,41 @@ async function loadVeille() {
       d.open = i === 0;
       d.append(el('summary', '', `${VEILLE[it.kind] ?? it.kind} · semaine ${it.week} · ${it.year}`));
       const safe = (l) => l && typeof l.url === 'string' && URL.canParse(l.url) && new URL(l.url).protocol === 'https:';
-      const anchor = (l) => {
-        const a = el('a', '', l.label);
+      const anchor = (l, cls) => {
+        const a = el('a', cls, l.label);
         a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        return [a, el('span', 'muted', ` · ${new URL(l.url).hostname}`)]; // destination réelle, pas le champ du serveur
+        a.append(el('span', 'host', new URL(l.url).hostname)); // destination réelle, pas le champ du serveur
+        return a;
       };
       const items = it.items ?? [], used = new Set();
       if (items.length) {
         for (const x of items) {
-          const c = el('article', 'veille-item');
-          c.append(el('h3', 'veille-title', x.lines[0]));
-          for (const t of x.lines.slice(1)) c.append(el('p', 'veille-block', t));
-          if (safe(x.link)) { used.add(x.link.url); c.append(el('p', 'veille-block', '')); c.lastChild.append(...anchor(x.link)); }
+          const c = el('article', 'veille-item'), head = el('div', 'veille-head');
+          let score = null;
+          const take = (t) => {
+            const m = SCORE.exec(t);
+            if (!m || Number(m[1]) > 100) return t;
+            score = Number(m[1]);
+            return t.replace(m[0], '').replace(/^[\s:·|()-]+|[\s:·|()-]+$/g, '');
+          };
+          const title = take(x.lines[0]) || x.lines[0], rest = [];
+          for (const t of x.lines.slice(1)) {
+            if (safe(x.link) && SRC.test(t)) continue; // « Source » en texte brut : le bouton ci-dessous la remplace
+            const r = score === null && t.length <= 24 ? take(t) : t;
+            if (r) rest.push(r);
+          }
+          head.append(el('h3', 'veille-title', title));
+          if (score !== null) head.append(el('span', `badge score ${score >= 80 ? 'hi' : score >= 60 ? 'mid' : 'lo'}`, `${score}/100`));
+          c.append(head);
+          for (const t of rest) {
+            const w = WHY.exec(t);
+            if (w) {
+              const p = el('p', 'veille-why');
+              p.append(el('strong', '', 'Pourquoi ça compte'), document.createTextNode(` ${t.slice(w[0].length)}`));
+              c.append(p);
+            } else c.append(el('p', 'veille-sum', t));
+          }
+          if (safe(x.link)) { used.add(x.link.url); c.append(anchor(x.link, 'link-btn')); }
           d.append(c);
         }
       } else for (const b of it.blocks) d.append(el('p', 'veille-block', b));
@@ -34,7 +58,7 @@ async function loadVeille() {
       for (const l of it.links) {
         if (!safe(l) || used.has(l.url)) continue;
         const li = el('li');
-        li.append(...anchor(l));
+        li.append(anchor(l, 'lnk'));
         links.append(li);
       }
       if (links.children.length) d.append(el('h3', 'veille-src', items.length ? 'Rapport complet' : 'Sources'), links);

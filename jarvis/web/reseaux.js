@@ -3,10 +3,16 @@
 const PLATFORMS = { youtube: 'YouTube', tiktok: 'TikTok', all: 'YouTube + TikTok' };
 const fmtDate = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 function socialRow(r, withLink) {
-  const li = el('li', 'row');
-  li.append(el('div', 'tool', r.title), el('div', 'meta', `${PLATFORMS[r.platform] ?? r.platform} · ${fmtDate(r.at)}${r.privacy ? ` · ${r.privacy}` : ''}${Number.isInteger(r.views) ? ` · ${r.views} vues` : ''}`));
+  const li = el('li', 'row pub');
+  const title = el('div', 'pub-title', r.title);
+  title.title = String(r.title ?? '');
+  const meta = el('div', 'pub-meta');
+  meta.append(el('span', `badge plat ${r.platform === 'youtube' ? 'yt' : r.platform === 'tiktok' ? 'tt' : ''}`, PLATFORMS[r.platform] ?? r.platform), el('span', '', fmtDate(r.at)));
+  if (r.privacy) meta.append(el('span', 'badge status', r.privacy));
+  if (Number.isInteger(r.views)) meta.append(el('span', 'pub-views', `${r.views.toLocaleString('fr-FR')} vues`));
+  li.append(title, meta);
   if (withLink && typeof r.url === 'string' && URL.canParse(r.url) && new URL(r.url).protocol === 'https:') {
-    const a = el('a', '', 'Ouvrir');
+    const a = el('a', 'link-btn', 'Ouvrir');
     a.href = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
     li.append(a);
   }

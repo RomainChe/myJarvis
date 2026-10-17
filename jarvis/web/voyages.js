@@ -28,19 +28,28 @@ async function loadVoyages() {
       const strip = el('div', 'strip');
       strip.append(stat('Meilleur prix', eur(s.best.price), delta), stat('Plus bas observé', eur(s.lowest), `${s.history.length} relevé(s)`),
         stat('Dernier relevé', day(s.last_run)));
-      const b = s.best, offer = el('p', 'voy-offer');
-      const stops = b.stops == null ? '' : b.stops ? ` · ${b.stops} escale${b.stops > 1 ? 's' : ''}` : ' · direct';
-      const dur = b.duration_min ? ` · ${Math.floor(b.duration_min / 60)} h ${String(b.duration_min % 60).padStart(2, '0')}` : '';
-      offer.append(el('strong', '', `${b.origin} → ${b.dest}`), el('span', '', ` · ${day(b.depart_date)} → ${day(b.return_date)}${b.airlines ? ` · ${b.airlines}` : ''}${stops}${dur} · ${b.source}`));
+      const b = s.best, offer = el('div', 'voy-offer');
+      const route = el('p', 'voy-route');
+      route.append(el('span', 'voy-iata', b.origin), el('span', 'voy-arrow', '→'), el('span', 'voy-iata', b.dest));
+      const chips = el('ul', 'plain chips');
+      const chip = (t, cls = '') => chips.append(el('li', `chip ${cls}`, t));
+      chip(`${day(b.depart_date)} → ${day(b.return_date)}`);
+      if (b.airlines) chip(b.airlines);
+      if (b.stops != null) chip(b.stops ? `${b.stops} escale${b.stops > 1 ? 's' : ''}` : 'Direct', b.stops ? '' : 'ok');
+      if (b.duration_min) chip(`${Math.floor(b.duration_min / 60)} h ${String(b.duration_min % 60).padStart(2, '0')}`);
+      if (b.source) chip(b.source, 'src');
+      offer.append(route, chips);
       if (b.link && URL.canParse(b.link) && new URL(b.link).protocol === 'https:') {
-        const a = el('a', '', "Voir l'offre");
+        const a = el('a', 'link-btn', "Voir l'offre");
         a.href = b.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        offer.append(el('br'), a, el('span', 'muted', ` · ${new URL(b.link).hostname}`));
+        a.append(el('span', 'host', new URL(b.link).hostname));
+        offer.append(a);
       }
       const by = el('ul', 'plain voy-origins');
+      const low = Math.min(...s.by_origin.map((o) => o.price));
       for (const o of s.by_origin) {
-        const li = el('li');
-        li.append(el('span', '', o.origin), el('span', 'voy-price', eur(o.price)));
+        const li = el('li', o.price === low ? 'low' : '');
+        li.append(el('span', 'voy-code', o.origin), el('span', 'voy-price', eur(o.price)));
         by.append(li);
       }
       d.append(strip, el('h3', 'voy-h', 'Meilleure offre'), offer, el('h3', 'voy-h', 'Par aéroport de départ'), by);

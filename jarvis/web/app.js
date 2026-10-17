@@ -355,24 +355,31 @@ async function loadAudit() {
     for (const row of rows) {
       const key = String(row.source ?? 'inconnu').split('/')[0] || 'inconnu';
       if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(row);
+      const list = groups.get(key), prev = list[list.length - 1];
+      // Lectures (N0) identiques et consécutives : une ligne « ×N » (les actions N1+ restent toutes visibles)
+      if (prev && row.level === 0 && prev.level === 0 && prev.tool === row.tool && prev.decision === row.decision) prev.n = (prev.n ?? 1) + 1;
+      else list.push({ ...row });
     }
     const out = [];
     for (const [src, list] of groups) {
       const g = el('section', 'group');
-      const panel = el('div', 'panel hud cards');
+      const panel = el('ul', 'panel hud plain au-list');
+      const head = el('li', 'au-head');
+      head.setAttribute('aria-hidden', 'true');
+      head.append(...['Heure', 'Outil', 'Niveau', 'Décision', 'Détail'].map((t) => el('span', '', t)));
+      panel.append(head);
       g.append(el('h2', '', src), panel);
       for (const row of list) {
         // Le serveur envoie le niveau comme un entier (0 à 3, ou null) : « N2 », jamais « N? » pour un vrai niveau.
         const lvl = Number.isInteger(row.level) && row.level >= 0 && row.level <= 3 ? `N${row.level}` : 'N?';
-        const item = el('article', 'row');
-        item.appendChild(el('div', 'tool', String(row.tool ?? '')));
-        const meta = el('div', 'meta');
-        meta.appendChild(el('span', '', fmtTime(row.ts)));
-        meta.appendChild(el('span', `badge ${lvl.toLowerCase()}`, lvl));
-        meta.appendChild(el('span', decisionClass(row.decision), `Décision : ${row.decision ?? '—'}`));
-        item.appendChild(meta);
-        if (row.result) item.appendChild(el('div', 'meta', clip(row.result, 120)));
+        const item = el('li', 'au-row');
+        const tool = el('span', 'au-tool', String(row.tool ?? ''));
+        tool.title = tool.textContent;
+        if (row.n) tool.append(el('span', 'au-count', `×${row.n}`));
+        const detail = el('span', 'au-detail', row.result ? clip(row.result, 120) : '');
+        if (row.result) detail.title = clip(row.result, 400);
+        item.append(el('span', 'au-time', fmtTime(row.ts)), tool, el('span', `badge au-lvl ${lvl.toLowerCase()}`, lvl),
+          el('span', `au-dec ${decisionClass(row.decision)}`, String(row.decision ?? '—')), detail);
         panel.appendChild(item);
       }
       out.push(g);
