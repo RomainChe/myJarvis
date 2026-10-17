@@ -11,7 +11,7 @@ def build_request(url: str, key: str, client: str, text: str) -> tuple[str, dict
     url = url.rstrip("/")
     parts = urlsplit(url)
     secure = parts.scheme == "https" or (parts.scheme == "http" and parts.hostname == "127.0.0.1")
-    if not secure or parts.path or parts.username or not key or not CLIENT_RE.fullmatch(client):
+    if not secure or parts.path or parts.query or parts.fragment or parts.username or not key or not CLIENT_RE.fullmatch(client):
         raise ValueError("réglage invalide")  # http seulement sur la boucle locale : la clé ne circule jamais en clair ailleurs
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}", "Origin": url}
     return url + "/api/voice", headers, json.dumps({"text": text, "client": client}).encode()

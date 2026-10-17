@@ -236,8 +236,14 @@ Depuis PowerShell sur le PC (`ssh -t jarvis@<IP-minipc>` pour `sudo`). Sauvegard
 8. **Contrôles** : (a) clé voix refusée ailleurs : `curl -H "Authorization: Bearer <clé>" http://127.0.0.1:8765/api/ping` depuis le
    mini-PC -> 403 ; (b) journal du Core sans texte de phrase ; (c) HA : pas d'enregistrement audio conservé (réglages Assist) ;
    (d) compter les faux réveils TV allumée sur une journée (seuil à ajuster, ou « Jarvis » français à entraîner).
-Retour arrière : `sudo docker compose down` dans `/srv/voice-salon`, retirer `custom_components/jarvis_voice` et redémarrer HA,
-`python -m jarvis device revoke <id>`.
+Retour arrière (et en cas de doute sur la clé, ou de boîtier perdu ou revendu) : `~/venv/bin/python -m jarvis device list` pour trouver l'id de
+`voix-salon`, puis `~/venv/bin/python -m jarvis device revoke <id>` (effet immédiat) ; `sudo docker compose down` dans `/srv/voice-salon` ;
+retirer `custom_components/jarvis_voice` et redémarrer HA.
+**Reportés (revue Sécurité lot 4c)** : (1) conteneurs sans `read_only` ni `user` non-root, car non vérifiés pour ces images (Docker demande
+`sudo`, rien n'a été lancé) ; à essayer au déploiement (`read_only: true` + `tmpfs: [/tmp]`, volume `/data` inscriptible) ; images épinglées par
+version et non par condensat `@sha256`. (2) Les modèles (Vosk 42 Mo, voix Piper) sont téléchargés depuis Hugging Face au premier démarrage
+sans somme de contrôle (le lot 4b en vérifie une pour le PC, `models/MANIFEST.json`) ; à faire : télécharger une fois, vérifier le SHA-256,
+puis monter le fichier en lecture seule.
 **À vérifier au premier essai** (non testé sans HA) : l'entité `JarvisConversation` apparaît dans la liste des agents ; une réponse
 vide (Core hors ligne) ne fait pas planter Assist ; `async_process` encore accepté par la version de HA installée.
 

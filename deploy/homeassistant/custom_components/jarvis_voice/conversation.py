@@ -34,8 +34,10 @@ class JarvisConversation(ConversationEntity):
         try:
             url, headers, body = build_request(data[CONF_URL], data[CONF_KEY], data[CONF_CLIENT], user_input.text)
             async with async_get_clientsession(self.hass).post(
-                    url, data=body, headers=headers, timeout=aiohttp.ClientTimeout(total=TIMEOUT_S)) as resp:
-                answer = parse_answer(await resp.read(), REPLY_MAX) if resp.status == 200 else None
+                    url, data=body, headers=headers, timeout=aiohttp.ClientTimeout(total=TIMEOUT_S),
+                    allow_redirects=False) as resp:  # une redirection ne doit jamais emporter la clé ailleurs
+                # lecture bornée : un Core détourné ne remplit pas la mémoire de HA
+                answer = parse_answer(await resp.content.read(REPLY_MAX + 1), REPLY_MAX) if resp.status == 200 else None
         except (aiohttp.ClientError, TimeoutError, ValueError):
             answer = None
         if answer is None:  # 401/403/429, réseau : message fixe, rien de détaillé (ni texte, ni clé) dans le journal de HA
