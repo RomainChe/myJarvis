@@ -182,6 +182,13 @@ class Briefing(Base):
                 mock.patch.object(social, "snapshot", side_effect=OSError), mock.patch.object(veille, "snapshot", return_value={"issues": []}):
             self.assertEqual(assist.build_briefing(NOW), "Bonjour. Nous sommes mardi 13 octobre. 1 rappel(s) aujourd'hui, le prochain à 18:00.")
 
+    def test_briefing_sur_le_mini_pc_clips_lus_par_l_agent(self):
+        snap = {"published": [{"title": "Best-of", "at": "2026-10-13T08:00"}], "scheduled": []}
+        with mock.patch.object(assist, "HAS_PC_TOOLS", False), mock.patch.object(social, "from_pc", return_value=snap), \
+                mock.patch.object(social, "snapshot", side_effect=AssertionError("dossier local du mini-PC lu")), \
+                mock.patch.object(weather, "_weather", side_effect=ValueError), mock.patch.object(veille, "snapshot", return_value={"issues": []}):
+            self.assertIn("1 publication(s) en ligne aujourd'hui (Best-of)", assist.build_briefing(NOW))
+
 
 class Routage(unittest.TestCase):
     @classmethod

@@ -37,14 +37,14 @@ from jarvis.core import conso as conso_core
 from jarvis.core import minipc
 from jarvis.core import voyages as voyages_core
 from jarvis.core.voyages import snapshot as voyages_snapshot
-from jarvis.core.social import kept as social_kept, snapshot as social_snapshot, with_youtube
+from jarvis.core.social import from_pc as social_from_pc, snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
 from jarvis.core.push import Push, subject_from_env
 from jarvis.core.webauthn import Passkeys
 from jarvis.core import agentlink
 from jarvis.core.host import HAS_PC_TOOLS
 
-PANEL_TIMEOUT_S, SOCIAL_TIMEOUT_S = 3, 20  # PC éteint : l'encart ne bloque pas ; pc_social : 3 appels YouTube de 5 s au pire
+PANEL_TIMEOUT_S = 3  # PC éteint : l'encart ne bloque pas
 BIENETRE_OFFLINE = {"configured": True, "offline": True, "running": False, "error": None, "at": None, "items": [],
                     "counts": None, "previous": None}
 
@@ -438,7 +438,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         if HAS_PC_TOOLS:
             return with_youtube(social_snapshot(), youtube)
-        return social_kept(lambda: agentlink.call("run", "pc_social", {}, timeout=SOCIAL_TIMEOUT_S))
+        return social_from_pc()
 
     voyages_core.on_fetch = lambda ok: audit.log("pwa:voyages", "voyages_sync", {}, 0, "auto", "ok" if ok else "échec")
 

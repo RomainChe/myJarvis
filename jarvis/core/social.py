@@ -12,8 +12,10 @@ from itertools import islice
 from datetime import datetime
 from pathlib import Path
 
+from . import agentlink
 from .agentlink import AgentError
 
+PC_TIMEOUT_S = 20  # pc_social : 3 appels YouTube de 5 s au pire côté PC
 CONFIG = Path.home() / ".jarvis" / "social.json"
 CACHE = Path.home() / ".jarvis" / "social-cache.json"
 DEFAULT_DIR = Path.home() / "Videos" / "LoL Clips"
@@ -106,3 +108,8 @@ def kept(fetch, path: Path | None = None, now=datetime.now) -> dict:
         if tmp:
             Path(tmp).unlink(missing_ok=True)
     return snap
+
+
+def from_pc() -> dict:
+    """Core du mini-PC (onglet Réseaux, briefing) : relevé `pc_social` de l'agent, ou le dernier gardé si le PC est éteint."""
+    return kept(lambda: agentlink.call("run", "pc_social", {}, timeout=PC_TIMEOUT_S))
