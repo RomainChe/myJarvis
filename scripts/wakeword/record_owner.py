@@ -19,7 +19,7 @@ STYLES = ["normal", "plus fort", "plus doucement", "vite", "lentement", "en tour
           "comme une question", "en souriant", "normal"]
 NEGATIVES = ["jardin", "j'arrive", "j'avais", "ça va", "Gervais", "Travis", "Elvis", "Paris", "javel", "jadis",
              "j'ai vu", "service", "Charlie", "tarif", "avis", "allume le salon", "bonne nuit", "merci",
-             "quelle heure est-il", "ferme les volets"]
+             "quelle heure est-il", "éteins la lumière"]
 
 
 def trim(audio, spans):

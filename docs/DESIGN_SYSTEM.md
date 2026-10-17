@@ -120,7 +120,7 @@ Accessibilité : le fil est un `role="log"` avec `aria-live="polite"` ; le champ
 
 ### 3.2 Carte d'appareil
 Anatomie : icône · nom · pièce · état en texte (« Allumé · 21 °C ») · contrôle principal
-(interrupteur, curseur ou boutons ▲ ■ ▼ pour un volet). Appui long / clic droit → détail.
+(interrupteur ou curseur). Appui long / clic droit → détail.
 
 | État | Rendu |
 |---|---|
@@ -131,8 +131,7 @@ Anatomie : icône · nom · pièce · état en texte (« Allumé · 21 °C ») �
 | action N2+ | badge `N2` / `N3` sur le contrôle ; l'action ouvre le dialogue §3.4 au lieu d'agir |
 | chargement | squelette de la forme de la carte, sans animation si mouvement réduit |
 
-Accessibilité : un interrupteur est un `role="switch"` avec `aria-checked` ; un volet a trois boutons
-nommés (« Monter le volet du salon »…) ; un curseur annonce valeur et unité (« Température, 21 degrés ») ;
+Accessibilité : un interrupteur est un `role="switch"` avec `aria-checked` ; un curseur annonce valeur et unité (« Température, 21 degrés ») ;
 cible ≥ 44 px même si la carte est compacte.
 
 ### 3.3 Entrée du journal d'audit
@@ -257,9 +256,9 @@ Objectif : l'état de la maison et du PC d'un coup d'œil, les actions fréquent
 │ └─────────────┘└─────────────┘ │
 │ Salon                          │
 │ ┌─────────────┐┌─────────────┐ │
-│ │ ▤ Volet     ││ 🔊 Barre son│ │
-│ │ Fermé       ││ Éteinte     │ │
-│ │ [▲][■][▼]   ││ [  off]     │ │
+│ │ 💡 Plafonnier││ 🔊 Barre son│ │
+│ │ Éteint      ││ Éteinte     │ │
+│ │ [  off]     ││ [  off]     │ │
 │ └─────────────┘└─────────────┘ │
 │ Chambre ▸   PC ▸               │
 ├────────────────────────────────┤
@@ -285,7 +284,7 @@ Objectif : savoir qui a fait quoi, quand, et avec quel résultat.
 │ 14:02 Volume 30 %         N1   │
 │       CLI · Auto            ✓  │
 │ Hier                           │
-│ 22:41 Volet salon fermé   N1   │
+│ 22:41 Salon allumé        N1   │
 │       PWA · Auto            ✓  │
 │          [Charger plus]        │
 ├────────────────────────────────┤
@@ -307,7 +306,6 @@ Objectif : voir et ajuster le niveau de chaque outil. Baisser un niveau est N3 (
 │ Arrêt / veille      N2  [▾]    │
 │ Commande libre      N3 🔒      │
 │ Maison                         │
-│ Volets              N1  [▾]    │
 │ Chauffage coupé     N2  [▾]    │
 ├────────────────────────────────┤
 │ N0 lecture · N1 courant ·      │
@@ -337,12 +335,12 @@ Objectif : voir et ajuster le niveau de chaque outil. Baisser un niveau est N3 (
 ### 5.2 De la Domotique
 1. Pour chaque appareil : pièce, type, **état lisible** (« Chauffe 21 °C »), contrôles possibles et
    niveau de chaque action, issus de Home Assistant.
-2. Un **délai de réponse type** par appareil (le cloud MELCloud est plus lent que Shelly en local),
+2. Un **délai de réponse type** par appareil (le cloud MELCloud est plus lent qu'un appareil local),
    pour régler le retour arrière de l'affichage optimiste.
-3. Les états intermédiaires réels (volet en mouvement, position en %, clim en dégivrage).
+3. Les états intermédiaires réels (clim en dégivrage).
 4. Les scènes favorites (3 à 5) et leur contenu, pour l'écran Appareils et les raccourcis Android.
 5. Un événement temps réel (WebSocket HA relayé par le Core) plutôt qu'un sondage, pour l'état.
-6. Le nombre de volets et de pièces (question déjà en attente), pour dimensionner la grille.
+6. Le nombre de pièces, pour dimensionner la grille.
 
 ## 6. Avis sur l'interface texte actuelle (`python -m jarvis`)
 

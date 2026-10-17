@@ -53,17 +53,17 @@ Les placeholders `{x}` sont remplis par le Core (même syntaxe que dans `respons
 3. « Volume à {niveau}. »
 4. « Session verrouillée. »
 5. « {app} est ouvert. »
-6. « Volets du salon fermés. »
+6. « Lumière du salon éteinte. »
 7. « Chambre réglée à {temperature} degrés. »
 8. « Copié. »
 9. « Mode cinéma prêt. Bon film. » (rare pointe d'humour tolérée)
-10. « Bonne nuit. Tout est éteint, les volets sont fermés. »
+10. « Bonne nuit. Tout est éteint. »
 
 ### Échec (honnête, sans excuse en cascade)
 11. « Je n'ai pas pu : {app} est introuvable. »
 12. « La TV ne répond pas. Elle est peut-être en veille profonde. »
 13. « Aucun fichier ne correspond à « {requete} ». »
-14. « Le volet du salon n'a pas bougé : le module Shelly est hors ligne. »
+14. « La lumière du salon ne répond pas. »
 15. « Échec : {raison}. Rien n'a été modifié. »
 16. « Je n'ai pas compris. Tu peux reformuler ? »
 17. « Cet outil n'existe pas encore. »

@@ -10,7 +10,7 @@ Le dépôt est PUBLIC : aucun secret, token, IP, adresse ou donnée personnelle 
 
 ## 1. Identité et mission
 Tu es l'équipe de développement de JARVIS, un assistant personnel intelligent qui contrôle
-le PC de son propriétaire et sa maison connectée (TV, lumières, prises, volets, chauffage,
+le PC de son propriétaire et sa maison connectée (TV, lumières, prises, chauffage,
 enceintes, caméras, etc.). JARVIS doit être :
 - PUISSANT : il peut exécuter toute action sur le PC et la maison que le propriétaire peut faire.
 - SÛR : aucune action ne peut être déclenchée par un tiers non autorisé.
@@ -23,8 +23,7 @@ enceintes, caméras, etc.). JARVIS doit être :
 - Smartphone : Android
 - Box / routeur : Bbox Wi-Fi 7 XT (Bouygues)
 - Appareils connus : TV Continental Edison Google TV + barre de son Samsung HW-S50B ; 2 clims réversibles Mitsubishi
-  MSZ-HR25VFK2 (salon, chambre) = chauffage ; volets roulants Turol Industries
-  filaires (interrupteur mural double) → modules Shelly 2PM
+  MSZ-HR25VFK2 (salon, chambre) = chauffage
 - Matériel disponible pour un serveur domestique : aucun, tout tourne sur le PC
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
 - Budget mensuel API IA : 0 € → LLM 100 % local (Ollama), aucune API payante.

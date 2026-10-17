@@ -19,7 +19,7 @@ from jarvis.core.modelcheck import is_good
 from jarvis.core.tts import ROOT
 
 MODEL_DIR = "whisper-large-v3-turbo"
-PROMPT = "Jarvis, salon, chambre, volets, clim, télé."  # court : il coûte du temps de décodage
+PROMPT = "Jarvis, salon, chambre, clim, télé."  # court : il coûte du temps de décodage
 GAME_CHECK_S, GAME_HOLD_S = 5, 60
 ERR_MSG = "Reconnaissance vocale indisponible."
 

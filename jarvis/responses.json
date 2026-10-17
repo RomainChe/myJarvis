@@ -138,10 +138,6 @@
       "on": ["TV allumée."], "off": ["TV éteinte."], "channel": ["TV sur {chaine}."],
       "error": ["La TV ne répond pas. Elle est peut-être en veille profonde."]
     },
-    "home_cover": {
-      "open": ["Volets de {piece} ouverts."], "closed": ["Volets de {piece} fermés."], "position": ["Volets de {piece} à {position} %."],
-      "error": ["Le volet de {piece} n'a pas bougé : module hors ligne."]
-    },
     "home_climate": {
       "ok": ["{piece} réglée à {temperature} degrés."],
       "error": ["La clim de {piece} ne répond pas."]
@@ -152,7 +148,7 @@
       "error": ["La clim de {piece} ne répond pas."]
     },
     "scene": {
-      "ok": ["Mode {scene} prêt."], "ok_bonne_nuit": ["Bonne nuit. Tout est éteint, les volets sont fermés."],
+      "ok": ["Mode {scene} prêt."], "ok_bonne_nuit": ["Bonne nuit. Tout est éteint."],
       "partial": ["Mode {scene} lancé, sauf : {echecs}."],
       "error": ["Le mode {scene} a échoué."]
     }
