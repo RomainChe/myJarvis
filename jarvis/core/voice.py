@@ -55,7 +55,7 @@ class Voice:
         if self.speaker is not None and not self.muted:
             self.speaker.say(answer)
 
-    def handle(self, text: str) -> str:
+    def handle(self, text: str, client: str | None = None) -> str:
         """Texte reconnu -> réponse à lire. Lève ValueError si le texte est vide ou trop long.
 
         L'appelant (STT/TTS) doit attraper toute exception (ex. échec du journal) et lire un message générique.
@@ -75,8 +75,8 @@ class Voice:
             return BUSY_MSG
         gen = chat.busy.gen
         try:
-            chat.audit.log(SOURCE, "chat", {"len": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest()},
-                           None, "auto", None)
+            chat.audit.log(SOURCE, "chat", {"len": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest(),
+                                         **({"client": client} if client else {})}, None, "auto", None)
             refused = [0]  # niveau le plus haut refusé dans ce tour
 
             def confirm(tool, args):  # pas d'appareil, pas de confirmation vocale (étape 7 du plan)
