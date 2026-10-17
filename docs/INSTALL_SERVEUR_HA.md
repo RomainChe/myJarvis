@@ -265,7 +265,7 @@ Les identifiants que le code attend (docs/TOOLS.md) :
 | Appareil | Entités attendues |
 |---|---|
 | TV du salon (Android TV Remote) | `media_player.salon_tv`, `remote.salon_tv` |
-| Prise du PC (Tapo P110) | `switch.prise_pc`, `sensor.prise_pc_current_consumption` (§10) |
+| Prise du PC (Tapo P110) | `switch.prise_pc`, `sensor.prise_pc_consommation_actuelle` (§10) |
 
 Renomme les entités dans **Paramètres → Appareils → Entités** si besoin : le code ne les devine pas.
 
@@ -302,7 +302,7 @@ Renomme les entités dans **Paramètres → Appareils → Entités** si besoin :
    passe du compte Tapo (stockés par HA, jamais dans le dépôt). Pendant l'ajout, débranche les autres appareils TP-Link.
 4. Nomme l'appareil **« Prise PC »** ; contrôle les identifiants :
    - interrupteur : `switch.prise_pc` (attendu par `jarvis/tools/home/pcplug.py`) ;
-   - puissance : un capteur de watts, noté ici `sensor.prise_pc_current_consumption` (le nom exact peut varier : lis-le
+   - puissance : un capteur de watts, noté ici `sensor.prise_pc_consommation_actuelle` (le nom exact peut varier : lis-le
      dans la fiche de l'appareil).
 5. Branche la multiprise (PC + écrans) sur la Tapo. Elle supporte 16 A (3 680 W).
 
@@ -316,7 +316,7 @@ Renomme les entités dans **Paramètres → Appareils → Entités** si besoin :
 ### 10.3 Coupure de la prise (orchestrée par le Core)
 
 Plus de script HA : `pc_off_plug` est orchestré par le Core du mini-PC (docs/MIGRATION_CORE_MINIPC.md, lot 6). Après
-l'arrêt demandé à l'agent PC, le Core attend que `sensor.prise_pc_current_consumption` passe sous le seuil
+l'arrêt demandé à l'agent PC, le Core attend que `sensor.prise_pc_consommation_actuelle` passe sous le seuil
 (`JARVIS_PC_IDLE_W`, défaut 10 W : ~3 × la veille mesurée au §10.2, jamais moins de 5 W), laisse 30 s, revérifie, puis
 coupe `switch.prise_pc`. Si le PC ne s'éteint pas en 5 min, ou si la puissance remonte, la prise n'est **pas** coupée.
 
