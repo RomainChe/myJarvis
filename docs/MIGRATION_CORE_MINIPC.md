@@ -208,10 +208,11 @@ Le boîtier consomme le mot de réveil ; la phrase reçue par le Core est « hor
    À confirmer à l'étape B : pas d'enregistrement conservé des audios dans HA, journal HA sans le texte des phrases. Nouvelle
    donnée personnelle traitée : la voix du foyer et le texte reconnu (journal du Core : longueur + SHA-256 seulement).
 
-**Décision du propriétaire : tous les outils N1 sont acceptés depuis le salon** (pas de liste blanche). Garde : plafond N0/N1 de
-`/api/voice`, N2 / N3 refusés, règle `taint_blocked` inchangée (elle vise le contenu externe lu par le LLM). Conséquence à garder
-en tête : `open_app`, `close_app`, `lock_session`, `screen_off`, `clipboard_write`, `driverwatch_accept` sont atteignables par une
-phrase entendue (TV, voisin), et le deviendraient aussi `power`, `delete_file`, `move_file`, `kill_process`, `run_script` si le
+**Décision du propriétaire : tous les outils N1 sont acceptés depuis le salon**, sauf `clipboard_write` et `driverwatch_accept`, ajoutés le
+2026-10-17 à `VOICE_BLOCKED` (`permissions.py`, comme `memory_set` / `memory_forget`) : refusés à la voix (salon et PC), utilisables dans
+l'application et au terminal (refus testé : tests/test_voice_blocked.py). Garde : plafond N0/N1 de `/api/voice`, N2 / N3 refusés, règle
+`taint_blocked` inchangée (elle vise le contenu externe lu par le LLM). Restent atteignables par une phrase entendue (TV, voisin) :
+`open_app`, `close_app`, `lock_session`, `screen_off`, et `power`, `delete_file`, `move_file`, `kill_process`, `run_script` si le
 propriétaire les abaisse en N1 (planchers). Les lectures de contenu privé rendent « Fait, voir l'application ».
 
 #### Procédure de déploiement (étape B, à valider par le propriétaire avant exécution)
