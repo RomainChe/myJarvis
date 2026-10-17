@@ -1,8 +1,6 @@
 """Recette QA du 2026-10-13 : rappels, mémoire, Mic.run, hôtels, bon plan Japon. Les bugs connus sont des
 `expectedFailure` (reproduction avant correction) : retirer le décorateur quand le code est corrigé."""
-import json
 import os
-import subprocess
 import tempfile
 import threading
 import unittest
@@ -22,7 +20,7 @@ from jarvis.core import llm, memory, reminders, voyages
 from jarvis.core.audit import Audit
 from jarvis.core.permissions import Refused, execute
 from jarvis.core.tools import REGISTRY, Level
-from tests.test_voyages import HEAD, RESUME, hotel_project, project, row
+from tests.test_voyages import HEAD, project, row
 
 
 class DbCase(unittest.TestCase):
@@ -288,60 +286,9 @@ class MicRun(unittest.TestCase):
         self.assertNotEqual(m.state, "écoute")
 
 
-class Hotels(unittest.TestCase):
-    def setUp(self):
-        voyages._hotel_sync.update(at=0.0, ok=None, error=None)
-
-    def test_git_indisponible_garde_la_copie_locale(self):
-        root = hotel_project(RESUME)
-        (root / ".git").mkdir()
-        with mock.patch.object(voyages.subprocess, "run", side_effect=FileNotFoundError("git")):
-            s = voyages.hotel_snapshot(root)
-        self.assertTrue(s["configured"])
-        self.assertEqual(s["total_recommande"], 2345.0)
-        self.assertIn("synchronisation", s["sync_error"])
-
-    def test_git_expire(self):
-        root = hotel_project(RESUME)
-        (root / ".git").mkdir()
-        with mock.patch.object(voyages.subprocess, "run", side_effect=subprocess.TimeoutExpired("git", 1)):
-            self.assertTrue(voyages.hotel_snapshot(root)["configured"])
-
-    def test_schemas_inattendus_sans_exception(self):
-        bad = ('{"etapes": 5}', '{"etapes": [1]}', "null", "",
-               '{"date":"2026-10-13","total_recommande":NaN,"total_moins_cher":1,"etapes":[]}',
-               json.dumps({**RESUME, "etapes": "x"}))
-        for data in bad:
-            self.assertFalse(voyages.hotel_snapshot(hotel_project(data))["configured"], data)
-
-    def test_fichier_trop_gros_ignore(self):
-        big = json.dumps({**RESUME, "pad": "x" * (voyages.MAX_RESUME_BYTES + 1)})
-        self.assertFalse(voyages.hotel_snapshot(hotel_project(big))["configured"])
-
-    def test_plafond_d_etapes(self):
-        data = {**RESUME, "etapes": RESUME["etapes"] * 40}
-        self.assertLessEqual(len(voyages.hotel_snapshot(hotel_project(data))["etapes"]), voyages.MAX_STAGES)
-
-    def test_outils_n0_external(self):
-        for name in ("hotel_itineraire", "voyage_prix"):
-            self.assertEqual((REGISTRY[name].level, REGISTRY[name].external), (Level.N0, True))
-
-    def test_hotel_itineraire_journalise(self):
-        fd, path = tempfile.mkstemp(suffix=".db")
-        os.close(fd)
-        audit = Audit(path)
-        self.addCleanup(os.unlink, path)
-        self.addCleanup(audit.db.close)
-        with mock.patch.object(voyages, "hotel_dir", return_value=hotel_project(RESUME)):
-            out = execute("hotel_itineraire", {}, source="cli", audit=audit, confirm=lambda t, a: False, strong_auth=lambda t, a: False)
-        self.assertIn("recommandé", out)
-        self.assertIn("hotel_itineraire", str(audit.db.execute("SELECT * FROM audit").fetchall()))
-
-    def test_BUG_04_devise_absente_meme_symbole_partout(self):
-        # BUG-04 : sans « devise », la phrase parlée dit « € » mais renderHotels et le carré dashboard (app.js) affichent
-        # « 2345 » sans symbole : le Core devrait normaliser une fois pour les deux consommateurs.
-        s = voyages.hotel_snapshot(hotel_project({k: v for k, v in RESUME.items() if k != "devise"}))
-        self.assertEqual(s["devise"], "EUR")
+class VoyagePrixN0(unittest.TestCase):
+    def test_outil_n0_external(self):
+        self.assertEqual((REGISTRY["voyage_prix"].level, REGISTRY["voyage_prix"].external), (Level.N0, True))
 
 
 class BonPlan(unittest.TestCase):

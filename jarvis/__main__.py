@@ -462,8 +462,7 @@ def main(argv: list[str]) -> int:
                              notify=lambda: doctor.notify_all(str(DB_PATH)),
                              notify_health=lambda: doctor.notify_all(str(DB_PATH), doctor.HEALTH_ALERT))
             return 0 if r == "ok" else 1
-        checks = doctor.report(audit, port, Path(os.environ.get("JARVIS_BACKUP_DIR") or Path.home() / ".jarvis" / "backups"),
-                               Path(__file__).resolve().parent.parent / "models")
+        checks = doctor.report(audit, port, doctor.backup_dir(), doctor.MODELS)
         for name, problem in checks:
             print(f"{'OK ' if problem is None else 'KO '} {name}" + (f" : {problem}" if problem else ""))
         return 1 if any(p for _, p in checks) else 0
