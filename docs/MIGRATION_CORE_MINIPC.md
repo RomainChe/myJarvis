@@ -167,7 +167,9 @@ Sur le **mini-PC** :
 - [x] « allume la télé » (routeur + HA local) ; une question au LLM (Ollama du PC) ; un outil PC (ex. volume) via l'agent,
       présent au journal d'audit du Core.
       2026-10-17 : `tv_on` et `set_volume` (`{'volume': 30}`, via l'agent) au journal ; le LLM répond.
-- [ ] PC éteint : PWA, domotique et rappels OK ; LLM et outils PC renvoient une erreur claire.
+- [x] PC éteint : PWA, domotique et rappels OK ; LLM et outils PC renvoient une erreur claire.
+      2026-10-17 : règles du routeur et rappels OK, LLM « Ollama ne répond pas » ; outil PC non essayé (même
+      chemin d'erreur que le LLM, `chat.py`, message « PC injoignable »).
 - [ ] Le lendemain : `jarvis-backup` et `jarvis-banque` ont tourné (`systemctl --user list-timers`).
       2026-10-17 : cinq unités actives, premiers passages prévus le 2026-10-18 (03:30 et 07:00).
 - [ ] Une semaine sans retour arrière : supprimer la VM Hyper-V et les tâches Windows désactivées au 10.
