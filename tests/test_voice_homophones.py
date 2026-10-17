@@ -23,11 +23,14 @@ class VoiceFixTest(unittest.TestCase):
         self.assertEqual(voice_fix("mais la TV sur très fin"), "mets la TV sur TF1")
         self.assertEqual(voice_fix("mets la télé sur tf un"), "mets la télé sur TF1")
         self.assertEqual(voice_fix("éteint le salon"), "éteins le salon")
+        self.assertEqual(voice_fix("a vu la télé"), "allume la télé")
+        self.assertEqual(voice_fix("éteint la lumière du salon"), "éteins la lumière du salon")
 
     def test_texte_ordinaire_inchange(self):
         for text in ("tu as vu le pc", "mais je veux le pc", "la lumière éteint le salon", "un tissu très fin", "mets la télé sur TF1",
                      "allure lampe", "mais la maison est belle", "éteint", "a vu", "il a vu la télé", "éteins la télé",
-                     "ça a vu le pc"):
+                     "ça a vu le pc", "a lu le livre", "a vu la télé hier", "mais le pc est lent", "et tant les gens", "etant le pc",
+                     "a vu le pc de mon frère", "mais la télé est cassée", "éteint le pc de Paul", "a lu la télé hier soir"):
             self.assertEqual(voice_fix(text), text, text)
 
     def test_correction_sans_effet_sur_une_phrase_hors_catalogue(self):

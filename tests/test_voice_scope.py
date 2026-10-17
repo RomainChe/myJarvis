@@ -50,6 +50,15 @@ class ScopeRouteTest(ServerBase):
         self.assertEqual(self.call("POST", "/api/voice", {"text": "a"}, token=None)[0], 401)
 
 
+class ScopeListTest(ServerBase):
+    def test_api_devices_expose_la_portee(self):
+        _, token = self.enroll("tel")
+        self.devices.add_scoped("voix-salon", "voice")
+        status, body, _ = self.call("GET", "/api/devices", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual([(d["name"], d["scope"]) for d in body["devices"]], [("tel", "full"), ("voix-salon", "voice")])
+
+
 class ScopeStorageTest(unittest.TestCase):
     def test_portee_et_nom_invalides(self):
         d = Devices(":memory:")
@@ -92,6 +101,13 @@ class ScopeCliTest(unittest.TestCase):
         token = re.search(r": ([A-Za-z0-9_-]{20,})", out).group(1)
         self.assertEqual(self.devices.check_scoped(token)[1:], ("voix-salon", "voice"))
         self.assertEqual(self.audit.db.execute("SELECT count(*) FROM audit WHERE tool='device_add'").fetchone()[0], 1)
+
+    def test_device_list_affiche_la_portee(self):
+        self.run_cli(["device", "add", "--voice", "voix-salon"])
+        code, out = self.run_cli(["device", "list"], tty=False)
+        self.assertEqual(code, 0)
+        self.assertIn("voix-salon", out)
+        self.assertIn("voice", out)
 
     def test_add_voice_exige_un_terminal_et_un_nom_valide(self):
         self.assertEqual(self.run_cli(["device", "add", "--voice", "x"], tty=False)[0], 1)

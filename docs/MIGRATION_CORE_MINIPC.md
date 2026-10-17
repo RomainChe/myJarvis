@@ -242,7 +242,7 @@ Retour arrière : `sudo docker compose down` dans `/srv/voice-salon`, retirer `c
 vide (Core hors ligne) ne fait pas planter Assist ; `async_process` encore accepté par la version de HA installée.
 
 **Code de l'étape B** : clé de portée voix (`jarvis/core/devices.py`, `server.py`, `__main__.py`, tests/test_voice_scope.py) ;
-tolérance aux homophones de Vosk (`router.voice_fix`, appelée par `Voice.handle` ; « a vu / allure le pc », « éteint la télé »,
+tolérance aux homophones de Vosk (`router.voice_fix`, appelée par `Voice.handle` ; (phrase entière `<verbe> <article> <objet connu>`, « a vu / a lu » limités à 4 mots) « a vu le pc », « éteint la télé »,
 « mais la TV », « sur très fin / tf un » -> TF1 ; ancrée en début de phrase, tests/test_voice_homophones.py) ; composant HA et
 compose (`deploy/`, tests/test_ha_component.py).
 
