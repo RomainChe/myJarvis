@@ -62,6 +62,11 @@
       <section class="panel hud"><h2>Météo</h2><p id="st-weather" class="big">—</p><p id="st-sky" class="muted"></p></section>
       <section class="panel hud"><h2>Localisation</h2><p id="st-loc" class="big">—</p><p id="st-net" class="muted"></p></section>
       <section class="panel hud"><h2>Uptime</h2><p id="st-up" class="big">—</p></section>
+      <section id="dg-conso" class="panel hud" hidden>
+        <h2>Conso · PC</h2>
+        <p id="dg-conso-kwh" class="big"></p>
+        <p id="dg-conso-info" class="muted"></p>
+      </section>
     </aside>
     <div class="core" aria-hidden="true">
       <canvas id="eye" class="eye"></canvas>
@@ -83,11 +88,6 @@
         <p id="dg-voy-price" class="big"></p>
         <p id="dg-voy-info" class="muted"></p>
         <ul id="dg-voy-link" class="plain digest-links"></ul>
-      </section>
-      <section id="dg-conso" class="panel hud" hidden>
-        <h2>Conso · PC</h2>
-        <p id="dg-conso-kwh" class="big"></p>
-        <p id="dg-conso-info" class="muted"></p>
       </section>
       <section id="dg-minipc" class="panel hud" hidden>
         <h2>Mini-PC</h2>
