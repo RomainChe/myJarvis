@@ -46,7 +46,7 @@ class PcPlugOnTest(PcBase):
         from jarvis.core.router import Router
         router = Router()
         for text in ("allume la prise du PC", "Jarvis, rallume le PC", "allume mon pc principal",
-                     "rallume la prise PC", "Jarvis, rallume la prise pc."):
+                     "rallume la prise PC", "Jarvis, rallume la prise pc.", "allume pc", "Allume PC !"):
             self.assertEqual(router.route(text), ("pc_plug_on", {}), text)
         self.assertIsNone(router.route("allume la prise"))  # une seule prise aujourd'hui, mais pas d'ambiguïté plus tard
 
