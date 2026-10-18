@@ -67,7 +67,7 @@
   },
   {
     "tool": "pc_plug_on",
-    "patterns": ["(allume|allumer|rallume|rallumer|d[ée]marre|d[ée]marrer) (la prise (du pc|de l['’ ]?ordi(nateur)?)|(le|mon) pc( principal)?|l['’ ]?ordi(nateur)?)"]
+    "patterns": ["(allume|allumer|rallume|rallumer|d[ée]marre|d[ée]marrer) (la prise (du pc|de l['’ ]?ordi(nateur)?|pc)|(le|mon) pc( principal)?|l['’ ]?ordi(nateur)?)"]
   },
   {
     "tool": "tv_on",
