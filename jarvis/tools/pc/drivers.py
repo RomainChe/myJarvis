@@ -24,15 +24,15 @@ def _spawn(command: str) -> None:
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
 
 
-@tool("driverwatch_accept", "Accepte la proposition de mise à jour de pilotes affichée par DriverWatch au démarrage "
-      "(équivaut à appuyer sur Entrée dans sa console). Windows demandera l'autorisation (UAC).", Level.N1, taint_blocked=True)
+@tool("driverwatch_accept", "Accepte la mise à jour de pilotes proposée par DriverWatch au démarrage (Windows demandera"
+                            " l'UAC).", Level.N1, taint_blocked=True)
 def driverwatch_accept() -> dict:
     _spawn("accept")
     return {"driverwatch": "accepté"}
 
 
-@tool("driverwatch_update_all", "Demande à DriverWatch de mettre à jour tous les pilotes qui en ont besoin (en retard). "
-      "Un point de restauration est créé et Windows demandera l'autorisation (UAC).", Level.N2)
+@tool("driverwatch_update_all", "Met à jour tous les pilotes en retard avec DriverWatch (point de restauration créé, "
+                                "Windows demandera l'UAC).", Level.N2)
 def driverwatch_update_all() -> dict:
     _spawn("update-all")
     return {"driverwatch": "mise à jour lancée"}

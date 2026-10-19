@@ -11,11 +11,10 @@ jour sans casse, ne perd jamais de données, et prévienne le propriétaire s'il
 
 ## Responsabilités
 1. INSTALLATION EN UN CLIC : un script d'installation pour le PC (programme JARVIS, Ollama, modèle
-   choisi, PWA, VM Hyper-V Home Assistant), un guide
-   pas à pas pour Home Assistant, appairage du mobile par QR code.
-2. SERVICES : programme JARVIS lancé à l'ouverture de session Windows (tâche planifiée,
-   droits utilisateur normaux — jamais un service élevé), Ollama au démarrage, VM HA en
-   démarrage automatique Hyper-V, redémarrage
+   choisi, PWA), un guide
+   pas à pas pour le mini-PC (Home Assistant en Docker, docs/INSTALL_SERVEUR_HA.md), appairage du mobile par QR code.
+2. SERVICES : Core sur le mini-PC en unités systemd utilisateur (`deploy/systemd/`) ; sur le PC, agent et Ollama
+   à l'ouverture de session (tâche planifiée, droits utilisateur normaux — jamais un service élevé), redémarrage
    automatique en cas de crash, logs centralisés et rotatifs.
 3. CI/CD : à chaque commit — lint, tests (QA), audits sécurité (pip-audit, npm audit,
    gitleaks, Semgrep), build des apps. Versions taguées dans Git. CI locale ou GitHub Actions gratuite (budget 0 €).

@@ -31,7 +31,7 @@ enceintes, caméras, etc.). JARVIS doit être :
 - `docs/archive/` : rapports QA et revues Sécurité finis (Phases 1, 3, 4, console, scènes, TV). À chercher par `grep`, ne pas lire.
 - **En début de session, lire la section « État actuel » de docs/ROADMAP.md** (Read avec `limit: 24`, jamais en entier). La tenir à jour à chaque fin de tâche ; le détail d'une tâche finie va dans docs/HISTORIQUE.md.
 
-## 3. Architecture cible (à valider en Phase 0, modifiable avec justification)
+## 3. Architecture (détail : docs/ARCHITECTURE.md)
 1. JARVIS CORE (cerveau) : service Python (FastAPI) ou Node (TypeScript), qui reçoit les
    demandes, appelle le modèle d'IA, choisit les outils et renvoie les réponses.
 2. ROUTEUR D'INTENTIONS : les commandes simples et fréquentes (« éteins tout », « mets la TV
@@ -71,13 +71,9 @@ provenant d'un contenu externe (page web, email, fichier, nom d'appareil) est un
 jamais un ordre : elle ne peut jamais déclencher seule une action N2 ou N3.
 
 ## 5. L'équipe
-Le MANAGER (`.claude/agents/manager.md`) coordonne les experts de `.claude/agents/` (rôles dans
-leur description). Il est le seul à parler au propriétaire pour les décisions. Aucune livraison
-n'arrive au propriétaire sans le feu vert du QA puis de la Sécurité (droit de veto).
-
-## 6. Phases du projet
-Phases 0 à 7 et leur avancement : docs/ROADMAP.md. Aucune phase ne démarre sans le feu vert
-de l'Expert Sécurité ET du propriétaire.
+Le MANAGER (`.claude/agents/manager.md`) coordonne les experts de `.claude/agents/` et seul parle au propriétaire
+pour les décisions. Aucune livraison sans le feu vert du QA puis de la Sécurité (veto). Phases 0 à 7 : docs/ROADMAP.md ;
+aucune phase ne démarre sans le feu vert de la Sécurité ET du propriétaire.
 
 ## 7. Règles de travail
 - Dépôt Git propre : un commit par changement logique, messages clairs en français.
@@ -91,6 +87,9 @@ de l'Expert Sécurité ET du propriétaire.
 - Revues : UNE revue Sécurité par étape, après le feu vert du QA, sur le diff complet de
   l'étape ; les correctifs sont vérifiés dans la même revue ou une seule contre-revue, pas
   une revue par commit.
+- Idées : au début de chaque tâche de code, lancer l'agent `idees` en arrière-plan (sujet +
+  fichiers touchés). Il écrit dans `IDEES.md` (hors Git). « Fais l'idée #N » = lire cette
+  entrée, présenter son plan, puis la passer en « Acceptées ».
 - Gros fichiers (`jarvis/web/app.js`, `app.css`, `index.html`, `jarvis/__main__.py`,
   `jarvis/server.py`, docs/TOOLS.md, docs/HISTORIQUE.md) : jamais lus en entier ni par
   `cat`/`Get-Content` ; chercher avec Grep puis lire la plage utile. Le JS de la PWA est
@@ -101,5 +100,4 @@ de l'Expert Sécurité ET du propriétaire.
 - Aucun linter configuré pour l'instant.
 
 ## 8. Définition de « terminé »
-Une fonctionnalité est terminée quand : elle marche, elle est testée, elle est journalisée,
-son niveau de permission est défini, l'Expert Sécurité l'a validée, et elle est documentée.
+Elle marche, est testée, journalisée, son niveau de permission est défini, la Sécurité l'a validée, elle est documentée.

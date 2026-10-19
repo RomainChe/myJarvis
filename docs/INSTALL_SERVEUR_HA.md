@@ -2,8 +2,7 @@
 
 Objectif : un mini-PC dédié, branché en Ethernet sur la Bbox, sans écran en usage normal, qui fait tourner
 **Debian** (installation minimale), **Docker** avec **Home Assistant Container**, et **Tailscale**. C'est le lot 0 de
-docs/MIGRATION_CORE_MINIPC.md. Le Core de Jarvis le rejoindra au lot 5 ; d'ici là il reste sur le PC et parle à HA par
-le réseau. HAOS n'est plus utilisé : il ne peut pas héberger le Core.
+docs/MIGRATION_CORE_MINIPC.md. Le Core de Jarvis y tourne depuis le lot 5. HAOS n'est plus utilisé : il ne peut pas héberger le Core.
 
 Durée : 2 h environ. Matériel : le mini-PC, son alimentation, un câble Ethernet, un écran + clavier USB le temps de
 l'installation, ta clé USB Ventoy (§2.2).
@@ -25,14 +24,8 @@ l'installation, ta clé USB Ventoy (§2.2).
 
 ## 2. Depuis ton PC : sauvegarder la VM actuelle et préparer la clé
 
-### 2.1 Sauvegarde de la VM HA actuelle (à ne pas sauter)
-
-1. HA actuel (`http://homeassistant.local:8123`) → **Paramètres → Système → Sauvegardes**.
-2. **Créer une sauvegarde** → complète.
-3. Menu de la sauvegarde → **Télécharger**. Garde le `.tar` sur ton PC, **hors du dépôt Git** (il contient des jetons
-   et des identifiants : traite-le comme un secret).
-
-La VM du PC reste **intacte** jusqu'à la fin du lot 5 : c'est ton retour arrière.
+### 2.1 Sauvegarde de la VM HA actuelle
+Faite (lot 0). En réinstallation : HA → Paramètres → Système → Sauvegardes → télécharger le `.tar` hors du dépôt (jetons dedans : un secret).
 
 ### 2.2 Clé USB d'installation
 
@@ -185,36 +178,12 @@ services:
 
 Pas de `privileged`, pas de `/run/dbus` : aucun Bluetooth n'est utilisé.
 
-### 7.3 Reprendre la configuration de la VM (restauration)
-
-HA Container n'a pas de Supervisor : l'écran « Restaurer à partir d'une sauvegarde » de HAOS n'existe pas. La
-restauration est manuelle. **À vérifier au premier essai** (point ouvert du lot 0) :
-
-1. Copie le `.tar` du §2.1 sur le mini-PC (`scp`), dans un dossier privé, hors de `/srv/homeassistant`.
-2. `tar -tf sauvegarde.tar` : repère `homeassistant.tar.gz`. Extrais-le, puis liste son contenu : le dossier `data/`
-   contient `configuration.yaml`, `.storage/`, `scripts.yaml`, etc.
-3. Copie le **contenu** de `data/` dans `/srv/homeassistant/config/` (`.storage/` et `configuration.yaml` doivent se
-   trouver directement dans `config/`), puis `sudo chown -R root:root /srv/homeassistant/config`.
-4. `sudo docker compose up -d`, puis `http://<IP-minipc>:8123`. Connecte-toi avec ton **ancien** compte.
-5. Vérifie : TV visible (`media_player.salon_tv`), utilisateur `jarvis`, prise Tapo, script `pc_prise_off`. Le jeton
-   de longue durée de `jarvis` reste valide.
-6. Efface le `.tar` et les fichiers extraits du mini-PC (jetons dedans).
-
-Constats du premier essai (2026-10-16, HA 2026.10) :
-- La sauvegarde HAOS restaure bien `data/` (`.storage`, base, comptes, intégrations). Pas d'entrée `hassio` à retirer.
-- Le port est un réglage de l'interface (`.storage`) depuis HA 2026.8 : la config restaurée de HAOS écoute sur **80** et
-  ignore `http: server_port`. Ouvre temporairement le 80 dans ufw, connecte-toi par l'IP, **Paramètres → Système →
-  Réseau** : port 8123, puis **Confirmer** sous 5 min (sinon retour au 80), puis referme le 80. Ne passe pas par
-  `homeassistant.local` : le nom désigne aussi l'ancienne VM.
-- Mot de passe inconnu : `sudo docker exec -it homeassistant hass --script auth -c /config change_password <compte>`
-  (sans le mot de passe en argument), puis `sudo docker compose restart`.
-- `JARVIS_HA_URL` peut aussi exister en variable d'environnement Windows (elle passe avant `.env`) : vérifie
-  `$env:JARVIS_HA_URL` et `ha check` (la version affichée doit être celle du conteneur).
-- Une commande SSH distante avec `sudo` demande `ssh -t`.
-
-Si la restauration ne tient pas : démarre HA sur un `config/` vide, crée le compte propriétaire et refais les
-appareils (§9.2). Les modules complémentaires (add-ons) de l'ancienne VM ne reviennent pas en Container ; la
-configuration actuelle n'en utilise pas.
+### 7.3 Reprendre une sauvegarde (restauration manuelle, faite le 2026-10-16, HA 2026.10)
+HA Container n'a pas de Supervisor : copier le contenu de `data/` de `homeassistant.tar.gz` (dans le `.tar`) directement dans `/srv/homeassistant/config/` (`.storage/` et `configuration.yaml` à la racine), `sudo chown -R root:root`, `docker compose up -d`.
+- Depuis HA 2026.8 le port est un réglage `.storage` : la config restaurée écoute sur **80**. Ouvrir le 80 dans ufw, Paramètres → Système → Réseau : port 8123, **Confirmer** sous 5 min, refermer le 80. Passer par l'IP, pas `homeassistant.local`.
+- Mot de passe inconnu : `sudo docker exec -it homeassistant hass --script auth -c /config change_password <compte>`, puis `docker compose restart`.
+- `ssh -t` pour une commande distante avec `sudo`. Effacer le `.tar` et les fichiers extraits après usage.
+- Échec : `config/` vide, compte propriétaire, appareils refaits (§9.2). Les add-ons de la VM ne reviennent pas.
 
 ### 7.4 Mettre à jour
 
@@ -277,13 +246,7 @@ Renomme les entités dans **Paramètres → Appareils → Entités** si besoin :
 2. Elles restent sur le même SSD : copie-en régulièrement une sur ton PC ou un disque externe (décision D1,
    destination hors PC : voir docs/ROADMAP.md, décisions en attente).
 
-### 9.4 Critères de fin du lot 0
-
-- [ ] SSH par clé seulement ; `sudo ufw status` : 22 et 8123 limités au réseau local, `tailscale0` ouvert.
-- [ ] Débrancher puis rebrancher l'alimentation : le mini-PC revient seul, HA répond sans clavier ni écran.
-- [ ] `sudo docker ps` : `homeassistant` en `Up` ; `sudo tailscale status` : machine connectée, clé sans expiration.
-- [ ] `python -m jarvis ha check` OK depuis le PC ; « allume la télé » OK.
-- [ ] Restauration §7.3 réussie, ou repli §9.2 consigné dans docs/ROADMAP.md.
+### 9.4 Critères de fin du lot 0 : tous remplis (2026-10-17)
 
 ---
 
