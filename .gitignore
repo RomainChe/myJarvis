@@ -22,3 +22,6 @@ models/*
 
 # Cache du CLI Playwright
 .playwright-cli/
+
+# Idées proposées par l’agent idees (privé, hors recherche Claude)
+/IDEES.md
