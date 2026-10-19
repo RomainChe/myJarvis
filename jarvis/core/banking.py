@@ -235,8 +235,8 @@ def _balance(balances: list) -> float | None:
     return _amount(balances[0].get("balance_amount")) if balances and isinstance(balances[0], dict) else None
 
 
-def fetch(today: date | None = None) -> dict:
-    """Lit soldes et transactions des `DAYS` derniers jours de chaque compte lié, écrit le cache chiffré.
+def fetch(today: date | None = None, banks: list[str] | None = None) -> dict:
+    """Lit soldes et transactions des `DAYS` derniers jours de chaque compte lié (ou des seules `banks`), écrit le cache chiffré.
 
     Renvoie {"accounts": n, "transactions": n, "errors": [banque : message]} ; une banque en échec n'empêche pas les autres.
     """
@@ -245,7 +245,8 @@ def fetch(today: date | None = None) -> dict:
         raise BankError("aucune banque liée : python -m jarvis bank link \"<banque>\"")
     since = ((today or date.today()) - timedelta(days=DAYS)).isoformat()
     accounts, errors, failed = [], [], set()
-    for s in store["sessions"]:
+    sessions = [s for s in store["sessions"] if banks is None or s["bank"] in banks]
+    for s in sessions:
         got = []
         try:
             for a in s["accounts"]:
@@ -265,23 +266,32 @@ def fetch(today: date | None = None) -> dict:
         except BankError as e:
             errors.append(f"{s['bank']} : {e}")
             failed.add(s["bank"])
-    if accounts:  # une banque en échec garde ses comptes du cache précédent au lieu de disparaître de l'onglet
-        kept = []
-        if failed:
+    if accounts:  # une banque en échec ou non relue garde ses comptes du cache précédent au lieu de disparaître de l'onglet
+        old = {}
+        if failed or len(sessions) < len(store["sessions"]):
             try:  # un cache illisible ne doit pas empêcher d'écrire les données fraîches
-                kept = [a for a in (_load(CACHE, None) or {}).get("accounts", []) if a.get("bank") in failed]
+                old = _load(CACHE, None) or {}
             except (BankError, keyring.errors.KeyringError):
                 pass
-        _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts + kept})
+        stale = {s["bank"] for s in store["sessions"]} - {a["bank"] for a in accounts}
+        kept = [a for a in old.get("accounts", []) if a.get("bank") in stale]
+        failed |= set(old.get("failed", [])) & stale - {s["bank"] for s in sessions}
+        _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts + kept,
+                      "failed": sorted(failed)})
     return {"accounts": len(accounts), "transactions": sum(len(a["transactions"]) for a in accounts), "errors": errors}
 
-def fetched_today() -> bool:
-    """Vrai si le cache a été écrit aujourd'hui (heure locale) ; faux si absent ou illisible."""
+
+def pending_today() -> list[str] | None:
+    """Banques à relire aujourd'hui : None si rien n'a été récupéré aujourd'hui (heure locale) ou cache illisible,
+    sinon les banques restées en échec (vide : journée faite)."""
     try:
-        at = (_load(CACHE, None) or {}).get("fetched_at")
-        return bool(at) and datetime.fromisoformat(at).astimezone().date() == date.today()
+        data = _load(CACHE, None) or {}
+        at = data.get("fetched_at")
+        if at and datetime.fromisoformat(at).astimezone().date() == date.today():
+            return list(data.get("failed", []))
     except (BankError, keyring.errors.KeyringError, ValueError, TypeError):
-        return False
+        pass
+    return None
 
 
 def renew_cmd(bank: str, country: str) -> str | None:

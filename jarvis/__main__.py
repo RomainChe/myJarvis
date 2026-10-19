@@ -282,10 +282,12 @@ def bank_cmd(argv: list[str], audit: Audit) -> int:
             for s in banking.status():
                 print(f"{s['bank']} | {s['accounts']} compte(s) | consentement : {'?' if s['days_left'] is None else s['days_left']} j")
         elif argv[1:] in (["fetch"], ["fetch", "daily"]):
-            if argv[-1] == "daily" and banking.fetched_today():  # tâche à l'ouverture de session : une seule fois par jour
+            # tâche planifiée plusieurs fois par jour : une lecture complète, puis seulement les banques en échec (quota)
+            todo = banking.pending_today() if argv[-1] == "daily" else None
+            if todo == []:
                 print("Déjà récupéré aujourd'hui.")
                 return 0
-            r = banking.fetch()
+            r = banking.fetch(banks=todo)
             audit.log("cli", "bank_fetch", {}, 2, "auto", f"{r['accounts']} compte(s), {len(r['errors'])} échec(s)")
             print(f"{r['accounts']} compte(s), {r['transactions']} transaction(s).", *r["errors"], sep="\n")
             return 1 if r["errors"] else 0

@@ -190,6 +190,15 @@ class FetchTest(BankBase):
         self.assertEqual((r["accounts"], r["errors"]), (1, ["Trade Republic : accès refusé"]))
         tr = [a for a in banking._load(banking.CACHE, None)["accounts"] if a["bank"] == "Trade Republic"]
         self.assertEqual([(a["balance"], len(a["transactions"])) for a in tr], [(50.0, 1)])
+        self.assertEqual(banking._load(banking.CACHE, None)["failed"], ["Trade Republic"])
+
+        # relance de la seule banque en échec : Crédit Mutuel n'est pas rappelé (quota) et reste dans le cache
+        self.routes[("GET", "/accounts/u2/transactions")] = {"transactions": []}
+        self.calls.clear()
+        self.assertEqual(banking.fetch(banks=["Trade Republic"])["errors"], [])
+        self.assertFalse([c for c in self.calls if "/u1/" in c[1]])
+        data = banking._load(banking.CACHE, None)
+        self.assertEqual((sorted(a["bank"] for a in data["accounts"]), data["failed"]), (["Crédit Mutuel", "Trade Republic"], []))
 
     def test_cache_illisible_reecrit_par_une_recuperation_reussie(self):
         banking.CACHE.write_bytes(b"tronque")
@@ -287,21 +296,25 @@ class CliTest(BankBase):
         with mock.patch.object(banking, "fetch", side_effect=banking.BankError("x")):
             self.assertEqual(self.run_cli(["bank", "fetch"])[0], 1)
 
-    def test_fetch_daily_une_fois_par_jour(self):
+    def test_fetch_daily_une_fois_par_jour_sauf_banque_en_echec(self):
         with mock.patch.object(banking, "fetch", return_value={"accounts": 1, "transactions": 0, "errors": []}) as f:
-            with mock.patch.object(banking, "fetched_today", return_value=True):
+            with mock.patch.object(banking, "pending_today", return_value=[]):
                 self.assertEqual(self.run_cli(["bank", "fetch", "daily"]), (0, []))
             f.assert_not_called()
-            with mock.patch.object(banking, "fetched_today", return_value=False):
+            with mock.patch.object(banking, "pending_today", return_value=None):
                 self.assertEqual(self.run_cli(["bank", "fetch", "daily"]), (0, [("bank_fetch", "auto")]))
-            f.assert_called_once()
+            f.assert_called_once_with(banks=None)
+            with mock.patch.object(banking, "pending_today", return_value=["Trade Republic"]):
+                self.run_cli(["bank", "fetch", "daily"])
+            f.assert_called_with(banks=["Trade Republic"])
 
-    def test_fetched_today(self):
+    def test_pending_today(self):
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         old = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(timespec="seconds")
-        for at, expected in ((now, True), (old, False), (None, False)):
-            with mock.patch.object(banking, "_load", return_value={"fetched_at": at} if at else None):
-                self.assertIs(banking.fetched_today(), expected)
+        for data, expected in (({"fetched_at": now}, []), ({"fetched_at": now, "failed": ["Trade Republic"]}, ["Trade Republic"]),
+                               ({"fetched_at": old, "failed": ["Trade Republic"]}, None), (None, None)):
+            with mock.patch.object(banking, "_load", return_value=data):
+                self.assertEqual(banking.pending_today(), expected)
 
     def test_sous_commande_inconnue(self):
         self.assertEqual(self.run_cli(["bank", "pay"]), (2, []))
