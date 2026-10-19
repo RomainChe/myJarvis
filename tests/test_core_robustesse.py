@@ -1,6 +1,6 @@
 """Robustesse du cœur : cas limites, journal SQLite en panne, concurrence, latence de la garde.
 
-Les bugs BUG-01..06 (docs/QA_REPORT_PHASE_1.md) sont corrigés ; chaque test reste comme garde-fou.
+Les bugs BUG-01..06 (docs/archive/QA_REPORT_PHASE_1.md) sont corrigés ; chaque test reste comme garde-fou.
 """
 import os
 import sqlite3

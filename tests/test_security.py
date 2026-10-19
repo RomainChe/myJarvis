@@ -1,4 +1,4 @@
-"""Tests de la revue de sécurité Phase 1 (docs/SECURITY_REVIEW_PHASE_1.md).
+"""Tests de la revue de sécurité Phase 1 (docs/archive/SECURITY_REVIEW_PHASE_1.md).
 
 Chaque test reproduit une faille de la revue ; toutes sont corrigées.
 """
@@ -165,7 +165,7 @@ class SecurityTest(unittest.TestCase):
             importlib.reload(cli)
 
 class ContreRevueTest(unittest.TestCase):
-    """Constats 1 à 7 de la contre-revue (docs/SECURITY_REVIEW_PHASE_1.md)."""
+    """Constats 1 à 7 de la contre-revue (docs/archive/SECURITY_REVIEW_PHASE_1.md)."""
 
     def setUp(self):
         calls.clear()

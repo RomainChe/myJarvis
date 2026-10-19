@@ -20,7 +20,7 @@ Règle : cette section reste sous ~2 Ko (en cours, prochaines actions, attentes 
 
 ## Phases 0 à 6 (résumé ; détail dans docs/HISTORIQUE.md, « Archive du 2026-10-19 »)
 - **Phase 0 — Cadrage** ✅
-- **Phase 1 — Core + outils PC** ✅ : socle (outils + garde N0–N3, audit SQLite, routeur d'intentions, Ollama qwen3:14b) puis 16 outils PC (liste : docs/TOOLS.md). Revue Sécurité : docs/SECURITY_REVIEW_PHASE_1.md. Wake-on-LAN : réglages BIOS/Windows dans l'archive.
+- **Phase 1 — Core + outils PC** ✅ : socle (outils + garde N0–N3, audit SQLite, routeur d'intentions, Ollama qwen3:14b) puis 16 outils PC (liste : docs/TOOLS.md). Revue Sécurité : docs/archive/SECURITY_REVIEW_PHASE_1.md. Wake-on-LAN : réglages BIOS/Windows dans l'archive.
 - **Phase 2 — Domotique** : Home Assistant et outils `home/*` en place (plan : docs/DOMOTIQUE_PLAN.md).
 - **Phase 3 — Applications (PWA)** ✅ étapes 1–6 : serveur FastAPI, enrôlement QR + Tailscale, chat et confirmations N2, niveaux et clé d'accès N3, Web Push. Étape 7 (refonte UX/UI) : passes 1–2 faites, refonte visuelle suivante dans « État actuel ». Clôture : QA puis feu vert Sécurité sur l'ensemble.
 - **Phase 4 — Voix** : voir « Voix » ci-dessus et docs/VOIX.md ; N3 reste sur mobile.
