@@ -10,7 +10,7 @@ Règle : cette section reste sous ~2 Ko (en cours, prochaines actions, attentes 
 - **Migration mini-PC** (docs/MIGRATION_CORE_MINIPC.md) : lots 0 à 5 faits, Partie C en cours (timers du 2026-10-18, puis une semaine sans retour arrière : supprimer VM Hyper-V et tâches Windows). Reste : revue Sécurité de `pc_off_plug`, test à blanc de la prise Tapo (INSTALL §10.3), tuile Mini-PC à essayer sur le mini-PC réel.
 - **Voix** : lots 4b (PC) et 4c (salon) déployés ; reste latence PC ~5 s, Voice PE à recevoir puis mot de réveil `hey_jarvis` et comptage des faux réveils (MIGRATION §Lot 4c 7–8). `jarvis_fr` : essai `JARVIS_WAKE_WORD=jarvis_fr` + `JARVIS_WAKE_THRESHOLD=0.7` dans `.env`, puis revue Sécurité.
 - **Consommation** (étapes 1–3 dans `main`) : reste essai navigateur 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente d'une décision.
-- **Refonte visuelle PWA** (fusionnée dans `main` le 2026-10-17, cache v51) : reste l'essai navigateur 375/1280 px.
+- **Refonte visuelle PWA** (fusionnée le 2026-10-17, cache v52) : essai Playwright 375/1280 px fait le 2026-10-19 sur les 10 écrans (API simulée vide : aucun débordement horizontal) ; saisie du chat à 1280 px corrigée. Reste l'œil sur des données réelles.
 - **Essais réels en attente** : rappels/briefing (voix + push), outil Claude Code, `voyage_recherche` (envoie un e-mail).
 - **À faire par le propriétaire** : tâche « JARVIS - garde-fou » (INSTALL §7), `secret set mail_sig_key`, droits TikTok ; Swile et Ledger à brancher.
 - **Décisions en attente** : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7, texte du rappel dans le push, choix des pistes Phase 7. Clims reportées (2026-10-13).
