@@ -87,6 +87,9 @@ aucune phase ne démarre sans le feu vert de la Sécurité ET du propriétaire.
 - Revues : UNE revue Sécurité par étape, après le feu vert du QA, sur le diff complet de
   l'étape ; les correctifs sont vérifiés dans la même revue ou une seule contre-revue, pas
   une revue par commit.
+- Idées : au début de chaque tâche de code, lancer l'agent `idees` en arrière-plan (sujet +
+  fichiers touchés). Il écrit dans `IDEES.md` (hors Git). « Fais l'idée #N » = lire cette
+  entrée, présenter son plan, puis la passer en « Acceptées ».
 - Gros fichiers (`jarvis/web/app.js`, `app.css`, `index.html`, `jarvis/__main__.py`,
   `jarvis/server.py`, docs/TOOLS.md, docs/HISTORIQUE.md) : jamais lus en entier ni par
   `cat`/`Get-Content` ; chercher avec Grep puis lire la plage utile. Le JS de la PWA est
