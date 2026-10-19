@@ -61,6 +61,15 @@ class EtatBranchesTest(unittest.TestCase):
         self.assertIn("non_poussee", b["etats"])
         self.assertEqual(b["conflit_main"], ["f.txt"])
 
+    def test_neuve_meme_hors_ligne_first_parent_et_verrouillee(self):
+        side = self.wt("cote")
+        commit(side, "g.txt", "x\n", "travail")
+        run(self.repo, "merge", "-q", "--no-ff", "-m", "fusion", "cote")
+        path = str(self.root / ".claude" / "worktrees" / "session")
+        run(self.repo, "worktree", "add", "-q", "-b", "session", path, "cote")  # pointe hors first-parent de main
+        run(self.repo, "worktree", "lock", path)  # Claude Code verrouille ses worktrees
+        self.assertEqual(self.branche("session")["etats"], ["neuve"])
+
     def test_squash(self):
         path = self.wt("sq")
         commit(path, "g.txt", "x\n", "travail")

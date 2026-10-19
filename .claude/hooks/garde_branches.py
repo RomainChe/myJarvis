@@ -87,7 +87,11 @@ def check(command: str, cwd: str) -> str | None:
                     if mine & revs(here, f"HEAD..{target}"):
                         return f"« git merge {target} » ferait entrer dans {own} des commits de {branch} (worktree {path})."
             if sub == "push":
+                if {"--delete", "-d"} & set(args):
+                    continue  # supprimer une branche distante ne mélange aucun travail
                 for spec in positional(args)[1:]:
+                    if spec.startswith(":"):
+                        continue
                     if spec.lstrip("+").split(":")[-1].removeprefix("refs/heads/") == branch:
                         return f"{branch} est extraite dans un autre worktree ({path}) : c'est à sa session de la pousser."
     return None
