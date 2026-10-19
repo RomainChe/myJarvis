@@ -185,6 +185,11 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
             except UnicodeEncodeError:  # console non UTF-8 (cp1252) : le lien ci-dessus suffit
                 print("(QR non affichable dans cette console : utilise le lien.)")
             return 0
+        if argv[2] == "all":  # téléphone perdu ou token volé : tout couper, puis réenrôler
+            n = devices.revoke_all()
+            audit.log("cli", "device_revoke", {"tous": True}, 3, "confirmé", f"{n} appareil(s) révoqué(s)")
+            print(f"{n} appareil(s) révoqué(s).")
+            return 0
         ok = devices.revoke(int(argv[2]))
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
         print("Appareil révoqué." if ok else "Appareil introuvable ou déjà révoqué.")

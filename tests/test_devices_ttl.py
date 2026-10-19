@@ -22,9 +22,9 @@ class TokenTtl(unittest.TestCase):
         return self.d.enroll(self.d.new_code(), name)
 
     def test_usage_renouvelle_la_duree(self):
-        _, token = self.enroll()
+        id_, token = self.enroll()
         self.t += TOKEN_TTL_S - 1
-        self.assertIsNotNone(self.d.check(token))
+        token = self.d.rotate(id_, token)  # D6 : la durée se renouvelle par rotation du token, pas par simple usage
         self.t += TOKEN_TTL_S - 1
         self.assertIsNotNone(self.d.check(token))
 

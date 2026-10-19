@@ -17,6 +17,13 @@ def kill_call():  # `test_llm.call` ne sait pas passer un argument nommé « nam
     return {"function": {"name": "kill_process", "arguments": {"pid": 4242, "name": "notepad.exe"}}}
 
 
+def no_strong(test):
+    """Mécanique N2 générique : `kill_process` & co. servent d'exemple sans clé d'accès. D2 : test_webauthn.StrongN2Test."""
+    patch = mock.patch.object(chat_mod, "STRONG_N2", frozenset())
+    patch.start()
+    test.addCleanup(patch.stop)
+
+
 UNROUTED = "fais quelque chose d'inhabituel"  # ni phrase ni motif du routeur : part au LLM
 
 
@@ -33,6 +40,7 @@ def wait_for(fn, timeout=5.0):
 class ChatBase(ServerBase):
     def setUp(self):
         super().setUp()
+        no_strong(self)
         self.device, self.token = self.enroll("tel")
         self.calls = []
 
@@ -266,7 +274,7 @@ class N2SurLeWebTest(ChatBase):
             job = self.start()[1]["job"]
             result = self.done(job)
         self.assertEqual((result["answer"], result["pending"]), ("False", None))  # aucune demande n'a été affichée
-        self.assertIn("N3 refusé : aucune clé d'accès pour cet appareil", str(self.audit.last(10)))
+        self.assertIn("N3 refusé : clé d'accès requise, aucune pour cet appareil", str(self.audit.last(10)))
 
     def test_apres_un_refus_le_job_ne_redemande_plus(self):
         calls = []
