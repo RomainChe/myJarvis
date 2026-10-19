@@ -4,6 +4,18 @@ const VEILLE = { actus: 'Actus IA', plugins: 'Plugins' };
 const SCORE = /\(?\bnote\s*:?\s*(\d{1,3})\)?|\(?(\d{1,3})\s*\/\s*100\)?/i, // « (note 92) » ou « 92/100 »
       SRC = /^sources?\s*:?$/i, WHY = /^pourquoi[^:]{0,30}:\s*/i;
 // Pastille d'état en tête de titre (emoji de l'agent de veille) -> icône du thème.
+// Logo du sujet de l'article (brands.svg, liste fixe) : le premier motif trouvé dans le titre gagne.
+const BRANDS = [[/copilot/i, 'githubcopilot'], [/\bclaude\b/i, 'claude'], [/anthropic/i, 'anthropic'], [/gemini/i, 'googlegemini'],
+  [/openai|chatgpt|\bgpt|\bsora\b|\bcodex\b/i, 'openai'], [/salesforce|agentforce/i, 'salesforce'], [/\bmeta\b|\bllama\b/i, 'meta'],
+  [/nvidia/i, 'nvidia'], [/hugging ?face/i, 'huggingface'], [/perplexity/i, 'perplexity'], [/ollama/i, 'ollama'],
+  [/github/i, 'github'], [/google|deepmind/i, 'google'], [/\bapple\b|\bsiri\b/i, 'apple'], [/\bgrok\b|\bxai\b/i, 'x']];
+function brandMark(text) {
+  const b = BRANDS.find(([re]) => re.test(text))?.[1];
+  const chip = el('span', `brand ${b ? `b-${b}` : 'gen'}`), s = svg('svg', { class: 'i', 'aria-hidden': 'true' });
+  s.append(svg('use', { href: b ? `/brands.svg#${b}` : '#i-spark' }));
+  chip.append(s);
+  return chip;
+}
 const MARK_RE = /^(\p{Extended_Pictographic})\uFE0F?\s*/u, MARKS = { '✅': ['check', 'ok'], '🔶': ['alert', 'warn'], '⚠': ['alert', 'warn'] };
 async function loadVeille() {
   const err = $('veille-error'), state = $('veille-state'), list = $('veille-list');
@@ -48,7 +60,7 @@ async function loadVeille() {
           const h = el('h3', 'veille-title'), mark = MARK_RE.exec(title);
           if (mark && MARKS[mark[1]]) { const i = icon(MARKS[mark[1]][0]); i.classList.add(MARKS[mark[1]][1]); h.append(i); }
           h.append(document.createTextNode(mark ? title.slice(mark[0].length) : title));
-          head.append(h);
+          head.append(brandMark(title), h);
           if (score !== null) head.append(el('span', `badge score ${score >= 80 ? 'hi' : score >= 60 ? 'mid' : 'lo'}`, String(score)));
           c.append(head);
           for (const t of rest) {

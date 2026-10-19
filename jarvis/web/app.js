@@ -119,8 +119,8 @@ async function signOut() {
   $('audit-list').replaceChildren();
   $('devices-list').replaceChildren();
   $('sys-list').replaceChildren();
-  for (const id of ['st-loc', 'st-weather', 'st-up']) $(id).textContent = '—';
-  bootAt = null;
+  for (const id of ['st-loc', 'st-weather', 'st-up', 'st-up-pc']) $(id).textContent = '—';
+  bootAt = pcBootAt = null;
   for (const id of ['st-sky', 'st-net', 'sys-error']) $(id).textContent = '';
   clearTimeout(homeTimer);
   $('levels-list').replaceChildren();
@@ -449,7 +449,7 @@ function stat(title, big, sub, subCls = '', cls = '') {
   return s;
 }
 // Jauge en anneau (pathLength 100 : le remplissage vaut directement le pourcentage). Texte lisible par les lecteurs d'écran.
-function gauge(label, value, detail, hot = value >= 90) {
+function gauge(label, value, detail, hot = value >= 90, text = null) {
   const v = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 0; // jamais « NaN % »
   const li = el('li', 'gauge');
   li.setAttribute('role', 'img');
@@ -457,7 +457,7 @@ function gauge(label, value, detail, hot = value >= 90) {
   const ring = svg('svg', { viewBox: '0 0 80 80', 'aria-hidden': 'true' });
   ring.append(svg('circle', { class: 'track', cx: 40, cy: 40, r: 33, pathLength: 100 }));
   ring.append(svg('circle', { class: `fill${hot ? ' hot' : ''}`, cx: 40, cy: 40, r: 33, pathLength: 100, 'stroke-dasharray': `${v} 100` }));
-  const pct = el('span', 'pct', `${v}%`);
+  const pct = el('span', 'pct', text ?? `${v}%`);
   pct.setAttribute('aria-hidden', 'true');
   const cap = el('span', 'cap', label);
   cap.setAttribute('aria-hidden', 'true');
@@ -469,11 +469,17 @@ function fmtUptime(s) {
   const hms = `${p(Math.floor(s % 86400 / 3600))}:${p(Math.floor(s % 3600 / 60))}:${p(s % 60)}`;
   return d ? `${d} j ${hms}` : hms;
 }
-// Uptime : lu une seule fois (premier tableau de bord reçu), puis compté localement chaque seconde.
-let bootAt = null;
+// Uptime du mini-PC (machine du Core) et du PC (agent) : instant de démarrage gardé tant qu'il ne bouge pas de plus
+// d'une minute (pas de seconde qui saute à chaque lecture), puis compté localement chaque seconde.
+let bootAt = null, pcBootAt = null;
+const since = (prev, s) => (!Number.isInteger(s) ? null : prev !== null && Math.abs(Date.now() - s * 1000 - prev) < 60000 ? prev : Date.now() - s * 1000);
 function tickUptime() {
-  if (bootAt !== null) $('st-up').textContent = fmtUptime(Math.max(0, Math.floor((Date.now() - bootAt) / 1000)));
+  for (const [id, at] of [['st-up', bootAt], ['st-up-pc', pcBootAt]]) {
+    if (at !== null) $(id).textContent = fmtUptime(Math.max(0, Math.floor((Date.now() - at) / 1000)));
+  }
 }
+// Ciel (libellé fixe du serveur, dashboard.SKY) -> icône et teinte de l'encart Météo
+const WX = { Dégagé: 'sun', Nuageux: 'cloud', Brouillard: 'fog', Bruine: 'rain', Pluie: 'rain', Averses: 'rain', Neige: 'snow', 'Averses de neige': 'snow', Orage: 'storm' };
 setInterval(() => { if (!document.hidden) tickUptime(); }, 1000);
 async function loadHome() {
   clearTimeout(homeTimer);
@@ -485,10 +491,15 @@ async function loadHome() {
     $('st-loc').textContent = d.location ?? 'Non configurée';
     $('st-weather').textContent = d.weather ? `${Number(d.weather.temp_c).toLocaleString('fr-FR')} °C` : '—';
     $('st-sky').textContent = d.weather ? String(d.weather.sky) : d.location ? 'Météo indisponible' : '';
+    const wx = Object.hasOwn(WX, d.weather?.sky) ? WX[d.weather.sky] : 'cloud';
+    $('st-wx-ico').firstElementChild.setAttribute('href', `#i-${wx}`);
+    $('st-wx').dataset.wx = wx;
     $('st-net').textContent = d.network?.ms != null ? `Réseau : ${d.network.quality} · ${d.network.ms} ms` : 'Réseau : hors ligne';
-    if (bootAt === null && Number.isInteger(d.uptime_s)) bootAt = Date.now() - d.uptime_s * 1000;
-    tickUptime();
     const s = d.system;
+    bootAt = since(bootAt, d.uptime_s);
+    pcBootAt = since(pcBootAt, s?.uptime_s);
+    if (!s) $('st-up-pc').textContent = 'Éteint';
+    tickUptime();
     const rows = [];
     if (s) {
       rows.push(gauge('CPU', s.cpu_percent, ''));

@@ -433,8 +433,8 @@ class StrongN2Test(WebAuthnServerBase):
         self.assertEqual(self.done(job)["answer"], "True")
 
 
-class FinanceUnlockTest(WebAuthnServerBase):
-    """D3 : Finances s'ouvre `FINANCE_UNLOCK_S` après une signature de la clé d'accès de CET appareil."""
+class FinanceOpenTest(WebAuthnServerBase):
+    """Décision du propriétaire (2026-10-19) : Finances se lit sans clé d'accès, comme les autres onglets (D3 retirée)."""
     def setUp(self):
         super().setUp()
         for name, value in (("finance_snapshot", {"configured": True, "latest": None, "trend": []}),
@@ -446,43 +446,12 @@ class FinanceUnlockTest(WebAuthnServerBase):
         patch.start()
         self.addCleanup(patch.stop)
 
-    def unlock(self, action="finance", **kw):
-        options = self.call("POST", "/api/passkey/challenge", {"action": action})[1]
-        return self.call("POST", "/api/finance/unlock", {"assertion": self.a.get(options, **kw)})[0]
-
-    def test_verrouille_par_defaut_et_journalise(self):
+    def test_lisible_sans_cle_et_journalise(self):
         for path in ("/api/finance", "/api/finance/bank"):
-            self.assertEqual(self.call("GET", path)[0], 403, path)
-        self.assertIn("finance_locked", str(self.audit.last(5)))
-        self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "finance"})[0], 403)  # aucune clé
-
-    def test_assertion_valide_ouvre_finances(self):
-        self.register_key()
-        self.assertEqual(self.unlock(), 200)
-        self.assertEqual(self.call("GET", "/api/finance")[0], 200)
-        self.assertEqual(self.call("GET", "/api/finance/bank")[0], 200)
-        self.assertIn("finance_unlock", str(self.audit.last(5)))
-
-    def test_mauvaises_assertions_refusees(self):
-        self.register_key()
-        self.assertEqual(self.unlock(action="devices:revoke"), 403)  # défi d'une autre action
-        self.assertEqual(self.unlock(sign_with=ec.generate_private_key(ec.SECP256R1())), 403)
-        self.assertEqual(self.call("GET", "/api/finance")[0], 403)
-        self.assertEqual(self.call("POST", "/api/finance/unlock", {})[0], 422)
-        self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "confirm:x"})[0], 422)  # liste fermée
-
-    def test_deverrouillage_expire(self):
-        self.register_key()
-        with mock.patch.object(server, "FINANCE_UNLOCK_S", -1):
-            self.assertEqual(self.unlock(), 200)
-        self.assertEqual(self.call("GET", "/api/finance")[0], 403)
-
-    def test_un_autre_appareil_reste_verrouille(self):
-        self.register_key()
-        self.unlock()
-        code = self.devices.new_code()
-        other = ServerBase.call(self, "POST", "/api/enroll", {"code": code, "name": "autre"}, Host=RP, Origin=ORIGIN)[1]
-        self.assertEqual(self.call("GET", "/api/finance", token=other["token"])[0], 403)
+            self.assertEqual(self.call("GET", path)[0], 200, path)
+        self.assertIn("bank_read", str(self.audit.last(5)))
+        self.assertEqual(self.call("GET", "/api/finance", token="faux")[0], 401)  # appareil non appairé : rien
+        self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "finance"})[0], 422)  # action retirée
 
 
 class RevokeOthersTest(WebAuthnServerBase):
@@ -491,7 +460,7 @@ class RevokeOthersTest(WebAuthnServerBase):
         other = ServerBase.call(self, "POST", "/api/enroll", {"code": code, "name": "autre"}, Host=RP, Origin=ORIGIN)[1]
         self.register_key()
         self.assertEqual(self.call("POST", "/api/devices/revoke-others", {})[0], 422)
-        options = self.call("POST", "/api/passkey/challenge", {"action": "finance"})[1]  # défi d'une autre action
+        options = self.chat.passkeys.request_options(self.device, "confirm:x")  # défi d'une autre action
         self.assertEqual(self.call("POST", "/api/devices/revoke-others", {"assertion": self.a.get(options)})[0], 403)
         self.assertEqual(self.call("GET", "/api/ping", token=other["token"])[0], 200)  # rien n'a changé
         # un token volé sans clé d'accès ne chasse pas le propriétaire

@@ -322,7 +322,7 @@
  },
  {
   "name": "system_status",
-  "description": "État du PC : CPU, RAM, disque système, GPU NVIDIA si présent.",
+  "description": "État du PC : CPU, RAM, disque système, GPU NVIDIA si présent, durée depuis le démarrage.",
   "level": 0,
   "params": {},
   "hidden": [],

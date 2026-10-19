@@ -8,6 +8,7 @@ import subprocess
 import time
 from pathlib import Path, PureWindowsPath
 
+from jarvis.core.dashboard import uptime_s
 from jarvis.core.router import fold
 from jarvis.core.tools import Level, tool
 
@@ -90,7 +91,7 @@ def _gpu() -> dict | None:
         return None
 
 
-@tool("system_status", "État du PC : CPU, RAM, disque système, GPU NVIDIA si présent.", Level.N0)
+@tool("system_status", "État du PC : CPU, RAM, disque système, GPU NVIDIA si présent, durée depuis le démarrage.", Level.N0)
 def system_status() -> dict:
     mem = _MemoryStatus(dwLength=ctypes.sizeof(_MemoryStatus))
     ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
@@ -103,6 +104,7 @@ def system_status() -> dict:
         "disk": {"drive": SYSTEM32.anchor, "total_gb": round(disk.total / GB, 1),
                  "free_gb": round(disk.free / GB, 1), "percent": round(100 * disk.used / disk.total, 1)},
         "gpu": _gpu(),
+        "uptime_s": uptime_s(),  # le Core tourne sur le mini-PC : son propre uptime n'est pas celui du PC
     }
 
 

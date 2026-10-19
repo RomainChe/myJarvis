@@ -6,31 +6,15 @@ const money = (n, cur) => {
   try { return n.toLocaleString('fr-FR', { style: 'currency', currency: cur }); } catch { return eur(n); } // devise inconnue
 };
 function clearFinance() {
-  for (const id of ['fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle', 'fin-portfolio']) $(id).replaceChildren();
-  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = $('fin-portfolio').hidden = $('fin-invest').hidden = true;
+  for (const id of ['fin-accounts', 'fin-consent', 'fin-crypto', 'fin-cycle', 'fin-portfolio']) $(id).replaceChildren();
+  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-portfolio').hidden = $('fin-invest').hidden = true;
   $('fin-bank-at').textContent = '';
 }
-// D3 : Finances s'ouvre 10 min après une signature de la clé d'accès (un token volé ne lit rien). Vrai si déverrouillé.
-async function unlockFinance() {
-  const ch = await api('/api/passkey/challenge', { method: 'POST', body: { action: 'finance' } });
-  if (!ch.ok) { toast('Enregistrez d’abord une clé d’accès (Réglages) pour ouvrir Finances.'); return false; }
-  const assertion = await getAssertion(ch.data);
-  if (!assertion) { toast('Clé d’accès non validée.'); return false; }
-  const ok = (await api('/api/finance/unlock', { method: 'POST', body: { assertion } })).ok;
-  if (!ok) toast('Déverrouillage refusé.');
-  return ok;
-}
-$('fin-unlock').addEventListener('click', async () => {
-  $('fin-unlock').disabled = true;
-  try { if (await unlockFinance()) await loadFinance(); } catch { /* api() a déjà prévenu */ } finally { $('fin-unlock').disabled = false; }
-});
 async function loadFinance() {
   const err = $('fin-error'), state = $('fin-state');
   err.hidden = true; state.hidden = false; state.textContent = 'Chargement…';
-  $('fin-unlock').hidden = true;
   try {
     const b = await api('/api/finance/bank');
-    if (b.status === 403) { clearFinance(); state.textContent = 'Finances verrouillées.'; $('fin-unlock').hidden = false; return; }
     if (!b.ok) throw new Error('bad');
     if (views.finance.hidden) return; // vue quittée pendant le chargement
     renderBank(b.data?.bank); renderCrypto(b.data?.crypto); renderPortfolio(b.data?.portfolio);
@@ -70,15 +54,17 @@ function renderBank(b) {
     if (a.stale) s.append(el('p', 'warn', 'Non actualisé : dernière lecture en échec'));
     return s;
   }));
-  $('fin-tx').replaceChildren(...(b.transactions.length ? b.transactions.slice(0, 6).map((t) => {
-    const li = el('li');
+  const tx = cycPanel('', 'Dernières opérations', 'receipt'), list = el('ul', 'plain cyc-list tx');
+  tx.append(list);
+  list.append(...(b.transactions.length ? b.transactions.slice(0, 6).map((t) => {
+    const li = el('li', 'cyc-line');
     const what = el('span', 'tx-what', t.label || '—');
     const d = new Date(`${t.date}T00:00`);
     what.append(el('small', 'muted', `${Number.isNaN(d.getTime()) ? t.date : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} · ${t.account}`));
     li.append(what, el('span', t.amount > 0 ? 'tx-amt pos' : 'tx-amt', money(t.amount, t.currency)));
     return li;
   }) : [el('li', 'muted', 'Aucune opération sur 90 jours.')]));
-  renderCycle(b.cycle);
+  renderCycle(b.cycle, tx);
   $('fin-bank').hidden = false;
 }
 
@@ -127,11 +113,10 @@ function cycList(rows, withCat, total) {
   if (total) u.append(total);
   return u;
 }
-function renderCycle(c) {
+// Rangées de 3 panneaux de même hauteur ; un panneau absent laisse les autres s'élargir (pas de trou).
+function renderCycle(c, tx) {
   const box = $('fin-cycle');
-  box.replaceChildren();
-  box.hidden = !c;
-  if (!c) return;
+  if (!c) { box.replaceChildren(tx); return; }
   const mini = (tile, pct, cls = '') => { // part de la paie sous le chiffre
     const w = el('div', `meter-bar ${cls}`), f = el('span');
     f.style.width = `${Math.max(0, Math.min(100, pct))}%`;
@@ -195,15 +180,12 @@ function renderCycle(c) {
     p.append(i, el('span', '', x.text));
     return p;
   }));
-  const more = [];
-  if (c.subs.length) { const p = cycPanel('sub', 'Abonnements et prélèvements', 'repeat'); p.append(cycList(c.subs)); more.push(p); }
-  if (c.week) { const p = cycPanel('info', 'Dernière semaine', 'calendar', `dépenses : ${eur(c.week.spent)}`); p.append(cycList([...c.week.top, ...c.week.internal])); more.push(p); }
-  const [subs, week] = [more.find((p) => p.classList.contains('sub')), more.find((p) => p.classList.contains('info'))];
-  const row1 = el('div', 'cyc-grid'), row2 = el('div', 'cyc-grid');
-  row1.append(fixed, saving, cons);
-  row2.append(detail, points, ...(subs ? [subs] : []));
-  box.append(strip, where, row1, row2, ...(week ? [week] : []));
-  if (c.recos.length) { const p = cycPanel('reco', 'Recommandations', 'target'); p.append(...c.recos.map((t) => el('p', 'cyc-point', t))); box.append(p); } // dernier, hors grille
+  const row = (...panels) => { const g = el('div', 'cyc-grid'); g.append(...panels.filter(Boolean)); return g; };
+  let subs, week, recos;
+  if (c.subs.length) { subs = cycPanel('sub', 'Abonnements et prélèvements', 'repeat'); subs.append(cycList(c.subs)); }
+  if (c.week) { week = cycPanel('info', 'Dernière semaine', 'calendar', `dépenses : ${eur(c.week.spent)}`); week.append(cycList([...c.week.top, ...c.week.internal])); }
+  if (c.recos.length) { recos = cycPanel('reco', 'Recommandations', 'target'); recos.append(...c.recos.map((t) => el('p', 'cyc-point', t))); }
+  box.replaceChildren(strip, where, row(fixed, saving, cons), row(detail, points, subs), row(week, recos, tx));
 }
 
 // Ledger : soldes lus en tâche de fond par le serveur ; première lecture en cours = l'onglet se recharge une fois

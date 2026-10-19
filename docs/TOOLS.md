@@ -39,7 +39,8 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
 - **Paramètres** : aucun.
 - **Retour** : `cpu_percent` (mesuré sur 0,2 s), `ram` (`total_gb`, `used_gb`, `percent`),
   `disk` (`drive`, `total_gb`, `free_gb`, `percent`), `gpu` (`name`, `percent`, `vram_used_mb`,
-  `vram_total_mb`, `temperature_c`) ou `null` si `nvidia-smi` est absent ou ne répond pas.
+  `vram_total_mb`, `temperature_c`) ou `null` si `nvidia-smi` est absent ou ne répond pas,
+  `uptime_s` (secondes depuis le démarrage du PC, `null` si illisible).
 - **Exemple** : « Jarvis, état du système » ou `python -m jarvis run system_status`.
 - **Notes** : API Windows via `ctypes` ; `nvidia-smi` est appelé par son chemin absolu dans
   `System32` (pas de recherche dans le `PATH`), avec un délai maximal de 5 s. Core sur le mini-PC : l'encart

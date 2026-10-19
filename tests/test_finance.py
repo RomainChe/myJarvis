@@ -88,12 +88,7 @@ class FinanceTest(unittest.TestCase):
         self.assertEqual(finance.finance_dir(cfg.with_name("absent.json")), finance.DEFAULT_DIR)
 
 
-class FinanceRouteTest(WebAuthnServerBase):
-    def setUp(self):  # D3 : Finances déverrouillées par la clé d'accès (verrou testé dans test_webauthn.FinanceUnlockTest)
-        super().setUp()
-        self.register_key()
-        options = self.call("POST", "/api/passkey/challenge", {"action": "finance"})[1]
-        self.assertEqual(self.call("POST", "/api/finance/unlock", {"assertion": self.a.get(options)})[0], 200)
+class FinanceRouteTest(WebAuthnServerBase):  # sans clé d'accès : D3 retirée (test_webauthn.FinanceOpenTest)
 
     def test_authentification_exigee_lecture_journalisee(self):
         self.assertEqual(self.call("GET", "/api/finance", token="x" * 20)[0], 401)

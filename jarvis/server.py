@@ -65,7 +65,6 @@ VOICE_MAX = 20  # phrases par appareil et par minute : une phrase dite en prend 
 # ponytail: plafond par appareil et par minute sur toutes les routes (l'écran en fait ~60) : borne le journal gonflé par un pair
 # valide à QUOTA_MAX + 1 lignes/min ; un quota par route si l'usage légitime s'en approche.
 QUOTA_MAX, QUOTA_WINDOW_S = 240, 60
-FINANCE_UNLOCK_S = 600  # D3 : une signature de la clé d'accès ouvre Finances 10 min sur cet appareil
 HEADERS = {
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
                                "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
@@ -184,7 +183,7 @@ class AssertionIn(BaseModel):
 
 
 class ChallengeIn(BaseModel):  # actions protégées par la clé d'accès hors chat : liste fermée
-    action: Literal["finance", "devices:revoke"]
+    action: Literal["devices:revoke"]
 
 
 class LevelIn(BaseModel):
@@ -207,7 +206,6 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     quota_logged: dict[int, float] = {}  # une seule ligne de journal par appareil et par fenêtre
     counters = threading.Lock()  # les routes sync tournent dans un pool : deque et dict partagés
     reads_logged: dict[tuple[int, str], float] = {}  # (appareil, lecture) -> dernière ligne de journal
-    finance_unlocked: dict[int, float] = {}  # appareil -> fin du déverrouillage de Finances (en mémoire)
     passkeys = Passkeys(devices, ts_host)  # sans nom Tailscale (HTTPS), WebAuthn est désactivé : N3 reste refusé
     push = push or Push(devices, subject_from_env())
     dashboard = Dashboard(system_status)
@@ -614,35 +612,11 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         audit.log(f"pwa:{auth[0]}", "conso_tarif", {}, 1, "auto", "prix du kWh modifié")  # le montant reste hors journal
         return {"price_kwh": conso_core.load_price()}
 
-    def finance_locked(device: int) -> JSONResponse | None:
-        """D3 : Finances exige une clé d'accès signée depuis moins de `FINANCE_UNLOCK_S` (un token volé ne lit rien)."""
-        with counters:
-            until = finance_unlocked.get(device)
-        if until is not None and _now() < until:
-            return None
-        log_read(device, "finance_locked", "clé d'accès requise", "refusé")
-        return reply(403, "clé d'accès requise")
-
-    @app.post("/api/finance/unlock")
-    def finance_unlock(body: AssertionIn, request: Request):
-        auth = authenticate(request)
-        if isinstance(auth, JSONResponse):
-            return auth
-        if not passkeys.verify(auth[0], "finance", body.assertion.model_dump()):
-            audit.log(f"pwa:{auth[0]}", "finance_unlock", {}, 2, "refusé", "assertion absente ou invalide")
-            return reply(403, "authentification forte requise")
-        audit.log(f"pwa:{auth[0]}", "finance_unlock", {}, 2, "confirmé", f"Finances ouvertes {FINANCE_UNLOCK_S // 60} min")
-        with counters:
-            finance_unlocked[auth[0]] = _now() + FINANCE_UNLOCK_S
-        return {"ok": True}
-
     @app.get("/api/finance")
     def finance_state(request: Request):
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        if locked := finance_locked(auth[0]):
-            return locked
         log_read(auth[0], "finance_read", "rapports financiers lus")
         return finance_snapshot()
 
@@ -651,8 +625,6 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        if locked := finance_locked(auth[0]):
-            return locked
         log_read(auth[0], "bank_read", "comptes bancaires, Ledger et portefeuille lus")
         binance.refresh_if_stale()  # historique Binance relu en tâche de fond au plus une fois par jour
         return {"bank": bank_view(), "crypto": binance.enrich(crypto_view()), "portfolio": portfolio_view()}
