@@ -1,7 +1,10 @@
 'use strict';
 // ---- Veille IA : envois hebdo du projet veille-ia (contenu écrit par un agent qui lit le web : texte seul, liens https) ----
 const VEILLE = { actus: 'Actus IA', plugins: 'Plugins' };
-const SCORE = /(\d{1,3})\s*\/\s*100/, SRC = /^sources?\s*:?$/i, WHY = /^pourquoi[^:]{0,30}:\s*/i;
+const SCORE = /\(?\bnote\s*:?\s*(\d{1,3})\)?|\(?(\d{1,3})\s*\/\s*100\)?/i, // « (note 92) » ou « 92/100 »
+      SRC = /^sources?\s*:?$/i, WHY = /^pourquoi[^:]{0,30}:\s*/i;
+// Pastille d'état en tête de titre (emoji de l'agent de veille) -> icône du thème.
+const MARK_RE = /^(\p{Extended_Pictographic})\uFE0F?\s*/u, MARKS = { '✅': ['check', 'ok'], '🔶': ['alert', 'warn'], '⚠': ['alert', 'warn'] };
 async function loadVeille() {
   const err = $('veille-error'), state = $('veille-state'), list = $('veille-list');
   err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren();
@@ -12,14 +15,17 @@ async function loadVeille() {
     if (!r.data.issues.length) { state.textContent = r.data.configured ? 'Aucun envoi reconnu.' : 'Dossier de la veille introuvable.'; return; }
     state.hidden = true;
     list.replaceChildren(...r.data.issues.map((it, i) => {
-      const d = el('details', 'panel hud');
+      const d = el('details', 'panel');
       d.open = i === 0;
-      d.append(el('summary', '', `${VEILLE[it.kind] ?? it.kind} · semaine ${it.week} · ${it.year}`));
+      const sum = el('summary', '', `${VEILLE[it.kind] ?? it.kind} · semaine ${it.week} · ${it.year}`);
+      if (it.items?.length) sum.append(el('span', 'sum-val', `${it.items.length} article${it.items.length > 1 ? 's' : ''}`));
+      d.append(sum);
+      const grid = el('div', 'veille-items');
       const safe = (l) => l && typeof l.url === 'string' && URL.canParse(l.url) && new URL(l.url).protocol === 'https:';
       const anchor = (l, cls) => {
         const a = el('a', cls, l.label);
         a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        a.append(el('span', 'host', new URL(l.url).hostname)); // destination réelle, pas le champ du serveur
+        a.append(el('span', 'host', new URL(l.url).hostname), icon('ext')); // destination réelle, pas le champ du serveur
         return a;
       };
       const items = it.items ?? [], used = new Set();
@@ -29,9 +35,9 @@ async function loadVeille() {
           let score = null;
           const take = (t) => {
             const m = SCORE.exec(t);
-            if (!m || Number(m[1]) > 100) return t;
-            score = Number(m[1]);
-            return t.replace(m[0], '').replace(/^[\s:·|()-]+|[\s:·|()-]+$/g, '');
+            if (!m || Number(m[1] ?? m[2]) > 100) return t;
+            score = Number(m[1] ?? m[2]);
+            return t.replace(m[0], '').replace(/^[\s:·|()-]+|[\s:·|(-]+$/g, ''); // garde la « ) » d'une parenthèse fermée
           };
           const title = take(x.lines[0]) || x.lines[0], rest = [];
           for (const t of x.lines.slice(1)) {
@@ -39,8 +45,11 @@ async function loadVeille() {
             const r = score === null && t.length <= 24 ? take(t) : t;
             if (r) rest.push(r);
           }
-          head.append(el('h3', 'veille-title', title));
-          if (score !== null) head.append(el('span', `badge score ${score >= 80 ? 'hi' : score >= 60 ? 'mid' : 'lo'}`, `${score}/100`));
+          const h = el('h3', 'veille-title'), mark = MARK_RE.exec(title);
+          if (mark && MARKS[mark[1]]) { const i = icon(MARKS[mark[1]][0]); i.classList.add(MARKS[mark[1]][1]); h.append(i); }
+          h.append(document.createTextNode(mark ? title.slice(mark[0].length) : title));
+          head.append(h);
+          if (score !== null) head.append(el('span', `badge score ${score >= 80 ? 'hi' : score >= 60 ? 'mid' : 'lo'}`, String(score)));
           c.append(head);
           for (const t of rest) {
             const w = WHY.exec(t);
@@ -50,9 +59,10 @@ async function loadVeille() {
               c.append(p);
             } else c.append(el('p', 'veille-sum', t));
           }
-          if (safe(x.link)) { used.add(x.link.url); c.append(anchor(x.link, 'link-btn')); }
-          d.append(c);
+          if (safe(x.link)) { used.add(x.link.url); c.append(anchor(x.link, 'lnk')); }
+          grid.append(c);
         }
+        d.append(grid);
       } else for (const b of it.blocks) d.append(el('p', 'veille-block', b));
       const links = el('ul', 'plain veille-links');
       for (const l of it.links) {

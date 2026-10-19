@@ -17,14 +17,8 @@ async function loadBienetre() {
     state.hidden = true;
     const when = new Date(d.at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
     const prev = d.previous ? `, contre ${d.previous.counts['problème']} et ${d.previous.counts['à surveiller']} le ${new Date(`${d.previous.day}T00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : '';
-    const stat = (title, big, sub) => {
-      const x = el('section', 'panel hud stat');
-      x.append(el('h2', '', title), el('p', 'big', big));
-      if (sub) x.append(el('p', 'muted', sub));
-      return x;
-    };
     const strip = el('div', 'strip');
-    strip.append(stat('Problèmes', String(d.counts['problème']), prev ? `Aujourd'hui${prev}` : undefined),
+    strip.append(stat('Problèmes', String(d.counts['problème']), prev ? `Aujourd'hui${prev}` : undefined, '', d.counts['problème'] ? 'alarm' : 'hero'),
       stat('À surveiller', String(d.counts['à surveiller'])), stat('Tout va bien', String(d.counts.OK), `${d.counts['non mesuré']} non mesuré(s)`));
     const note = d.running ? 'Nouvelle mesure en cours…' : d.error ? `Mesure du jour : ${d.error}.` : `Bilan du ${when}, renouvelé chaque jour.`;
     const row = (i) => {
@@ -51,7 +45,7 @@ async function loadBienetre() {
     const ok = by('OK');
     const okList = el('ul', 'plain be-list');
     okList.append(...ok.map(row));
-    const okBlock = el('details', 'panel hud');
+    const okBlock = el('details', 'panel');
     okBlock.append(el('summary', '', `Points en bon état (${ok.length})`), okList);
     list.replaceChildren(el('p', 'muted', note), strip, ...section('À améliorer', by('problème', 'à surveiller')),
       ...section('Non mesurés', by('non mesuré')), ...(ok.length ? [okBlock] : []));

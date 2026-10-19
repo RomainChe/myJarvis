@@ -23,6 +23,9 @@ FORBIDDEN_ANYWHERE = {
 }
 
 
+BINARY = {".png", ".woff2"}
+
+
 def files():
     return sorted(p for p in WEB_DIR.iterdir() if p.is_file())
 
@@ -69,7 +72,7 @@ class WebStaticTest(unittest.TestCase):
 
     def test_motifs_interdits_partout(self):
         for p in files():
-            if p.suffix == ".png":
+            if p.suffix in BINARY:
                 continue
             text = p.read_text(encoding="utf-8")
             for label, pattern in FORBIDDEN_ANYWHERE.items():
@@ -96,12 +99,16 @@ class WebStaticTest(unittest.TestCase):
             self.assertNotIn(dead, html + js + (WEB_DIR / "app.css").read_text(encoding="utf-8"))
 
     def test_ordre_du_menu_et_raccourcis(self):
-        # Ordre voulu par le propriétaire (2026-10-08, Voyages le 2026-10-13, Conso ensuite) ; Alt+1..9 puis Alt+0 suivent cet ordre,
+        # Ordre voulu par le propriétaire (refonte v2 du 2026-10-19) : les 4 premiers forment la barre du téléphone, les autres
+        # passent dans la feuille « Plus » ; Réglages en dernier. Alt+1..9 puis Alt+0 suivent cet ordre,
         # posés en aria-keyshortcuts par app.js (une seule source : plus de décalage entre menu et raccourcis).
         html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
         js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
-        self.assertEqual(re.findall(r'class="tab" type="button" data-view="(\w+)"', html),
-                         ["chat", "settings", "social", "finance", "veille", "voyages", "conso", "bienetre", "devices", "audit"])
+        order = re.findall(r'class="tab" type="button" data-view="(\w+)"', html)
+        self.assertEqual(order, ["chat", "finance", "social", "conso", "voyages", "veille", "bienetre", "devices", "audit", "settings"])
+        more = html[html.index('id="more"'):html.index("</nav>")]
+        self.assertEqual(re.findall(r'data-view="(\w+)"', more), order[4:])  # téléphone : 4 onglets + « Plus »
+        self.assertIn('id="tab-more"', html[:html.index('id="more"')])
         self.assertNotIn("aria-keyshortcuts", html)
         self.assertIn("setAttribute('aria-keyshortcuts'", js)
 
@@ -145,6 +152,18 @@ class WebStaticTest(unittest.TestCase):
         self.assertIn("res.type === 'basic' && !res.redirected", sw)
         css = (WEB_DIR / "app.css").read_text(encoding="utf-8")
         self.assertRegex(css, r"\.preview \{[^}]*max-height: 40vh; overflow: auto")
+
+    def test_polices_auto_hebergees(self):
+        # Polices servies par le Core (CSP font-src via default-src 'self') et gardées hors ligne : aucun appel à un tiers.
+        css = (WEB_DIR / "app.css").read_text(encoding="utf-8")
+        sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")
+        for name in ("inter.woff2", "jetbrains-mono.woff2"):
+            data = (WEB_DIR / name).read_bytes()
+            self.assertEqual(data[:4], b"wOF2", name)
+            self.assertIn(f"url('/{name}') format('woff2')", css)
+            self.assertIn(f"'/{name}'", sw)
+        self.assertEqual(WEB_TYPES[".woff2"], "font/woff2")
+        self.assertEqual(css.count("font-display: swap"), 2)
 
     def test_manifest_valide(self):
         manifest = json.loads((WEB_DIR / "manifest.webmanifest").read_text(encoding="utf-8"))

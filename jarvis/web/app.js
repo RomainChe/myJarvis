@@ -178,8 +178,10 @@ const views = { chat: $('view-chat'), devices: $('view-devices'), settings: $('v
 function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   document.querySelectorAll('.tab').forEach((t) => {
-    if (t.dataset.view === name) { t.setAttribute('aria-current', 'page'); t.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } else t.removeAttribute('aria-current');
+    if (t.dataset.view === name) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
+  setMore(false);
+  $('tab-more').classList.toggle('on', !!$('more').querySelector(`[data-view="${name}"]`)); // écran rangé dans « Plus » : « Plus » reste allumé
   if (name === 'audit') loadAudit();
   if (name === 'devices') loadDevices();
   if (name === 'chat') { loadHome(); loadDigest(); startEye(); } else { clearTimeout(homeTimer); clearDigest(); }
@@ -192,6 +194,19 @@ function show(name) {
   if (name === 'bienetre') loadBienetre(); else clearTimeout(bienetreTimer);
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
+
+// Téléphone : feuille « Plus » (écrans 5 à 10). Échap, le voile ou un onglet la ferment ; le focus revient sur « Plus ».
+function setMore(open) {
+  const was = $('more').classList.contains('open');
+  $('more').classList.toggle('open', open);
+  $('tab-more').setAttribute('aria-expanded', String(open));
+  $('scrim').hidden = !open;
+  if (open) $('more').querySelector('.tab').focus();
+  else if (was && $('more').contains(document.activeElement)) $('tab-more').focus();
+}
+$('tab-more').addEventListener('click', () => setMore(!$('more').classList.contains('open')));
+$('scrim').addEventListener('click', () => setMore(false));
+$('tabs').addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('more').classList.contains('open')) setMore(false); });
 
 // Raccourcis clavier (bureau) : Alt+1..9 puis Alt+0 suivent l'ordre du menu, « / » met le focus sur la saisie du chat.
 const tabOrder = [...document.querySelectorAll('.tab')].map((t) => t.dataset.view);
@@ -365,7 +380,7 @@ async function loadAudit() {
     const out = [];
     for (const [src, list] of groups) {
       const g = el('section', 'group');
-      const panel = el('ul', 'panel hud plain au-list');
+      const panel = el('ul', 'panel plain au-list');
       const head = el('li', 'au-head');
       head.setAttribute('aria-hidden', 'true');
       head.append(...['Heure', 'Outil', 'Niveau', 'Décision', 'Détail'].map((t) => el('span', '', t)));
@@ -416,6 +431,19 @@ function svg(tag, attrs) {
   for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
   return n;
 }
+// Icône du sprite d'index.html (#i-<nom>) : décorative, le texte voisin porte le sens.
+function icon(name) {
+  const s = svg('svg', { class: 'i', 'aria-hidden': 'true' });
+  s.append(svg('use', { href: `#i-${name}` }));
+  return s;
+}
+// Tuile KPI : libellé, valeur, sous-titre ; `cls` ajoute hero (KPI principal) ou alarm.
+function stat(title, big, sub, subCls = '', cls = '') {
+  const s = el('section', `panel stat${cls ? ` ${cls}` : ''}`);
+  s.append(el('h2', '', title), el('p', 'big', big));
+  if (sub) s.append(el('p', `muted${subCls ? ` ${subCls}` : ''}`, sub));
+  return s;
+}
 // Jauge en anneau (pathLength 100 : le remplissage vaut directement le pourcentage). Texte lisible par les lecteurs d'écran.
 function gauge(label, value, detail, hot = value >= 90) {
   const v = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 0; // jamais « NaN % »
@@ -451,7 +479,7 @@ async function loadHome() {
     if (!r.ok || !r.data) throw new Error('bad');
     const d = r.data;
     $('st-loc').textContent = d.location ?? 'Non configurée';
-    $('st-weather').textContent = d.weather ? `${d.weather.temp_c} °C` : '—';
+    $('st-weather').textContent = d.weather ? `${Number(d.weather.temp_c).toLocaleString('fr-FR')} °C` : '—';
     $('st-sky').textContent = d.weather ? String(d.weather.sky) : d.location ? 'Météo indisponible' : '';
     $('st-net').textContent = d.network?.ms != null ? `Réseau : ${d.network.quality} · ${d.network.ms} ms` : 'Réseau : hors ligne';
     if (bootAt === null && Number.isInteger(d.uptime_s)) bootAt = Date.now() - d.uptime_s * 1000;
