@@ -51,6 +51,7 @@ function renderBank(b) {
   $('fin-accounts').replaceChildren(...b.accounts.map((a) => {
     const s = el('section', 'panel hud stat');
     s.append(cardTitle(a.bank, LOGOS[a.bank]), el('p', 'big', money(a.balance, a.currency)), el('p', 'muted', a.name));
+    if (a.stale) s.append(el('p', 'warn', 'Non actualisé : dernière lecture en échec'));
     return s;
   }));
   $('fin-tx').replaceChildren(...(b.transactions.length ? b.transactions.slice(0, 6).map((t) => {

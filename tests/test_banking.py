@@ -211,10 +211,17 @@ class ViewTest(FetchTest):
         self.assertIsNone(banking.view())
         banking.fetch()
         v = banking.view(limit=1)
-        self.assertEqual(v["accounts"], [{"bank": "Crédit Mutuel", "name": "Compte ••2345", "currency": "EUR", "balance": 1234.56}])
+        self.assertEqual(v["accounts"], [{"bank": "Crédit Mutuel", "name": "Compte ••2345", "currency": "EUR", "balance": 1234.56, "stale": False}])
         self.assertEqual([(t["label"], t["account"], t["currency"]) for t in v["transactions"]], [("SALAIRE", "Crédit Mutuel · Compte ••2345", "EUR")])
         self.assertEqual(v["consent"], [{"bank": "Crédit Mutuel", "days_left": None, "renew": 'python -m jarvis bank link "Crédit Mutuel"'}])
         self.assertNotIn("u1", json.dumps(v))
+
+    def test_compte_d_une_banque_en_echec_marque_non_actualise(self):
+        banking.fetch()
+        banking._save(banking.CACHE, {"fetched_at": "2026-10-09T10:00:00+00:00", "failed": ["C"], "accounts": [
+            {"bank": "B", "name": "n", "currency": "EUR", "balance": 1.0, "transactions": []},
+            {"bank": "C", "name": "n", "currency": "EUR", "balance": 2.0, "transactions": []}]})
+        self.assertEqual([(a["bank"], a["stale"]) for a in banking.view()["accounts"]], [("B", False), ("C", True)])
 
     def test_total_et_depense_de_la_semaine(self):
         banking.fetch()
