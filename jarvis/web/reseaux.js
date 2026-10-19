@@ -20,7 +20,7 @@ function socialRow(r, withLink) {
   const meta = el('div', 'pub-meta'), plat = el('span', 'pub-plat');
   plat.append(icon(r.platform === 'tiktok' ? 'note' : 'play'), document.createTextNode(PLATFORMS[r.platform] ?? r.platform));
   meta.append(el('span', 'pub-when', fmtDate(r.at)), plat);
-  if (r.privacy) meta.append(el('span', `badge status ${r.privacy}`, PRIVACY[r.privacy] ?? r.privacy));
+  if (r.privacy) meta.append(el('span', `badge status${Object.hasOwn(PRIVACY, r.privacy) ? ` ${r.privacy}` : ''}`, Object.hasOwn(PRIVACY, r.privacy) ? PRIVACY[r.privacy] : r.privacy)); // classe tirée de la table seulement
   li.append(title, meta, el('span', 'pub-views', Number.isInteger(r.views) ? `${r.views.toLocaleString('fr-FR')} vues` : ''));
   return li;
 }
