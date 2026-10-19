@@ -59,13 +59,12 @@ Pour chaque branche B avec GO, dans l'ordre :
    origin/main`. En avance : `git push origin main`. Divergé : ALERTE, aucune action.
 3. **Inventaire** de chaque branche locale et distante hors `main` : avance/retard sur main,
    worktree (propre|modifié|aucun), date du dernier commit, upstream. Puis, par catégorie :
-   - **Bloquée** (merge ou rebase en cours : `git -C <wt> rev-parse -q --verify MERGE_HEAD`,
-     dossier `rebase-merge`/`rebase-apply` ; HEAD détaché ; worktree verrouillé) : ALERTE,
-     aucune action, le propriétaire de la session tranche.
-   - **Fusionnée** (`git branch --merged main`) : sans worktree → `git branch -d`, et
-     `git push origin --delete` si elle existe. Avec worktree propre → idem après `git worktree
-     remove`, seulement si sa pointe n'est pas sur `git rev-list --first-parent main` (sinon
-     c'est une branche neuve sans commit d'une session qui démarre : on la laisse).
+   - **Bloquée** (merge, rebase ou cherry-pick en cours ; HEAD détaché) : ALERTE, aucune
+     action, le propriétaire de la session tranche.
+   - **Neuve** (aucun commit jamais fait dessus) : session qui démarre, on la laisse.
+   - **Fusionnée** : sans worktree → `git branch -d`, et `git push origin --delete` si elle
+     existe. Avec worktree propre et non verrouillé → idem après `git worktree remove`. Un
+     worktree verrouillé appartient à une session Claude ouverte : on le laisse.
    - **Fusionnée par squash ou rebase** (`git cherry main B` sans ligne `+`) : `-d` refusera ;
      rapport, suppression laissée au propriétaire.
    - **En retard** (retard > 0) : worktree modifié → ATTENTION, rien (session active). Sinon,

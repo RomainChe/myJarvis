@@ -50,6 +50,11 @@ class GardeBranchesTest(unittest.TestCase):
     def test_push_d_une_branche_extraite_ailleurs_bloque(self):
         self.assertIn("extraite dans un autre worktree", garde.check("git push origin HEAD:b", self.a))
 
+    def test_suppression_distante_autorisee(self):
+        self.assertIsNone(garde.check("git push origin --delete b", self.a))
+        self.assertIsNone(garde.check("git push -d origin b", self.a))
+        self.assertIsNone(garde.check("git push origin :b", self.a))
+
     def test_hook_code_2_et_raison(self):
         event = json.dumps({"tool_input": {"command": "git merge b"}, "cwd": self.a})
         r = subprocess.run([sys.executable, str(HOOK)], input=event, capture_output=True, text=True, encoding="utf-8")
