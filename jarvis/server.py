@@ -87,7 +87,7 @@ WEB_DIR = Path(__file__).parent / "web"
 # le nom d'un de ces fichiers (jamais de jointure avec la saisie : pas de traversée de chemin).
 WEB_TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
              ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
-             ".webmanifest": "application/manifest+json"}
+             ".webmanifest": "application/manifest+json", ".woff2": "font/woff2"}
 AUDIT_ROWS = 50
 RESULT_MAX = 120  # minimisation : le journal en garde 500, l'écran n'en a pas besoin
 ID = re.compile(r"[A-Za-z0-9_-]{1,64}")

@@ -1,5 +1,8 @@
 # JARVIS — Design system (préparation Phase 3)
 
+> **Remplacé pour les tokens, les composants et la navigation par docs/REFONTE_UI.md (refonte v2 du 2026-10-19).** Les principes (§1),
+> le dialogue de confirmation N2/N3 (§3.4) et les attentes envers les autres experts (§5) restent valables.
+
 Statut : **proposition de l'Expert UX/UI**, à valider par le Manager, la Sécurité et le propriétaire.
 La Phase 3 n'est pas lancée : ce document ne contient aucun code d'application.
 Cible : une seule PWA responsive servie par le Core (ARCHITECTURE §3.5), **mobile d'abord**.

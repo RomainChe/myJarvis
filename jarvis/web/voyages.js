@@ -1,12 +1,6 @@
 'use strict';
 // ---- Voyages : prix suivis par flight-price-tracker (CSV écrit par son workflow : donnée, texte seul, liens https) ----
 const day = (d) => new Date(`${d}T00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-const stat = (title, big, sub) => {
-  const s = el('section', 'panel hud stat');
-  s.append(el('h2', '', title), el('p', 'big', big));
-  if (sub) s.append(el('p', 'muted', sub));
-  return s;
-};
 async function loadVoyages() {
   const err = $('voyages-error'), state = $('voyages-state'), list = $('voyages-list');
   err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren();
@@ -20,13 +14,15 @@ async function loadVoyages() {
       : r.data.synced_at ? `Synchronisé avec GitHub le ${new Date(r.data.synced_at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`
       : 'Copie locale (non synchronisée avec GitHub)';
     list.replaceChildren(el('p', 'muted', sync), ...r.data.searches.map((s, i) => {
-      const d = el('details', 'panel hud');
+      const d = el('details', 'panel');
       d.open = i === 0; // la recherche la plus récente = destination en cours
-      d.append(el('summary', '', `${s.name} · ${eur(s.best.price)}`));
+      const sum = el('summary', '', s.name);
+      sum.append(el('span', 'sum-val', eur(s.best.price)));
+      d.append(sum);
       const delta = s.previous == null ? 'Premier relevé' : s.best.price === s.previous ? 'Stable depuis le relevé précédent'
         : `${s.best.price < s.previous ? '▼' : '▲'} ${eur(Math.abs(s.best.price - s.previous))} depuis le relevé précédent`;
       const strip = el('div', 'strip');
-      strip.append(stat('Meilleur prix', eur(s.best.price), delta), stat('Plus bas observé', eur(s.lowest), `${s.history.length} relevé(s)`),
+      strip.append(stat('Meilleur prix', eur(s.best.price), delta, '', 'hero'), stat('Plus bas observé', eur(s.lowest), `${s.history.length} relevé(s)`),
         stat('Dernier relevé', day(s.last_run)));
       const b = s.best, offer = el('div', 'voy-offer');
       const route = el('p', 'voy-route');

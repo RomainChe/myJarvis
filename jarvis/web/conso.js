@@ -5,7 +5,7 @@ function consoSub(p, label) {
   const parts = [];
   if (p.eur != null) parts.push(`≈ ${eur(p.eur)}`);
   if (p.prev_kwh != null) parts.push(`${label} : ${kwh(p.prev_kwh)}`);
-  if (p.partial) parts.push(`mesuré sur ${p.hours} h seulement`);
+  if (p.partial) parts.push(`mesuré sur ${Number(p.hours).toLocaleString('fr-FR')} h seulement`);
   return parts.join(' · ');
 }
 async function loadConso() {
@@ -20,11 +20,8 @@ async function loadConso() {
     state.textContent = d.configured ? '' : "Aucune mesure : la prise du PC n'a pas encore été échantillonnée (donnée indisponible).";
     // Nœuds construits puis posés d'un coup : deux chargements en vol (onglet quitté puis rouvert) ne dupliquent rien.
     strip.replaceChildren(...[['jour', "Aujourd'hui", 'hier'], ['semaine', '7 jours', '7 jours avant'], ['mois', '30 jours', '30 jours avant']].map(([key, title, label]) => {
-      const p = d.periods[key], s = el('section', 'panel hud stat');
-      s.append(el('h2', '', title), el('p', 'big', kwh(p.kwh)));
-      const sub = consoSub(p, label);
-      if (sub) s.append(el('p', 'muted', sub));
-      return s;
+      const p = d.periods[key];
+      return stat(title, kwh(p.kwh), consoSub(p, label), '', key === 'jour' ? 'hero' : '');
     }));
     const adv = d.advice?.items ?? [];
     $('conso-advice').replaceChildren(...(adv.length ? adv.map((a) => el('li', '', a.text))
@@ -34,21 +31,21 @@ async function loadConso() {
       ? `${h.source}. Dernier jour relevé : ${h.last_day}${h.stale ? ' (ancien : le relevé de la veille manque)' : ''}.`
       : 'Aucun relevé du compteur : donnée indisponible (MyElectricalData non configuré ou injoignable).';
     $('conso-home-strip').replaceChildren(...(h?.configured ? [['jour', 'Hier', 'la veille'], ['semaine', '7 jours', '7 jours avant'], ['mois', '30 jours', '30 jours avant']] : []).map(([key, title, label]) => {
-      const p = h.periods[key], s = el('section', 'panel hud stat');
-      s.append(el('h2', '', title), el('p', 'big', kwh(p.kwh)));
+      const p = h.periods[key];
       const sub = [consoSub(p, label).replace(/ · mesuré sur .*$/, ''), p.pc_share != null ? `PC ${Math.round(p.pc_share * 100)} %${p.pc_partial ? ' (minimum)' : ''}` : '',
         p.prev_partial ? `période d'avant : ${p.prev_days} j seulement` : '',
         p.partial ? `${p.days} jours relevés seulement` : ''].filter(Boolean).join(' · ');
-      if (sub) s.append(el('p', 'muted', sub));
-      return s;
+      return stat(title, kwh(p.kwh), sub);
     }));
     const max = Math.max(0.001, ...d.series.map((x) => x.kwh ?? 0));
-    bars.replaceChildren(...d.series.map((x) => { // un jour sans mesure = barre minimale, titre « indisponible »
-      const b = el('span', 'conso-bar');
-      b.style.height = `${Math.max(3, Math.round(((x.kwh ?? 0) / max) * 100))}%`;
+    bars.replaceChildren(...d.series.map((x, i) => { // jour sans mesure = colonne hachurée ; dernier jour (en cours) = contour
+      const none = x.kwh == null, b = el('span', `conso-bar${none ? ' none' : ''}${i === d.series.length - 1 ? ' today' : ''}`);
+      b.style.height = none ? '100%' : `${Math.max(3, Math.round((x.kwh / max) * 100))}%`;
       b.title = `${x.day} : ${kwh(x.kwh)}`;
       return b;
     }));
+    $('conso-max').textContent = kwh(max).replace(' kWh', '');
+    $('conso-first').textContent = d.series[0] ? new Date(`${d.series[0].day}T00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
     $('conso-source').textContent = d.series.some((x) => x.kwh != null) ? d.source : `Aucune mesure sur 30 jours (donnée indisponible). ${d.source}`;
     $('conso-price').value = d.price_kwh ?? '';
   } catch (e) {

@@ -2,20 +2,26 @@
 // ---- Réseaux : publications et planning de lol-clipper (lecture seule) -----------------------------------------------
 const PLATFORMS = { youtube: 'YouTube', tiktok: 'TikTok', all: 'YouTube + TikTok' };
 const fmtDate = (iso) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const PRIVACY = { public: 'Public', private: 'Privée', unlisted: 'Non répertoriée' };
+// « 2026-10-18_18h21_Renekton_compilation » -> « Renekton » + « compilation » (la date est déjà dans la colonne Publiée).
+function pubName(raw) {
+  const words = String(raw ?? '').replace(/^\d{4}-\d{2}-\d{2}_\d{2}h\d{2}_?/, '').split('_').filter(Boolean);
+  const name = words[0] ? words[0][0].toUpperCase() + words[0].slice(1) : String(raw ?? '');
+  return [name, words.slice(1).join(' ')];
+}
 function socialRow(r, withLink) {
   const li = el('li', 'row pub');
-  const title = el('div', 'pub-title', r.title);
+  const [name, kind] = pubName(r.title);
+  const link = withLink && typeof r.url === 'string' && URL.canParse(r.url) && new URL(r.url).protocol === 'https:';
+  const title = el(link ? 'a' : 'span', 'pub-title', name);
+  if (kind) title.append(el('span', 'pub-kind', ` · ${kind}`));
   title.title = String(r.title ?? '');
-  const meta = el('div', 'pub-meta');
-  meta.append(el('span', `badge plat ${r.platform === 'youtube' ? 'yt' : r.platform === 'tiktok' ? 'tt' : ''}`, PLATFORMS[r.platform] ?? r.platform), el('span', '', fmtDate(r.at)));
-  if (r.privacy) meta.append(el('span', 'badge status', r.privacy));
-  if (Number.isInteger(r.views)) meta.append(el('span', 'pub-views', `${r.views.toLocaleString('fr-FR')} vues`));
-  li.append(title, meta);
-  if (withLink && typeof r.url === 'string' && URL.canParse(r.url) && new URL(r.url).protocol === 'https:') {
-    const a = el('a', 'link-btn', 'Ouvrir');
-    a.href = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-    li.append(a);
-  }
+  if (link) { title.href = r.url; title.target = '_blank'; title.rel = 'noopener noreferrer'; }
+  const meta = el('div', 'pub-meta'), plat = el('span', 'pub-plat');
+  plat.append(icon(r.platform === 'tiktok' ? 'note' : 'play'), document.createTextNode(PLATFORMS[r.platform] ?? r.platform));
+  meta.append(el('span', 'pub-when', fmtDate(r.at)), plat);
+  if (r.privacy) meta.append(el('span', `badge status${Object.hasOwn(PRIVACY, r.privacy) ? ` ${r.privacy}` : ''}`, Object.hasOwn(PRIVACY, r.privacy) ? PRIVACY[r.privacy] : r.privacy)); // classe tirée de la table seulement
+  li.append(title, meta, el('span', 'pub-views', Number.isInteger(r.views) ? `${r.views.toLocaleString('fr-FR')} vues` : ''));
   return li;
 }
 async function loadSocial() {

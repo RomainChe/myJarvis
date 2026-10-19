@@ -91,7 +91,9 @@ async function loadDigest() {
   const next = so.value?.scheduled?.[0];
   if (next) $('dg-social').textContent += ` · prochaine : ${fmtDate(next.at)}`;
   const issue = ve.value?.issues?.[0];
-  const links = (issue?.links ?? []).filter((l) => typeof l.url === 'string' && URL.canParse(l.url) && new URL(l.url).protocol === 'https:').slice(0, 2);
+  const ok = (l) => l && typeof l.url === 'string' && URL.canParse(l.url) && new URL(l.url).protocol === 'https:';
+  const titled = (issue?.items ?? []).filter((x) => ok(x.link) && x.lines?.[0]).map((x) => ({ url: x.link.url, label: x.lines[0].replace(MARK_RE, '').replace(SCORE, '').replace(/[\s:·|(]+\)?\s*$/, '') }));
+  const links = (titled.length ? titled : (issue?.links ?? []).filter(ok)).slice(0, 2);
   $('dg-veille-state').textContent = ve.status === 'rejected' ? 'Indisponible.' : !issue ? 'Aucun envoi.' : `${VEILLE[issue.kind] ?? issue.kind} · semaine ${issue.week}`;
   $('dg-veille').replaceChildren(...links.map((l) => {
     const host = new URL(l.url).hostname; // destination réelle, pas le champ du serveur

@@ -11,7 +11,8 @@ Règle : cette section reste sous ~2 Ko. Une tâche finie se résume en une lign
 - **Voix** : PC (4b) et salon (4c) déployés ; reste latence PC ~5 s, Voice PE à recevoir puis `hey_jarvis` et comptage des faux réveils. `jarvis_fr` : essai `JARVIS_WAKE_WORD=jarvis_fr` + `JARVIS_WAKE_THRESHOLD=0.7`, puis revue Sécurité.
 - **Bouton « parler » PWA** (`/api/stt`, feu vert Sécurité) : reste l'essai sur le téléphone (HTTPS Tailscale) et 375/1280 px. Sur le mini-PC `/api/stt` répond 503 (pas de Whisper) : relayer vers le PC si voulu.
 - **Finances** : relance des banques en échec à 13 h et 19 h faite ; compte d’une banque en échec marqué « non actualisé » dans l’onglet. Reste : vérifier `journalctl --user -u jarvis-banque` le 2026-10-20.
-- **Consommation** : reste l'essai 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente de décision. **Refonte visuelle PWA** (cache v54) : reste l'œil sur des données réelles.
+- **Consommation** : reste l'essai 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente de décision.
+- **Refonte UI v2** (2026-10-19, cache v56) : tous les onglets refaits (plan et décisions : docs/REFONTE_UI.md, détail : docs/HISTORIQUE.md). Reste l'œil du propriétaire sur des données réelles (PC et téléphone).
 - **Phase 5 étapes 1 et 9** (token volé, `feat/phase5-token-vole`, fusionnée le 2026-10-19) : D2/D3/D6, clé d'accès pour les N2 forts et Finances, token 90 j renouvelé, « révoquer tout ». Reste revue Sécurité de la fusion et essai sur le téléphone.
 - **Essais réels en attente** : rappels/briefing (voix + push), outil Claude Code, `voyage_recherche` (envoie un e-mail).
 - **À faire par le propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md (sauvegardes hors mini-PC, `secret set mail_sig_key`, tests C5/F6/G2) ; droits TikTok ; Swile et Ledger à brancher.
