@@ -1,5 +1,11 @@
 # Décisions et risques acceptés
 
+## 2026-10-19 — Phase 5 étapes 1 et 9 : token volé, rotation D6 (revue Sécurité : feu vert sous conditions)
+- **Choix** : durée du token renouvelée par rotation (`/api/token`), pas par simple usage ; le token précédent reste valable jusqu'au premier usage du nouveau ; clé d'accès pour les N2 forts (`STRONG_N2`) et Finances ; « révoquer tout ».
+- **M1 (moyenne, non durci)** : un voleur qui présente l'ancien token après le renouvellement légitime peut le faire tourner à son tour ; le propriétaire est alors éjecté (message « token volé ? »), ce qui sert de détection. Durcissement possible : refuser la rotation avec le token précédent.
+- **B1 (basse)** : le déverrouillage de Finances (10 min) est lié à l'appareil, pas au token ; couvert par « révoquer tout ».
+- **B2 (basse, disponibilité)** : une clé de portée voix ne se renouvelle pas et expire 90 jours après sa création (le micro du salon se tait sans alerte) : refaire `device add --voice <nom>` tous les 90 jours, ou allonger le TTL de cette portée (décision du propriétaire).
+
 ## 2026-10-14 — Onglet Consommation, étape 3 : conseils (revue Sécurité : feu vert sous conditions)
 - **Choix** : `conso_conseils` en N0, règles déterministes (hausse du logement, part du PC, hausse du PC), texte construit uniquement à partir de chiffres calculés par le Core, jamais d'une chaîne de MyElectricalData ; aucun push.
 - **Corrigé** : (1) `conso_conseils`, `conso_pc`, `conso_totale` en `private=True` : le journal ne garde que le type et la longueur du résultat (kWh, € et part du PC = habitudes de vie). Test : résultat absent du journal.
