@@ -235,8 +235,8 @@ def _balance(balances: list) -> float | None:
     return _amount(balances[0].get("balance_amount")) if balances and isinstance(balances[0], dict) else None
 
 
-def fetch(today: date | None = None) -> dict:
-    """Lit soldes et transactions des `DAYS` derniers jours de chaque compte lié, écrit le cache chiffré.
+def fetch(today: date | None = None, banks: list[str] | None = None) -> dict:
+    """Lit soldes et transactions des `DAYS` derniers jours de chaque compte lié (ou des seules `banks`), écrit le cache chiffré.
 
     Renvoie {"accounts": n, "transactions": n, "errors": [banque : message]} ; une banque en échec n'empêche pas les autres.
     """
@@ -244,8 +244,10 @@ def fetch(today: date | None = None) -> dict:
     if not store or not store.get("sessions"):
         raise BankError("aucune banque liée : python -m jarvis bank link \"<banque>\"")
     since = ((today or date.today()) - timedelta(days=DAYS)).isoformat()
-    accounts, errors = [], []
-    for s in store["sessions"]:
+    accounts, errors, failed = [], [], set()
+    sessions = [s for s in store["sessions"] if banks is None or s["bank"] in banks]
+    for s in sessions:
+        got = []
         try:
             for a in s["accounts"]:
                 bal = _call(store, "GET", f"/accounts/{a['uid']}/balances").get("balances")
@@ -258,21 +260,38 @@ def fetch(today: date | None = None) -> dict:
                     key = r.get("continuation_key")
                     if not key or len(txs) >= MAX_TX:
                         break
-                accounts.append({"bank": s["bank"], "name": a["name"], "currency": a["currency"], "balance": _balance(bal),
-                                 "transactions": sorted(txs[:MAX_TX], key=lambda x: x["date"], reverse=True)})
+                got.append({"bank": s["bank"], "name": a["name"], "currency": a["currency"], "balance": _balance(bal),
+                            "transactions": sorted(txs[:MAX_TX], key=lambda x: x["date"], reverse=True)})
+            accounts += got
         except BankError as e:
             errors.append(f"{s['bank']} : {e}")
-    if accounts:
-        _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts})
+            failed.add(s["bank"])
+    if accounts:  # une banque en échec ou non relue garde ses comptes du cache précédent au lieu de disparaître de l'onglet
+        old = {}
+        if failed or len(sessions) < len(store["sessions"]):
+            try:  # un cache illisible ne doit pas empêcher d'écrire les données fraîches
+                old = _load(CACHE, None) or {}
+            except (BankError, keyring.errors.KeyringError):
+                pass
+        stale = {s["bank"] for s in store["sessions"]} - {a["bank"] for a in accounts}
+        kept = [a for a in old.get("accounts", []) if a.get("bank") in stale]
+        failed |= set(old.get("failed", [])) & stale - {s["bank"] for s in sessions}
+        _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts + kept,
+                      "failed": sorted(failed)})
     return {"accounts": len(accounts), "transactions": sum(len(a["transactions"]) for a in accounts), "errors": errors}
 
-def fetched_today() -> bool:
-    """Vrai si le cache a été écrit aujourd'hui (heure locale) ; faux si absent ou illisible."""
+
+def pending_today() -> list[str] | None:
+    """Banques à relire aujourd'hui : None si rien n'a été récupéré aujourd'hui (heure locale) ou cache illisible,
+    sinon les banques restées en échec (vide : journée faite)."""
     try:
-        at = (_load(CACHE, None) or {}).get("fetched_at")
-        return bool(at) and datetime.fromisoformat(at).astimezone().date() == date.today()
+        data = _load(CACHE, None) or {}
+        at = data.get("fetched_at")
+        if at and datetime.fromisoformat(at).astimezone().date() == date.today():
+            return list(data.get("failed", []))
     except (BankError, keyring.errors.KeyringError, ValueError, TypeError):
-        return False
+        pass
+    return None
 
 
 def renew_cmd(bank: str, country: str) -> str | None:
