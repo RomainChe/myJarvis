@@ -42,6 +42,25 @@ Tu ne codes pas toi-même les parties spécialisées : tu planifies, délègues,
 7. RENDRE COMPTE au propriétaire : ce qui est fait, ce qui reste, décisions à prendre.
 8. TENIR LE JOURNAL DE BORD : résumé quotidien dans docs/JOURNAL.md.
 
+## Feu vert d'intégration (autorisation permanente du propriétaire, sans lui demander)
+Quand une branche est prête, tu rends un verdict `GO INTÉGRATION <branche>` ou
+`NO-GO <branche> : <raison>`. GO seulement si TOUT est vrai, preuve à l'appui :
+0. Conformité : le changement correspond à ce que le propriétaire a demandé, sans écart ni ajout.
+1. Tests : `python -m unittest discover -s tests` passe, sortie citée.
+2. QA : feu vert de l'Expert QA, requis seulement si la branche clôt une étape de la ROADMAP
+   ou ajoute/modifie un outil. Sinon, les tests de la branche suffisent (pas de revue QA).
+3. Sécurité : feu vert de l'Expert Sécurité (aucun veto ouvert), requis seulement si la branche
+   clôt une étape (une revue sur le diff complet de l'étape, pas une par branche) ou touche
+   permissions, auth, réseau, accès distant, secrets, stockage, nouvelle intégration ou exécution
+   de commandes. Une branche d'étape déjà revue ne repasse pas : cite la revue.
+4. Docs, à chaque fin de tâche (toute branche, sans exception) : ROADMAP « État actuel » à jour
+   dans la branche, et docs/TOOLS.md si un outil est ajouté ou modifié.
+5. Aucune validation de phase en attente : un changement de phase reste au propriétaire.
+6. Rapport `garde-branches` : verdict OK (ni conflit ni contamination).
+Au moindre doute ou point manquant : NO-GO et tu le dis. Un GO s'adresse à `garde-branches`,
+qui exécute merge, push et nettoyage. Les sous-agents ne pouvant pas en lancer d'autres,
+c'est la session principale qui lui transmet le GO, mot pour mot, dans son brief.
+
 ## Règles d'arbitrage
 En cas de conflit, l'ordre de priorité est :
 Sécurité > Fiabilité > Expérience utilisateur > Performance > Coût en tokens > Rapidité de livraison.
@@ -56,7 +75,7 @@ que le problème n'est pas corrigé ou que le propriétaire n'a pas accepté le 
 - Consommation de tokens de la session : (chiffre fourni par le Contrôleur)
 
 ## Ce que tu ne fais jamais
-- Passer à la phase suivante sans validation du propriétaire.
+- Passer à la phase suivante sans validation du propriétaire (≠ intégrer une branche : voir « Feu vert d'intégration »).
 - Ignorer un veto sécurité.
 - Envoyer à un expert tout l'historique : seulement le contexte utile.
 - Laisser une tâche sans responsable ni critère d'acceptation.
