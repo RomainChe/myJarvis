@@ -1,8 +1,6 @@
-# JARVIS — Préparation de la Phase 4 (voix)
+# JARVIS — Voix (Phase 4)
 
-Auteur : Expert Voix et personnalité. Statut : **préparation, rien n'est installé.**
-Infos vérifiées le 2026-10-07 (sources en fin de document). Les latences marquées « estim. »
-sont à mesurer sur le PC en Phase 4.
+Statut : en service sur le PC (lot 4b) et au salon (lot 4c, docs/MIGRATION_CORE_MINIPC.md). Infos vérifiées le 2026-10-07 ; les latences « estim. » restent à mesurer.
 
 ## 1. Chaîne
 
@@ -76,8 +74,6 @@ Chargement ensuite par chemin local (`local_files_only=True`, `HF_HUB_OFFLINE=1`
 Recoupement : le SHA-256 de `model.bin` et de `fr_FR-tom-medium.onnx` est identique au `lfs.sha256` donné par l'API
 Hugging Face. Les autres fichiers (petits, hors LFS) : SHA-256 calculé au premier téléchargement.
 Essais de chargement (CPU) : openWakeWord, Piper (44,1 kHz) et `WhisperModel` chargent depuis le chemin local.
-GPU : `WhisperModel(device="cuda")` échoue pour l'instant avec `RuntimeError: Library cublas64_12.dll is not found or cannot be loaded`
-(CUDA 12 / cuDNN 9 absents du PC ; rien n'a été installé, à traiter avant l'activation de la voix GPU).
 
 ## 3. Budget VRAM (16 Go)
 
@@ -139,17 +135,3 @@ Environnement séparé `%LOCALAPPDATA%\jarvis-wakeword` (venv Python 3.12, hors 
 - `PicklingError: Can't pickle <lambda>` au démarrage de l'apprentissage (`train.py`, `DataLoader` à `num_workers=n_cpus` : Windows relance les workers par `spawn`) : passer à `num_workers=0`. Ensuite ~60 pas/s, 50 000 pas en ~14 min.
 - Réentraînement avec la voix du propriétaire (2026-10-13) : `record_owner.py` (fenêtre 3 s, refusés gardés dans `data/owner/rejetes`), `generate_xtts.py` (clonage XTTS-v2, licence CPML non commerciale : usage perso), `verify_clips.py` (Whisper écarte les clips qui ne disent pas « Jarvis »), `build_corpus.py` (peu de Piper, voix réelle et clonée ≈ 44 % des positifs ; sans cela les 45 000 clips Piper noient la voix réelle), `eval_heldout.py`. Lancer ensuite `python -m openwakeword.train --training_config jarvis_fr.yml --augment_clips --train_model` (sans `--generate_clips`). Les clips et le modèle contiennent la voix du propriétaire : hors dépôt.
 - Piège : l'étape d'augmentation est sautée en bloc si `positive_features_train.npy` existe. Après un plantage, le supprimer avant de relancer. Le fichier `jarvis_fr.yml` du dépôt a un chemin factice ; lancer avec la copie locale.
-
-## 6. Questions pour la Phase 4
-- Micro : quel matériel (casque, micro de webcam, micro d'ambiance) ? Il conditionne les faux réveils.
-- « hey jarvis » suffit-il, ou faut-il entraîner « Jarvis » seul ?
-- Voix Piper : écoute des 3 candidates pour trancher.
-
-## Sources
-- [faster-whisper, VRAM et vitesse (vexascribe, juillet 2026)](https://vexascribe.com/fr/faster-whisper)
-- [Whisper large-v3 : VRAM (dev.to)](https://dev.to/sikamikanikobg/whisper-large-v3-vram-requirements-why-it-wont-fit-on-a-5gb-gpu-and-what-we-tried-instead-1a18)
-- [Whishper #172 : RTX 50 et CUDA 12.8](https://github.com/pluja/whishper/issues/172)
-- [Voix Piper fr_FR (Hugging Face)](https://huggingface.co/rhasspy/piper-voices/tree/main/fr/fr_FR)
-- [Piper : migration vers OHF-Voice/piper1-gpl et GPL-3.0](https://www.promptquorum.com/fr/power-local-llm/piper-tts-review)
-- [Entraînement openWakeWord en 2026](https://github.com/briankelley/atlas-voice-training)
-- [openWakeWord dans LiveKit (modèle hey_jarvis)](https://docs.livekit.io/agents/multimodality/audio/wakeword.md)
