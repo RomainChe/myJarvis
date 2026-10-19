@@ -244,8 +244,9 @@ def fetch(today: date | None = None) -> dict:
     if not store or not store.get("sessions"):
         raise BankError("aucune banque liée : python -m jarvis bank link \"<banque>\"")
     since = ((today or date.today()) - timedelta(days=DAYS)).isoformat()
-    accounts, errors = [], []
+    accounts, errors, failed = [], [], set()
     for s in store["sessions"]:
+        got = []
         try:
             for a in s["accounts"]:
                 bal = _call(store, "GET", f"/accounts/{a['uid']}/balances").get("balances")
@@ -258,12 +259,20 @@ def fetch(today: date | None = None) -> dict:
                     key = r.get("continuation_key")
                     if not key or len(txs) >= MAX_TX:
                         break
-                accounts.append({"bank": s["bank"], "name": a["name"], "currency": a["currency"], "balance": _balance(bal),
-                                 "transactions": sorted(txs[:MAX_TX], key=lambda x: x["date"], reverse=True)})
+                got.append({"bank": s["bank"], "name": a["name"], "currency": a["currency"], "balance": _balance(bal),
+                            "transactions": sorted(txs[:MAX_TX], key=lambda x: x["date"], reverse=True)})
+            accounts += got
         except BankError as e:
             errors.append(f"{s['bank']} : {e}")
-    if accounts:
-        _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts})
+            failed.add(s["bank"])
+    if accounts:  # une banque en échec garde ses comptes du cache précédent au lieu de disparaître de l'onglet
+        kept = []
+        if failed:
+            try:  # un cache illisible ne doit pas empêcher d'écrire les données fraîches
+                kept = [a for a in (_load(CACHE, None) or {}).get("accounts", []) if a.get("bank") in failed]
+            except (BankError, keyring.errors.KeyringError):
+                pass
+        _save(CACHE, {"fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "accounts": accounts + kept})
     return {"accounts": len(accounts), "transactions": sum(len(a["transactions"]) for a in accounts), "errors": errors}
 
 def fetched_today() -> bool:

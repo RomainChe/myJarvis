@@ -173,6 +173,29 @@ class FetchTest(BankBase):
         self.assertEqual((r["accounts"], r["errors"]), (0, ["Crédit Mutuel : accès refusé"]))
         self.assertEqual(banking.CACHE.read_bytes(), before)
 
+    def test_banque_en_echec_garde_ses_comptes_quand_une_autre_reussit(self):
+        store = banking._load(banking.STORE, None)
+        store["sessions"].append({"id": "t", "bank": "Trade Republic", "country": "DE", "valid_until": None,
+                                  "accounts": [{"uid": "u2", "name": "Compte TR", "currency": "EUR"}]})
+        banking._save(banking.STORE, store)
+        self.routes[("GET", "/accounts/u2/balances")] = {"balances": [{"balance_type": "CLBD", "balance_amount": {"amount": "50"}}]}
+        self.routes[("GET", "/accounts/u2/transactions")] = {"transactions": [{"transaction_amount": {"amount": "25"},
+                                                             "credit_debit_indicator": "DBIT", "booking_date": "2026-10-03"}]}
+        banking.fetch()
+
+        def expired(q):
+            raise banking.BankError("accès refusé")
+        self.routes[("GET", "/accounts/u2/transactions")] = expired
+        r = banking.fetch()
+        self.assertEqual((r["accounts"], r["errors"]), (1, ["Trade Republic : accès refusé"]))
+        tr = [a for a in banking._load(banking.CACHE, None)["accounts"] if a["bank"] == "Trade Republic"]
+        self.assertEqual([(a["balance"], len(a["transactions"])) for a in tr], [(50.0, 1)])
+
+    def test_cache_illisible_reecrit_par_une_recuperation_reussie(self):
+        banking.CACHE.write_bytes(b"tronque")
+        self.assertEqual(banking.fetch()["accounts"], 1)
+        self.assertEqual(len(banking._load(banking.CACHE, None)["accounts"]), 1)
+
 
 class ViewTest(FetchTest):
     def test_vue_sans_identifiant_triee_et_bornee(self):
