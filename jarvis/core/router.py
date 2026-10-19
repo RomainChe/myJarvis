@@ -36,8 +36,8 @@ def fold(text: str) -> str:
 
 
 def normalize(text: str) -> str:
-    """fold + ponctuation retirée + mot d'appel « jarvis » retiré."""
-    words = (w.strip(".") for w in re.sub(r"[^\w.\-]+", " ", fold(text)).split())
+    """fold + ponctuation et traits d'union retirés + mot d'appel « jarvis » retiré."""
+    words = (w.strip(".") for w in re.sub(r"[^\w.]+", " ", fold(text)).split())
     return " ".join(w for w in words if w and w != "jarvis")
 
 

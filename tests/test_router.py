@@ -33,6 +33,28 @@ class RouterTest(unittest.TestCase):
         self.assertEqual(self.router.route("etat du sytème"), ("system_status", {}))  # faute de frappe
         self.assertEqual(self.router.route("liste les processus !"), ("list_processes", {}))
 
+    def test_variantes_de_formulation(self):
+        cas = {
+            "weather_now": ("donne-moi la météo", "météo du jour", "Quel temps fait-il aujourd'hui ?", "est-ce qu'il pleut"),
+            "current_time": ("dis-moi l'heure", "quel jour est-on", "on est le combien"),
+            "briefing": ("fais-moi un point", "résumé de ma journée"),
+            "system_status": ("comment se porte mon pc",),
+            "tv_off": ("éteins la tv",),
+            "tv_on": ("mets la télé",),
+        }
+        for tool, texts in cas.items():
+            for text in texts:
+                self.assertEqual(self.router.route(text), (tool, {}), text)
+
+    def test_tv_volume_son_et_appli(self):
+        self.assertEqual(self.router.route("baisse le son sur la télé"), ("tv_volume", {"direction": "down", "steps": 2}))
+        self.assertEqual(self.router.route("monte le volume de la tv"), ("tv_volume", {"direction": "up", "steps": 2}))
+        self.assertEqual(self.router.route("coupe le son de la tv"), ("tv_mute", {"muted": True}))
+        self.assertEqual(self.router.route("remets le son de la télé"), ("tv_mute", {"muted": False}))
+        self.assertEqual(self.router.route("mets netflix sur la tv"), ("tv_open_app", {"app": "netflix"}))
+        self.assertIsNone(self.router.route("lance word sur la tv"))  # appli hors liste blanche : au LLM
+        self.assertEqual(self.router.route("mets le volume à 30"), ("set_volume", {"level": 30}))  # le PC n'est pas détourné
+
     def test_slots_et_defauts(self):
         self.assertEqual(self.router.route("Cherche le fichier rapport.pdf"),
                          ("search_files", {"name": "rapport.pdf", "folder": "~"}))

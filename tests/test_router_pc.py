@@ -43,7 +43,7 @@ class PcIntentsTest(unittest.TestCase):
             self.assertIsNone(self.router.route(text), text)
 
     def test_phrases_proches_non_routees(self):
-        for text in ("coupe le chauffage", "coupe le son de la télé", "mets la musique de Noël", "pause café"):
+        for text in ("coupe le chauffage", "coupe le son de la musique", "mets la musique de Noël", "pause café"):
             self.assertIsNone(self.router.route(text), text)
 
 

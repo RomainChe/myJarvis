@@ -4,14 +4,23 @@
     "phrases": [
       "etat du systeme", "etat du pc", "statut du pc", "comment va le pc",
       "utilisation du processeur", "utilisation de la memoire", "combien de ram",
-      "etat de la carte graphique", "temperature du gpu", "espace disque"
+      "etat de la carte graphique", "temperature du gpu", "espace disque",
+      "comment va mon pc", "comment se porte le pc", "comment se porte mon pc", "est ce que le pc va bien", "etat de mon pc",
+      "charge du pc", "charge du processeur", "utilisation du cpu", "utilisation du gpu", "utilisation de la ram",
+      "memoire utilisee", "combien de memoire", "temperature du processeur", "temperature du cpu",
+      "temperature de la carte graphique", "espace libre sur le disque", "place sur le disque", "combien d espace disque"
+    
     ]
   },
   {
     "tool": "list_processes",
     "phrases": [
       "liste des processus", "liste les processus", "processus en cours",
-      "quels programmes tournent", "qu est ce qui tourne"
+      "quels programmes tournent", "qu est ce qui tourne",
+      "quels processus tournent", "quels programmes sont ouverts", "quelles applications tournent",
+      "quels programmes sont lances", "liste des programmes", "applications ouvertes", "programmes en cours",
+      "qu est ce qui est ouvert", "qu est ce qui est lance sur le pc"
+    
     ]
   },
   {
@@ -22,6 +31,52 @@
     ],
     "defaults": {"folder": "~"},
     "choices": {"folder": ["documents", "telechargements", "images", "photos", "bureau", "musique", "videos"]}
+  },
+  {
+    "tool": "tv_volume",
+    "patterns": ["(monte|augmente|mets plus fort|mets|met) (un peu )?(le )?(volume|son) (de|sur) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?( un peu)?",
+                 "(monte|augmente) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?( un peu)?", "plus fort (sur|dans) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"],
+    "defaults": {"direction": "up", "steps": 2}
+  },
+  {
+    "tool": "tv_volume",
+    "patterns": ["(baisse|diminue|descends|mets moins fort|mets|met) (un peu )?(le )?(volume|son) (de|sur) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?( un peu)?",
+                 "(baisse|diminue) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?( un peu)?", "moins fort (sur|dans) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"],
+    "defaults": {"direction": "down", "steps": 2}
+  },
+  {
+    "tool": "tv_mute",
+    "patterns": ["(coupe|couper) (le )?(son|volume) (de|sur) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?", "(mets|met) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)? en sourdine"],
+    "defaults": {"muted": true}
+  },
+  {
+    "tool": "tv_mute",
+    "patterns": ["(remets|remet|r[eé]tablis|r[eé]active|active) (le )?(son|volume) (de|sur) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?",
+                 "(d[eé]sactive|enl[eè]ve) la sourdine (de|sur) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"],
+    "defaults": {"muted": false}
+  },
+  {
+    "tool": "tv_open_app",
+    "patterns": ["(mets|met|lance|ouvre|ouvrir|lancer) {app}( sur| dans| avec) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?",
+                 "(mets|met|lance|ouvre) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)? sur {app}"],
+    "choices": {"app": ["youtube", "netflix", "twitch", "spotify"]}
+  },
+  {
+    "tool": "power_cancel",
+    "patterns": ["annule (l['’] ?(extinction|arr[eê]t)|le red[eé]marrage|l['’] ?arr[eê]t du pc|l['’] ?extinction du pc)"]
+  },
+  {
+    "tool": "game_running",
+    "phrases": ["un jeu est il lance", "est ce qu un jeu tourne", "y a t il un jeu en cours", "je joue", "un jeu tourne"]
+  },
+  {
+    "tool": "pc_bienetre",
+    "phrases": ["bien etre du pc", "sante du pc", "bilan de sante du pc", "le pc va t il bien", "bilan du pc", "bien etre"]
+  },
+  {
+    "tool": "pc_social",
+    "phrases": ["mes stats youtube", "stats youtube", "combien d abonnes", "combien d abonnes j ai", "mes reseaux",
+                "stats des reseaux", "mes clips", "clips programmes", "mes reseaux sociaux"]
   },
   {
     "tool": "set_volume",
@@ -71,7 +126,7 @@
   },
   {
     "tool": "tv_on",
-    "patterns": ["(allume|allumer) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"]
+    "patterns": ["(allume|allumer|rallume|rallumer|mets|met|lance) la (tv|t[ée]l[ée]|t[ée]l[ée]vision)( du salon)?"]
   },
   {
     "tool": "tv_off",
@@ -79,18 +134,34 @@
   },
   {
     "tool": "tv_status",
-    "phrases": ["la tele est allumee", "etat de la tv", "etat de la tele"]
+    "phrases": ["la tele est allumee", "etat de la tv", "etat de la tele",
+"la tv est allumee", "la tele est elle allumee", "est ce que la tele est allumee",
+              "est ce que la tv est allumee", "tele allumee", "etat de la television", "la television est allumee"]
   },
   {
     "tool": "current_time",
     "phrases": [
       "quelle heure est il", "quelle heure il est", "il est quelle heure", "c est quoi l heure", "l heure", "donne moi l heure",
-      "quel jour sommes nous", "quel jour on est", "on est quel jour", "quelle est la date", "la date", "quelle date sommes nous"
+      "quel jour sommes nous", "quel jour on est", "on est quel jour", "quelle est la date", "la date", "quelle date sommes nous",
+      "dis moi l heure", "heure actuelle", "t as l heure", "quelle heure as tu", "quelle heure est il maintenant",
+      "quel jour est on", "on est le combien", "quel jour on est aujourd hui", "quelle est la date d aujourd hui",
+      "la date du jour", "date d aujourd hui", "quel est le jour", "on est quel jour de la semaine"
+    
     ]
   },
   {
     "tool": "weather_now",
-    "phrases": ["la meteo", "meteo", "quel temps fait il", "quel temps il fait", "quel temps fait il dehors", "il fait quel temps"]
+    "phrases": ["la meteo", "meteo", "quel temps fait il", "quel temps il fait", "quel temps fait il dehors", "il fait quel temps",
+
+      "meteo du jour", "la meteo du jour", "meteo aujourd hui", "la meteo aujourd hui", "quelle meteo aujourd hui",
+      "quelle est la meteo", "meteo actuelle", "meteo maintenant", "la meteo maintenant", "meteo de maintenant",
+      "quel temps aujourd hui", "quel temps fait il aujourd hui", "quel temps fait il maintenant",
+      "quel temps fait il actuellement", "temps dehors", "il fait quoi dehors",
+      "est ce qu il pleut", "est ce qu il pleut dehors", "il pleut", "pleut il", "va t il pleuvoir",
+      "il fait froid dehors", "il fait chaud dehors", "il fait beau", "quelle temperature fait il",
+      "quelle temperature dehors", "temperature dehors", "temperature exterieure", "il fait combien dehors",
+      "combien de degres dehors", "combien il fait dehors", "faut il prendre un parapluie", "faut il un manteau"
+    ]
   },
   {
     "tool": "scene_cinema",
@@ -110,7 +181,10 @@
   },
   {
     "tool": "claude_code_status",
-    "phrases": ["ou en est le code", "resultat du code", "compte rendu du code", "etat du code"]
+    "phrases": ["ou en est le code", "resultat du code", "compte rendu du code", "etat du code",
+"le code est il termine", "as tu fini le code", "as tu fini de coder", "resultat de claude code",
+                "ou en est claude code", "etat de claude code", "compte rendu de claude code", "statut du code",
+                "etat de la tache de code"]
   },
   {
     "tool": "timer_set",
@@ -139,7 +213,11 @@
   {
     "tool": "reminder_list",
     "phrases": ["mes rappels", "mes minuteurs", "liste des rappels", "liste des minuteurs", "rappels en cours",
-                "minuteurs en cours", "quels sont mes rappels", "quels sont mes minuteurs"]
+                "minuteurs en cours", "quels sont mes rappels", "quels sont mes minuteurs",
+
+                "quels rappels j ai", "j ai des rappels", "mes alarmes", "mes reveils", "liste des reveils", "mes chronos",
+                "qu ai je comme rappels", "mes rappels en cours", "quels minuteurs sont en cours",
+                "est ce que j ai un minuteur", "combien de temps reste t il sur le minuteur"]
   },
   {
     "tool": "reminder_cancel",
@@ -154,7 +232,13 @@
     "tool": "voyage_prix",
     "phrases": ["prix des vols", "le prix des vols", "prix du vol", "combien coute le vol", "combien coute le voyage",
                 "ou en sont les vols", "ou en est le vol", "meilleur prix du vol", "meilleur prix des vols", "prix du voyage",
-                "le point sur les vols", "ou en sont les prix des vols"]
+                "le point sur les vols", "ou en sont les prix des vols",
+
+                "prix des billets", "prix des billets d avion", "le prix des billets", "meilleur prix du billet",
+                "prix du vol pour le japon", "combien coute le vol pour le japon", "prix vol japon",
+                "prix du voyage au japon", "ou en sont les billets", "tendance des prix des vols",
+                "est ce que les vols baissent", "est ce que les prix baissent", "vols pour le japon"
+    ]
   },
   {"tool": "conso_conseils", "patterns": ["((des |mes )?conseils( pour| de| sur)?( la| ma| mes)? (consommer moins|conso(mmation)?( [eé]lectrique)?|[eé]conomiser( l.[eé]lectricit[eé])?)|conseils conso(mmation)?|comment (r[eé]duire|baisser|diminuer) ma conso(mmation)?( [eé]lectrique)?|comment consommer moins)"]},
   {"tool": "conso_totale", "patterns": ["((la )?conso(mmation)?( [eé]lectrique)? (de la maison|du logement|totale|de chez moi)|combien (j.ai|on a|a-t-on) consomm[eé]( chez moi| en tout| au total)?)( hier)?"], "defaults": {"periode": "jour"}},
@@ -166,7 +250,12 @@
   {
     "tool": "briefing",
     "phrases": ["briefing", "le briefing", "mon briefing", "briefing du matin", "mon briefing du matin", "le point du matin",
-                "fais moi le briefing", "resume de la journee", "quoi de neuf aujourd hui"]
+                "fais moi le briefing", "resume de la journee", "quoi de neuf aujourd hui",
+
+                "fais moi un briefing", "donne moi le briefing", "le briefing du jour", "briefing de la journee",
+                "resume de ma journee", "mon resume du jour", "quoi de neuf", "quoi de beau aujourd hui",
+                "qu est ce qui est prevu aujourd hui", "le point de la journee", "fais moi le point", "fais moi un point",
+                "point du jour", "que se passe t il aujourd hui"]
   },
   {
     "tool": "memory_set",
@@ -175,7 +264,11 @@
   {
     "tool": "memory_list",
     "phrases": ["que sais tu sur moi", "qu est ce que tu sais sur moi", "mes souvenirs", "qu est ce que tu as retenu",
-                "liste de tes souvenirs"]
+                "liste de tes souvenirs",
+
+                "dis moi ce que tu sais sur moi", "ce que tu sais sur moi", "que sais tu de moi",
+                "qu est ce que tu sais de moi", "tes souvenirs", "de quoi te souviens tu", "qu as tu retenu",
+                "qu est ce que tu retiens de moi", "liste mes souvenirs", "montre moi mes souvenirs", "que retiens tu"]
   },
   {
     "tool": "memory_forget",
