@@ -1,10 +1,30 @@
-// Bouton « parler » : enregistre avec le micro du téléphone, le PC transcrit (Whisper), le texte part dans le chat.
-// L'audio n'est jamais gardé : un Blob en mémoire, envoyé à /api/stt, puis oublié. Un appui démarre, un appui arrête.
+// Bouton « parler ». Voie 1 : dictée du navigateur (SpeechRecognition) ; sur Chrome/Android l'audio passe par les serveurs de
+// Google (accepté par le propriétaire le 2026-10-19), le texte part dans le chat. Voie 2, sans dictée : enregistre avec le micro,
+// le PC transcrit (Whisper) via /api/stt ; l'audio n'est jamais gardé (Blob en mémoire). Un appui démarre, un appui arrête.
 'use strict';
 (() => {
   const talk = $('chat-talk');
-  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return; // HTTP clair ou vieux navigateur : bouton caché
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR && (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder)) return; // HTTP clair ou vieux navigateur : bouton caché
   talk.hidden = false;
+  let sr = null;
+
+  function dictate() {
+    if (sr) { sr.stop(); return; }
+    sr = new SR();
+    sr.lang = 'fr-FR';
+    sr.onresult = (e) => {
+      const text = e.results[0][0].transcript.trim();
+      if (!text) toast('Je n’ai rien entendu.');
+      else if (busy) toast('Jarvis est occupé avec une autre demande.');
+      else sendChat(text.slice(0, 1000));
+    };
+    sr.onerror = (e) => toast(['not-allowed', 'service-not-allowed'].includes(e.error) ? 'Micro refusé : autorise-le dans les réglages du navigateur.'
+      : e.error === 'no-speech' ? 'Je n’ai rien entendu.' : 'Je n’ai pas pu écouter.');
+    sr.onend = () => { sr = null; setRecording(false); };
+    sr.start();
+    setRecording(true);
+  }
   const MAX_MS = 25000; // le serveur refuse au-delà de 30 s
   let rec = null;
   let timer = null;
@@ -62,6 +82,7 @@
   }
 
   talk.addEventListener('click', () => {
+    if (SR) return dictate();
     if (sending) return;
     if (rec) stop(); else start();
   });

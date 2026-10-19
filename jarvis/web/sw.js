@@ -1,5 +1,5 @@
 // Service worker : cache du shell statique uniquement. Jamais /api/*, jamais une requête avec Authorization.
-const CACHE = 'jarvis-shell-v58';
+const CACHE = 'jarvis-shell-v59';
 const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/reseaux.js', '/finances.js', '/veille.js',
                '/bienetre.js', '/conso.js', '/voyages.js', '/oeil.js', '/resume.js', '/parler.js', '/reglages.js', '/start.js',
                '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/bank-cm.svg',
