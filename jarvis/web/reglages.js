@@ -5,18 +5,17 @@ async function loadDevices() {
   ul.replaceChildren(el('li', 'muted', 'Chargement…'));
   try {
     const r = await api('/api/devices');
-    const list = r.ok && r.data && Array.isArray(r.data.devices) ? r.data.devices : null;
+    const list = r.ok && r.data && Array.isArray(r.data.devices) ? r.data.devices.filter((d) => !d.revoked) : null;
     if (!list) { ul.replaceChildren(el('li', 'error', 'Liste indisponible pour le moment.')); return; }
     if (!list.length) { ul.replaceChildren(el('li', 'muted', 'Aucun appareil.')); return; }
     const cur = r.data.current ?? currentDevice;
     ul.replaceChildren(...list.map((d) => {
       const isCur = cur !== null && cur !== undefined && d.id === cur;
-      const li = el('li', `row${isCur ? ' current' : ''}${d.revoked ? ' revoked' : ''}`);
+      const li = el('li', `row${isCur ? ' current' : ''}`);
       li.appendChild(el('div', 'tool', String(d.name ?? 'Appareil')));
       const meta = el('div', 'meta');
       meta.appendChild(el('span', '', `Dernier usage : ${fmtTime(d.last_used)}`));
       if (isCur) meta.appendChild(el('span', 'badge d-ok', 'Cet appareil'));
-      if (d.revoked) meta.appendChild(el('span', 'badge d-bad', 'Révoqué'));
       li.appendChild(meta);
       return li;
     }));
