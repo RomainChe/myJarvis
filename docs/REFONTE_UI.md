@@ -1,8 +1,16 @@
 # JARVIS — Plan de refonte graphique de la PWA (v2)
 
-Statut : **proposition**, à valider par le propriétaire (décisions §7), puis QA et Sécurité à chaque lot.
+Statut : **implémentée le 2026-10-19 sur tous les onglets** (branche `feat/refonte-ui-v2`, cache v54), lots 1 à 6 livrés ensemble à la demande du propriétaire.
 Base : captures 1920 px des 8 écrans du 2026-10-19 et code de `jarvis/web/` (cache v52).
-Ce document complète docs/DESIGN_SYSTEM.md (Phase 3, devenu en partie obsolète). À la fin du lot 6, il le remplace.
+Ce document remplace docs/DESIGN_SYSTEM.md pour les tokens (§3), les composants (§4) et la navigation (§5).
+
+**Décisions du propriétaire (2026-10-19)** : D1 Inter + JetBrains Mono auto-hébergées (`jarvis/web/*.woff2`, licences OFL dans `licenses/`) ;
+D2 rail à gauche sur PC ; D3 barre du téléphone = Dashboard, Finances, Réseaux, Conso, Plus ; D4 coins HUD sur les héros seulement ;
+D5 texte courant à 16 px ; l'œil est gardé et enrichi (halo, cadran gradué, arcs de visée, étincelles, accélère quand Jarvis réfléchit).
+
+**Écarts avec le plan ci-dessous** : rail de 84 px (icône + libellé dessous) jusqu'à 1 439 px, 232 px avec les groupes au-delà ;
+la marque reste dans l'en-tête. Non faits (à ajouter si le besoin se confirme) : masquage du solde dans l'onglet Finances,
+mini-courbes des KPI (Réseaux, Voyages), filtres du Journal, badge « problème » de Bien-être dans la navigation, squelettes de chargement.
 
 Objectif : plus **lisible**, plus **beau**, plus **clair**, plus **cohérent**, sans changer d'identité :
 fond nuit, accent cyan, coins de visée HUD, œil de particules. On garde le style, on retire le bruit.
