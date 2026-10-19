@@ -268,7 +268,7 @@ compose (`deploy/`, tests/test_ha_component.py).
   **Reste** : revue Sécurité (script de pare-feu, `creds.sh`), essai sur le mini-PC et entre deux machines.
 - **Complété le 2026-10-16** (`feat/lot5-bascule`) : `agent-task.ps1` expose aussi Ollama sur l'IP Tailscale du PC
   (D15, `OLLAMA_HOST`, jamais `0.0.0.0`) avec pare-feu limité au mini-PC, signale les règles plus larges, relançable ;
-  unités `jarvis-banque` (+ timer 07:00, remplace la tâche Windows « JARVIS - banque »). Procédure ci-dessous.
+  unités `jarvis-banque` (+ timer 07:00, relances 13:00 et 19:00 des seules banques en échec, remplace la tâche Windows « JARVIS - banque »). Procédure ci-dessous.
 
 #### A. Préparation (le Core tourne encore sur le PC, aucune coupure)
 Sur le **mini-PC** (SSH, dépôt dans `~/jarvis`, venv dans `~/venv`) :
