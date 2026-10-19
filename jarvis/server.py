@@ -18,12 +18,14 @@ import uvicorn  # noqa: E402
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field, StrictBool, StrictInt
 
 from jarvis.core import levels, memory, reminders
 from jarvis.core.audit import Audit
 from jarvis.core.chat import TEXT_MAX, Chat
+from jarvis.core.voice import Voice
 from jarvis.core.dashboard import Dashboard
 from jarvis.core.devices import Devices
 from jarvis.core.banking import view as bank_view
@@ -35,23 +37,31 @@ from jarvis.core.veille import snapshot as veille_snapshot
 from jarvis.core import bienetre as bienetre_core
 from jarvis.core import conseils
 from jarvis.core import conso as conso_core
+from jarvis.core import minipc
 from jarvis.core import voyages as voyages_core
-from jarvis.core.voyages import hotel_snapshot, snapshot as voyages_snapshot
-from jarvis.core.social import snapshot as social_snapshot, with_youtube
+from jarvis.core.voyages import snapshot as voyages_snapshot
+from jarvis.core.social import from_pc as social_from_pc, snapshot as social_snapshot, with_youtube
 from jarvis.core.youtube_stats import YouTubeStats
 from jarvis.core.push import Push, subject_from_env
 from jarvis.core.webauthn import Passkeys
+from jarvis.core import agentlink
 from jarvis.core.host import HAS_PC_TOOLS
+
+PANEL_TIMEOUT_S = 3  # PC éteint : l'encart ne bloque pas
+BIENETRE_OFFLINE = {"configured": True, "offline": True, "running": False, "error": None, "at": None, "items": [],
+                    "counts": None, "previous": None}
 
 if HAS_PC_TOOLS:
     from jarvis.tools.pc.system import system_status
 else:
-    def system_status():  # Core sans PC : le tableau n'affiche pas l'encart système (l'agent PC le fournira, lot 3)
-        raise OSError("outils PC absents")
+    def system_status():  # Core du mini-PC : mesures du PC par l'agent ; PC éteint, l'encart système reste vide
+        return agentlink.call("run", "system_status", {}, timeout=PANEL_TIMEOUT_S)
 
 HOST = "127.0.0.1"  # volontairement non configurable
 BODY_MAX = 8192
 AUTH_FAIL_MAX, AUTH_FAIL_WINDOW_S = 10, 60
+VOICES_MAX = 64  # micros distincts (appareil/client) gardés en mémoire
+VOICE_MAX = 20  # phrases par appareil et par minute : une phrase dite en prend ~5 s
 # ponytail: plafond par appareil et par minute sur toutes les routes (l'écran en fait ~60) : borne le journal gonflé par un pair
 # valide à QUOTA_MAX + 1 lignes/min ; un quota par route si l'usage légitime s'en approche.
 QUOTA_MAX, QUOTA_WINDOW_S = 240, 60
@@ -65,8 +75,12 @@ HEADERS = {
     "Cross-Origin-Resource-Policy": "same-origin",
     "Cache-Control": "no-store",
     "X-Frame-Options": "DENY",  # redondant avec frame-ancestors, pour les vieux navigateurs
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "Permissions-Policy": "camera=(), microphone=(self), geolocation=(), payment=(), usb=()",  # micro : bouton « parler » de la PWA
 }
+STT_TYPES = {"audio/webm", "audio/ogg", "audio/mp4"}  # ce que MediaRecorder produit (Chrome/Android, Firefox, Safari)
+STT_BODY_MAX = 512 * 1024  # ~30 s d'Opus ; la durée décodée est bornée à part (STT_SECONDS_MAX)
+STT_SECONDS_MAX = 30
+STT_MAX = 6  # transcriptions par appareil et par minute : une phrase de 30 s occupe Whisper plusieurs secondes
 _now = time.monotonic  # remplacé dans les tests
 WEB_DIR = Path(__file__).parent / "web"
 # Fichiers statiques : dossier plat, extensions de cette liste seulement. Un chemin ne sert que s'il est EXACTEMENT
@@ -109,6 +123,11 @@ class Enroll(BaseModel):
 
 class ChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=TEXT_MAX)
+
+
+class VoiceIn(BaseModel):
+    text: str = Field(min_length=1, max_length=TEXT_MAX)
+    client: str = Field(default="pc", max_length=32, pattern=r"^[a-z0-9_-]+$")  # micro d'origine (multi-micros plus tard)
 
 
 B64 = Field(max_length=1400, pattern=r"^[A-Za-z0-9_-]+$")
@@ -175,7 +194,8 @@ class LevelIn(BaseModel):
 
 
 def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-               web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None) -> FastAPI:
+               web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None,
+               stt=None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
     # Host accepté -> Origin attendu pour ce Host. Liste fermée : jamais de joker, jamais de confiance dans l'IP source
     # ni dans les en-têtes Tailscale (derrière `tailscale serve`, tout arrive de 127.0.0.1).
@@ -218,13 +238,22 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         with counters:
             reads_logged[(device, tool)] = _now()
 
-    def authenticate(request: Request) -> tuple[int, str] | JSONResponse:
+    def authenticate(request: Request, voice_route: bool = False) -> tuple[int, str] | JSONResponse:
         header = request.headers.get("authorization")
         if header is None:  # une page web ne peut pas poser cet en-tête (pas de CORS) : ni compté, ni journalisé,
             return reply(401, "non autorisé")  # sinon elle bloquerait les appareils légitimes (constat 2)
         scheme, _, token = header.partition(" ")
-        found = devices.check(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
+        found = devices.check_scoped(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
+        if found is not None and found[2] != "full" and not voice_route:  # clé de portée limitée : refusée partout sauf /api/voice
+            with counters:
+                log_it = _now() - quota_logged.get(found[0], -QUOTA_WINDOW_S) >= QUOTA_WINDOW_S
+                if log_it:
+                    quota_logged[found[0]] = _now()
+            if log_it:  # une ligne par minute : une clé voix détournée ne gonfle pas le journal
+                audit.log(f"pwa:{found[0]}", "scope", {}, None, "refusé", f"clé de portée {found[2]} hors /api/voice")
+            return reply(403, "portée insuffisante")
         if found is not None:  # un token valide n'est jamais bloqué par le compteur d'échecs
+            found = found[:2]
             with counters:
                 recent = quota.setdefault(found[0], deque())
                 while recent and _now() - recent[0] > QUOTA_WINDOW_S:
@@ -258,12 +287,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if request.method != "GET":
             if request.headers.get("origin") != origin:  # absent ou différent : refus (CSRF)
                 return reply(403, "origine refusée")
-            if request.headers.get("content-type", "").split(";")[0].strip() != "application/json":
-                return reply(415, "JSON attendu")
+            audio = request.url.path == "/api/stt"  # seule route qui reçoit autre chose que du JSON
+            kind = request.headers.get("content-type", "").split(";")[0].strip()
+            if kind not in (STT_TYPES if audio else {"application/json"}):
+                return reply(415, "audio attendu" if audio else "JSON attendu")
             length = request.headers.get("content-length", "")
-            if not length.isdigit():
+            if not (length.isascii() and length.isdigit()):
                 return reply(411, "longueur requise")
-            if int(length) > BODY_MAX:
+            if int(length) > (STT_BODY_MAX if audio else BODY_MAX):
                 return reply(413, "corps trop gros")
         response = await call_next(request)
         for key, value in HEADERS.items():
@@ -299,6 +330,74 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         job = chat.start(auth[0], body.text)
         return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
 
+    voices: dict[str, Voice] = {}  # (appareil/client) -> Voice : « hors ligne » ne vaut que pour le micro qui l'a dit
+    voice_calls: dict[int, deque[float]] = {}
+
+    stt_slot = threading.BoundedSemaphore(1)  # une transcription à la fois : jamais de file de threads bloqués derrière Whisper
+
+    def voice_over_quota(device: int, cap: int = VOICE_MAX) -> bool:  # compteur commun à /api/voice et /api/stt
+        with counters:
+            recent = voice_calls.setdefault(device, deque())
+            while recent and _now() - recent[0] > QUOTA_WINDOW_S:
+                recent.popleft()
+            over = len(recent) >= cap
+            if not over:
+                recent.append(_now())
+        return over
+
+    @app.post("/api/stt")
+    async def stt_say(request: Request):
+        """Audio du micro du téléphone -> texte (Whisper du PC). Ne lance aucune action : le texte repart par /api/chat."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if stt is None:
+            return reply(503, "reconnaissance vocale indisponible")
+        if voice_over_quota(auth[0], STT_MAX):
+            return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
+        if not stt_slot.acquire(blocking=False):
+            return reply(503, "reconnaissance vocale occupée")
+        try:
+            from jarvis.core.stt import AudioTooLong, BadAudio, STTError, decode_audio  # import tardif : extra `voice`
+            raw, kind = await request.body(), request.headers["content-type"].split(";")[0].strip()
+
+            def run():
+                pcm = decode_audio(raw, kind, STT_SECONDS_MAX)  # en mémoire seulement : l'audio ne touche jamais le disque
+                return stt.transcribe(pcm), len(pcm) / 16000
+
+            try:
+                text, seconds = await run_in_threadpool(run)
+            except AudioTooLong:
+                code, why = 413, "audio trop long"
+            except BadAudio:
+                code, why = 422, "audio illisible"
+            except STTError:
+                code, why = 503, "reconnaissance vocale indisponible"
+            else:
+                audit.log(f"pwa:{auth[0]}", "stt", {"secondes": round(seconds, 1)}, None, "auto", "voix du téléphone transcrite")  # jamais le texte
+                return {"text": text}
+            audit.log(f"pwa:{auth[0]}", "stt", {}, None, "refusé", why)
+            return reply(code, why)
+        finally:
+            stt_slot.release()
+
+    @app.post("/api/voice")
+    def voice_say(body: VoiceIn, request: Request):
+        """Texte reconnu par un client voix -> réponse à lire. Plafond N0/N1 (cf. Voice.handle) ; le texte est une donnée."""
+        auth = authenticate(request, voice_route=True)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if voice_over_quota(auth[0]):
+            return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
+        key = f"{auth[0]}/{body.client}"
+        with counters:
+            voice = voices.get(key)
+            if voice is None:
+                if len(voices) >= VOICES_MAX:  # `client` est libre : la table ne grandit pas sans limite
+                    return reply(429, "trop de micros")
+                voice = voices[key] = Voice(chat)  # sans lecteur : la réponse est lue par le client voix du PC
+        return {"answer": voice.handle(body.text, key)}
+
     @app.get("/api/chat/{job_id}")
     def chat_status(job_id: str, request: Request):
         auth = authenticate(request)
@@ -333,7 +432,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return {"devices": [{"id": r[0], "name": r[1], "created": r[2], "last_used": r[3], "revoked": bool(r[4])}
+        return {"devices": [{"id": r[0], "name": r[1], "created": r[2], "last_used": r[3], "revoked": bool(r[4]), "scope": r[5]}
                             for r in devices.list()], "current": auth[0]}
 
     @app.post("/api/token")
@@ -462,12 +561,21 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         return dashboard.snapshot()
 
+    @app.get("/api/minipc")
+    def minipc_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        return minipc.status(audit, port)
+
     @app.get("/api/social")
     def social_state(request: Request):
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return with_youtube(social_snapshot(), youtube)
+        if HAS_PC_TOOLS:
+            return with_youtube(social_snapshot(), youtube)
+        return social_from_pc()
 
     voyages_core.on_fetch = lambda ok: audit.log("pwa:voyages", "voyages_sync", {}, 0, "auto", "ok" if ok else "échec")
 
@@ -476,7 +584,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        return {**voyages_snapshot(), "hotels": hotel_snapshot()}
+        return voyages_snapshot()
 
     @app.post("/api/voyages/destination", status_code=202)
     def voyages_destination(body: Destination, request: Request):
@@ -557,7 +665,17 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         log_read(auth[0], "bienetre_read", "bilan de santé du PC lu")
-        return bienetre_core.snapshot()
+        if HAS_PC_TOOLS:
+            return bienetre_core.snapshot()
+        try:
+            snap = agentlink.call("run", "pc_bienetre", {}, timeout=PANEL_TIMEOUT_S)
+            if not isinstance(snap, dict):
+                return BIENETRE_OFFLINE
+            if snap.pop("started", False):
+                audit.log("serve", "bienetre_run", {}, 0, "auto", "lancé sur le PC")
+            return snap
+        except agentlink.AgentError:
+            return BIENETRE_OFFLINE
 
     @app.get("/api/veille")
     def veille_state(request: Request):
@@ -683,7 +801,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
 
 def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-                web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None) -> uvicorn.Server:
-    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host, push, mic), host=HOST, port=port, access_log=False,
+                web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None,
+                stt=None) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host, push, mic, stt), host=HOST, port=port, access_log=False,
                             server_header=False, proxy_headers=False, log_level="warning")
     return uvicorn.Server(config)

@@ -1,5 +1,5 @@
 'use strict';
-// ---- Résumé du dashboard (bureau ≥ 1200 px seulement) : réseaux, finances, 2 sources de la veille ----------------
+// ---- Résumé du dashboard (bureau ≥ 1200 px seulement) : réseaux, finances, 2 sources de la veille, mini-PC ----------------
 // Chargé une fois à l'ouverture du dashboard, sans minuteur. Finances masquées : lues seulement sur clic
 // (écran d'accueil visible par un tiers, revue Sécurité constat 1). Vidé dès qu'on quitte la vue.
 const wide = matchMedia('(min-width: 1200px)');
@@ -13,7 +13,8 @@ function clearDigest() {
   for (const id of ['dg-social', 'dg-fin', 'dg-veille-state']) $(id).textContent = '';
   $('dg-veille').replaceChildren();
   $('dg-voyage').hidden = true;
-  $('dg-hotel').hidden = true;
+  $('dg-minipc').hidden = true;
+  $('dg-mp-list').replaceChildren();
   $('dg-conso').hidden = true;
 }
 $('dg-fin-show').addEventListener('click', async () => {
@@ -44,7 +45,7 @@ async function loadDigest() {
   clearDigest();
   if (!token || !wide.matches) return;
   const run = digestRun;
-  const [so, ve, vo, co] = await Promise.allSettled([getData('/api/social'), getData('/api/veille'), getData('/api/voyages'), getData('/api/conso')]);
+  const [so, ve, vo, co, mp] = await Promise.allSettled([getData('/api/social'), getData('/api/veille'), getData('/api/voyages'), getData('/api/conso'), getData('/api/minipc')]);
   if (run !== digestRun || views.chat.hidden) return;
   const yt = so.value?.youtube;
   if (yt && !yt.error) {
@@ -73,14 +74,19 @@ async function loadDigest() {
     $('dg-conso-kwh').textContent = kwh(today.kwh);
     $('dg-conso-info').textContent = ["aujourd'hui", today.eur != null ? `≈ ${eur(today.eur)}` : '', today.partial ? 'mesure partielle' : ''].filter(Boolean).join(' · ');
   }
-  const hotels = vo.value?.hotels; // dernier relevé d'hôtels (hotel-price-tracker) : carré affiché seulement s'il existe
-  $('dg-hotel').hidden = !hotels?.configured;
-  if (hotels?.configured) {
-    const cur = hotels.devise === 'EUR' ? '€' : hotels.devise, n = (v) => `${Math.round(v)} ${cur}`;
-    const st = hotels.etapes ?? [], from = st[0]?.chk_in, to = st[st.length - 1]?.chk_out;
-    $('dg-hotel-price').textContent = n(hotels.total_recommande);
-    $('dg-hotel-info').textContent = [from && to ? `${from} → ${to}` : '', `moins cher ${n(hotels.total_moins_cher)}`,
-      'trajets compris', hotels.complet ? '' : 'incomplet'].filter(Boolean).join(' · ');
+  const m = mp.value; // santé du serveur : tuile affichée seulement si le Core répond
+  $('dg-minipc').hidden = !m;
+  if (m) {
+    const n = m.problems.length, plur = (k, w) => `${k} ${w}${k > 1 ? 's' : ''}`;
+    $('dg-mp-state').textContent = n ? plur(n, 'problème') : 'Tout va bien';
+    const hw = [`disque ${m.disk_free_gb} Go libres`, m.temp_c != null && `${m.temp_c} °C`, m.ram_pct != null && `RAM ${m.ram_pct} %`,
+      Number.isInteger(m.uptime_s) && `actif depuis ${Math.floor(m.uptime_s / 86400)} j`].filter(Boolean).join(' · ');
+    const lines = [...m.problems.map((p) => ['error', `${p.name} : ${p.problem}`]),
+      m.updates && ['', m.updates.count ? `${plur(m.updates.count, 'mise')} à jour${m.updates.security ? ` dont ${m.updates.security} de sécurité` : ''}` : 'Système à jour'],
+      m.reboot && ['error', 'Redémarrage requis'], ['', hw],
+      ['', m.backup_age_h != null ? `Sauvegarde il y a ${m.backup_age_h} h` : 'Aucune sauvegarde'],
+      m.restart_at && ['', `Core relancé le ${fmtDate(m.restart_at * 1000)}`]].filter(Boolean);
+    $('dg-mp-list').replaceChildren(...lines.map(([cls, text]) => el('li', cls, text)));
   }
   const next = so.value?.scheduled?.[0];
   if (next) $('dg-social').textContent += ` · prochaine : ${fmtDate(next.at)}`;

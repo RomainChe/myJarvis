@@ -14,8 +14,12 @@ from .tools import REGISTRY, Level, Tool, masked
 
 ERROR_MAX = 200
 _OWNER_SOURCE = re.compile(r"pwa:\d+")
-# Le micro entend aussi la TV ou un visiteur : pas d'écriture durable à la voix (revue Sécurité 2026-10-14, constat 7).
-VOICE_BLOCKED = frozenset({"memory_set", "memory_forget"})
+# D2 (Phase 5, étape 1) : ces N2 exigent la clé d'accès quand ils sont demandés depuis la PWA, car un token volé ne doit
+# pas suffire à les confirmer. Le terminal local (source « cli ») garde la confirmation simple.
+STRONG_N2 = frozenset({"run_script", "delete_file", "kill_process", "power", "clipboard_read", "screenshot", "mail_recent"})
+# Le micro entend aussi la TV ou un visiteur : pas d'écriture durable à la voix (revue Sécurité 2026-10-14, constat 7), ni de presse-papiers
+# ni d'installation de pilotes (décision du propriétaire, 2026-10-17).
+VOICE_BLOCKED = frozenset({"memory_set", "memory_forget", "clipboard_write", "driverwatch_accept"})
 # Minuteurs et rappels à la voix : au plus VOICE_RATE par heure, tous confondus (constat 2).
 VOICE_RATE_TOOLS = frozenset({"timer_set", "reminder_set"})
 VOICE_RATE = 5
@@ -60,7 +64,7 @@ def execute(
         raise Refused(f"{name} refusé : à taper dans l'application ou le terminal")
     from_voice = source.split("/")[0] == "voix"
     if from_voice and name in VOICE_BLOCKED:
-        audit.log(source, name, masked(args, tool.hidden), None, "refusé", "écriture de la mémoire interdite à la voix")
+        audit.log(source, name, masked(args, tool.hidden), None, "refusé", "interdit à la voix")
         raise Refused(f"{name} refusé : à demander dans l'application ou le terminal")
     if from_voice and name in VOICE_RATE_TOOLS:
         now = time.monotonic()
@@ -85,6 +89,8 @@ def execute(
 
     # Outil du propriétaire demandé depuis la PWA : clé d'accès exigée comme en N3, quel que soit son niveau (le terminal local, non).
     strong_needed = level >= Level.N3 or (tool.owner_only and source != "cli")
+    if name in STRONG_N2 and level >= Level.N2 and source.startswith("pwa:"):
+        strong_needed = True
     decision = "auto"
     if level >= Level.N2 or strong_needed:
         try:

@@ -13,7 +13,7 @@ from jarvis.core.chat import ANSWER_MAX, REGISTRY, TEXT_MAX, Chat, ask, execute
 from jarvis.core.levels import effective
 from jarvis.core.llm import LLMUnavailable
 from jarvis.core.permissions import Refused
-from jarvis.core.router import normalize
+from jarvis.core.router import normalize, voice_fix
 from jarvis.core.tools import Level
 
 SOURCE = "voix"
@@ -55,7 +55,7 @@ class Voice:
         if self.speaker is not None and not self.muted:
             self.speaker.say(answer)
 
-    def handle(self, text: str) -> str:
+    def handle(self, text: str, client: str | None = None) -> str:
         """Texte reconnu -> réponse à lire. Lève ValueError si le texte est vide ou trop long.
 
         L'appelant (STT/TTS) doit attraper toute exception (ex. échec du journal) et lire un message générique.
@@ -75,8 +75,8 @@ class Voice:
             return BUSY_MSG
         gen = chat.busy.gen
         try:
-            chat.audit.log(SOURCE, "chat", {"len": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest()},
-                           None, "auto", None)
+            chat.audit.log(SOURCE, "chat", {"len": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest(),
+                                         **({"client": client} if client else {})}, None, "auto", None)
             refused = [0]  # niveau le plus haut refusé dans ce tour
 
             def confirm(tool, args):  # pas d'appareil, pas de confirmation vocale (étape 7 du plan)
@@ -86,9 +86,10 @@ class Voice:
             tap = _Tap(chat.audit)
             strong = lambda tool, args: False  # noqa: E731  (N3 jamais à la voix)
             try:
-                routed = chat.router.route(text)
+                heard = voice_fix(text)  # le journal garde la longueur et l'empreinte du texte reconnu, pas de la correction
+                routed = chat.router.route(heard)
                 if routed is None:
-                    answer = ask(text, audit=tap, confirm=confirm, strong_auth=strong, source=f"{SOURCE}/llm")
+                    answer = ask(heard, audit=tap, confirm=confirm, strong_auth=strong, source=f"{SOURCE}/llm")
                 else:
                     name, args = routed
                     result = execute(name, args, source=SOURCE, audit=tap, confirm=confirm, strong_auth=strong)

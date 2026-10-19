@@ -7,6 +7,7 @@ privés, ils ne sortiraient pas à voix haute devant la TV ou un visiteur.
 from datetime import date, datetime
 
 from jarvis.core import memory, reminders, social, veille
+from jarvis.core.host import HAS_PC_TOOLS
 from jarvis.core.tools import Level, tool
 from jarvis.tools.home import weather
 
@@ -17,6 +18,12 @@ TITLE_MAX = 60
 
 def _at(due: float) -> str:
     return datetime.fromtimestamp(due).strftime("%H:%M")
+
+
+@tool("current_time", "Heure et date actuelles (« quelle heure est-il », « quel jour sommes-nous »).", Level.N0)
+def current_time() -> str:
+    now = datetime.fromtimestamp(reminders.now())
+    return f"Il est {now.hour} h {now.minute:02d}, {DAYS[now.weekday()]} {now.day} {MONTHS[now.month - 1]} {now.year}."
 
 
 @tool("timer_set", "Minuteur : prévient dans `duration` (« 20 minutes », « 1h30 », 1 minute à 24 h). `label` : ce que le minuteur annonce (« les pâtes », « minuteur » si rien de précis).",
@@ -68,7 +75,7 @@ def _weather_line() -> str:
 
 
 def _social_line(today: date) -> str | None:
-    snap = social.snapshot()
+    snap = social.snapshot() if HAS_PC_TOOLS else social.from_pc()  # Core du mini-PC : fichiers de lol-clipper lus par l'agent
     pub = [r["title"][:TITLE_MAX] for r in snap["published"] if r["at"][:10] == today.isoformat()]
     todo = [r for r in snap["scheduled"] if r["at"][:10] == today.isoformat()]
     parts = []

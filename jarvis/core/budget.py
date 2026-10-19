@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 CM, TR = "Crédit Mutuel", "Trade Republic"
 PAY_MIN = 1000  # un crédit Crédit Mutuel ≥ 1 000 € hors virement interne = la paie
-PLANS = (10, 15, 13, 7)  # plans d'épargne du mercredi ; 60–75 € = PEA
+PLANS = (10, 15, 13, 7)  # plans d'épargne du mercredi ; 60–80 € = PEA (+ 35,27 € exceptionnel : une seule action le 2026-10-09)
 # (mot du libellé, emoji, nom, catégorie) pour les marchands reconnaissables ; le reste va en Loisirs
 MERCHANTS = (
     ("CARREFOUR", "🛒", "Courses", "Courses"), ("LECLERC", "🛒", "Courses", "Courses"), ("LIDL", "🛒", "Courses", "Courses"),
@@ -14,7 +14,11 @@ MERCHANTS = (
     ("RESTAURANT", "🍽️", "Restaurant", "Restaurants"), ("SHELL", "⛽", "Essence", "Transport"), ("TOTAL", "⛽", "Essence", "Transport"),
     ("SNCF", "🚆", "SNCF", "Transport"), ("TICKETMASTER", "🎟️", "Ticketmaster", "Loisirs"), ("BILLETWEB", "🎫", "Billetweb", "Loisirs"),
     ("BASIC", "🏋️", "Basic Fit", "Sport"), ("PHARMACIE", "💊", "Pharmacie", "Santé"), ("AMAZON", "📦", "Amazon", "Shopping"),
+    ("AIRBNB", "🏨", "Airbnb", "Voyage"), ("BOOKING", "🏨", "Booking", "Voyage"), ("HOTEL", "🏨", "Hôtel", "Voyage"),
+    ("AIR FRANCE", "✈️", "Air France", "Voyage"), ("RYANAIR", "✈️", "Ryanair", "Voyage"), ("EASYJET", "✈️", "easyJet", "Voyage"),
+    ("TRANSAVIA", "✈️", "Transavia", "Voyage"), ("VUELING", "✈️", "Vueling", "Voyage"),
 )
+ONE_OFF = ("Voyage", "Impôts")  # dépenses ponctuelles, isolées de la consommation courante
 
 
 def _row(emoji, name, amount, cat=None, detail="", bank="", day=""):
@@ -25,7 +29,18 @@ def _fr(day: str) -> str:
     return f"{day[8:10]}/{day[5:7]}"
 
 
-def classify(t: dict) -> tuple[str, dict]:
+def savings_days(txs: list[dict]) -> set[str]:
+    """Jours d'épargne hebdomadaire Trade Republic, même si la banque date les opérations du jeudi au mardi ou si le lot
+    arrive au fil de l'eau : une semaine mercredi→mardi qui contient au moins 3 des 4 plans (10, 15, 13, 7 €) est un lot ; seuls ses jours portant un plan comptent (PEA et arrondis sont datés comme les plans)."""
+    by = defaultdict(lambda: defaultdict(set))  # mercredi → jour → montants
+    for t in txs:
+        d = date.fromisoformat(t["date"])
+        if t.get("bank") == TR and t["amount"] < 0:  # ponytail: un achat de 60–80 € le jour même d'un plan passe pour le PEA
+            by[d - timedelta(days=(d.weekday() - 2) % 7)][t["date"]].add(-t["amount"])
+    return {day for days in by.values() if len(set().union(*days.values()) & set(PLANS)) >= 3 for day, a in days.items() if a & set(PLANS)}
+
+
+def classify(t: dict, plan_days: frozenset | set = frozenset()) -> tuple[str, dict]:
     """(genre, ligne) : income, internal, refund, ignore, fixed, saving, conso. `t` = {date, amount, label, bank}."""
     label, amount, bank, day = (t.get("label") or "").upper(), t["amount"], t["bank"], t["date"]
     d = date.fromisoformat(day)
@@ -70,13 +85,14 @@ def classify(t: dict) -> tuple[str, dict]:
         return "conso", mk("❤️", "Dons Fondation de France", out, "Dons")
     if 200 <= out <= 230 and d.month == 9 and d.day >= 22:
         return "conso", mk("🤖", "Claude Code Pro", out, "Abonnements")
-    if d.weekday() == 2 and out in PLANS or d.weekday() == 2 and 60 <= out <= 75:
+    wed = d.weekday() == 2 or day in plan_days
+    if wed and (out in PLANS or 60 <= out <= 80 or out == 35.27):
         return "saving", mk("📈", "Épargne programmée", out, "Épargne")
-    if cents and (d.day <= 3 and out < 5 or d.weekday() == 2 and out <= 22):
+    if cents and (d.day <= 3 and out < 5 or wed and out <= (22 if d.weekday() == 2 else 5)):  # jour décalé par la banque : arrondi < 5 € seulement
         return "saving", mk("💸", "Saveback + arrondis", out, "Épargne")
     if 80 <= out <= 90:
         return "conso", mk("⛽", "Essence", out, "Transport")
-    if 60 <= out <= 130:
+    if 60 <= out <= 130 or 2 <= out < 7:  # courses (Carrefour) ou petits achats
         return "conso", mk("🛒", "Courses", out, "Courses")
     return "conso", mk("🎲", "Loisirs divers (déduits)", out, "Loisirs")
 
@@ -99,12 +115,28 @@ def _group(rows: list[dict]) -> list[dict]:
         amounts = " + ".join(f"{r['amount']:.2f}".replace(".", ",") + " €" for r in sorted(rs, key=lambda r: -r["amount"]))
         notes = {
             "Crédit": lambda x: f"{len(x)} prêts : {amounts}",
-            "Épargne programmée": lambda x: f"{len({r['date'] for r in x})} mercredis · plans {sum(r['amount'] for r in x if r['amount'] in PLANS):.0f} € + PEA "
+            "Épargne programmée": lambda x: f"{len({date.fromisoformat(r['date']).isocalendar()[:2] for r in x})} mercredis · plans {sum(r['amount'] for r in x if r['amount'] in PLANS):.0f} € + PEA "
                                            f"{sum(r['amount'] for r in x if r['amount'] not in PLANS):.0f} €",
         }
         note = notes.get(name, lambda x: f"{len(x)} paiements · " + ", ".join(_fr(r["date"]) for r in x[:3]) + (" …" if len(x) > 3 else ""))
         out.append(_merge(rs, name, note))
     return sorted(out, key=lambda r: (r["date"], r["name"]))
+
+
+def _by_cat(rows: list[dict]) -> dict:
+    cats = defaultdict(float)
+    for r in rows:
+        cats[r["cat"]] += r["amount"]
+    return {n: round(a, 2) for n, a in cats.items()}
+
+
+def _previous(kinds: list, start: str) -> dict | None:
+    """Consommation par catégorie du cycle de paie précédent (de la paie d'avant à `start`), si cette paie est dans l'historique."""
+    dates = sorted({r["date"] for k, r in kinds if k == "income" and r["bank"] == CM and r["date"] < start})
+    if not dates:
+        return None
+    rows = [r for k, r in kinds if k == "conso" and dates[-1] <= r["date"] < start]
+    return {"start": dates[-1], "cats": _by_cat(rows), "total": round(sum(r["amount"] for r in rows), 2)}
 
 
 def _pct(a: float, b: float) -> int:
@@ -114,7 +146,9 @@ def _pct(a: float, b: float) -> int:
 def report(txs: list[dict], today: date | None = None) -> dict | None:
     """Bilan du cycle en cours (depuis la dernière paie). None si aucune paie n'est visible dans l'historique."""
     today = today or date.today()
-    kinds = [(k, r) for k, r in (classify(t) for t in txs if t.get("date") and t.get("bank") in (CM, TR)) if r["date"] <= today.isoformat()]
+    txs = [t for t in txs if t.get("date") and t.get("bank") in (CM, TR)]
+    plan_days = savings_days(txs)
+    kinds = [(k, r) for k, r in (classify(t, plan_days) for t in txs) if r["date"] <= today.isoformat()]
     pays = [r for k, r in kinds if k == "income" and r["bank"] == CM]
     if not pays:
         return None
@@ -128,14 +162,20 @@ def report(txs: list[dict], today: date | None = None) -> dict | None:
     refunded = round(sum(r["amount"] for r in refunds), 2)
     consumed = round(gross - refunded, 2)
     left = round(pay_amount - fixed_total - saved_total - consumed, 2)
-    cats = defaultdict(float)
-    for r in conso:
-        cats[r["cat"]] += r["amount"]
-    cats = [{"name": n, "amount": round(a, 2)} for n, a in sorted(cats.items(), key=lambda x: -x[1])]
+    prev = _previous(kinds, pay["date"])
+    cats = [{"name": n, "amount": a, "prev": prev["cats"].get(n, 0) if prev else None}
+            for n, a in sorted(_by_cat(conso).items(), key=lambda x: -x[1])]
     rate = _pct(saved_total, pay_amount)
     covered = [r for r in internal if r["amount"] > 0 and r["bank"] == CM]
     points = [{"icon": "✅", "text": f"Taux d'épargne de {rate} % — {saved_total:.2f} € mis de côté sur {pay_amount:.2f} € de paie.".replace(".", ",")}]
-    if cats and gross and cats[0]["amount"] / gross >= .3 and cats[0]["name"] not in ("Loisirs",):
+    one_off = round(sum(c["amount"] for c in cats if c["name"] in ONE_OFF), 2)
+    if one_off:
+        names = ", ".join(f"{c['name']} {c['amount']:.2f} €" for c in cats if c["name"] in ONE_OFF)
+        points.append({"icon": "✈️", "text": f"Dépenses ponctuelles ({names}) : hors ponctuel, la consommation est de {consumed - one_off:.2f} €.".replace(".", ",")})
+    rise = max((c for c in cats if c["prev"] is not None and c["name"] not in ONE_OFF and c["amount"] - c["prev"] >= 20), key=lambda c: c["amount"] - c["prev"], default=None)
+    if rise:
+        points.append({"icon": "💡", "text": f"{rise['name']} dépasse déjà le cycle précédent : {rise['amount']:.2f} € contre {rise['prev']:.2f} €.".replace(".", ",")})
+    elif cats and gross and cats[0]["amount"] / gross >= .3 and cats[0]["name"] not in ("Loisirs",) + ONE_OFF:
         points.append({"icon": "💡", "text": f"{cats[0]['name']} pèse {_pct(cats[0]['amount'], gross)} % de la consommation ({cats[0]['amount']:.2f} €).".replace(".", ",")})
     if left < 0:
         points.append({"icon": "⚠️", "text": f"Sorties supérieures à la paie de {-left:.2f} €".replace(".", ",") + (f" — couvert par ton autre compte ({sum(r['amount'] for r in covered):.2f} €).".replace(".", ",") if covered else ".")})
@@ -160,7 +200,7 @@ def report(txs: list[dict], today: date | None = None) -> dict | None:
         "start": pay["date"], "pay": {"amount": round(pay_amount, 2), "date": pay["date"]},
         "fixed": {"total": fixed_total, "pct": _pct(fixed_total, pay_amount), "items": fixed},
         "saving": {"total": saved_total, "rate": rate, "items": saving},
-        "conso": {"total": consumed, "gross": gross, "cats": cats, "refunds": {"total": refunded, "items": refunds},
+        "conso": {"total": consumed, "gross": gross, "cats": cats, "prev_total": prev["total"] if prev else None, "refunds": {"total": refunded, "items": refunds},
                   "detail": sorted(conso, key=lambda r: -r["amount"])},
         "left": left, "covered": {"total": round(sum(r["amount"] for r in covered), 2), "items": covered},
         "points": points, "subs": subs, "recos": recos[:3], "week": week,

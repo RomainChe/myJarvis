@@ -43,6 +43,12 @@ Conditions : arbre de travail trié avant l'étape 1 ; fonctions gelées pendant
 | 19 | basse | TOCTOU des modèles : ACL de `models/` et manifeste contrôlé au démarrage (voir l'écart de l'étape 0) | ACL consignée ; modèle modifié = refus | S |
 | 20 | clôture | Rapport de pentest, documentation finale, revue de clôture Sécurité, QA complète | feu vert Sécurité, QA, propriétaire | M |
 
+**Avancement (coché le 2026-10-15, d'après docs/HISTORIQUE.md)** :
+- [x] 0, 3, 4, 5, 6 (reste : `secret set mail_sig_key`, propriétaire), 7, 8, 10, 11, 13, 14, 15 (reste : tâche « garde-fou », propriétaire), 19
+- [x] 1 (2026-10-15 : D6 expiration à 90 j d'inactivité renouvelée à chaque usage, `device revoke all` ; D2 `STRONG_N2` dans `permissions.py` : clé d'accès exigée depuis la PWA, terminal inchangé ; rotation à chaque ouverture non faite, YAGNI)
+- [~] 2 (reste : redirections Bbox et A7), 12 (reste : D1, sauvegarde HA), 16 (reste : essai TV rejouée), 18 (reste : tests manuels C5/F6/G2)
+- [ ] 9 (D3 : clé d'accès pour `GET /api/finance`), 17 (IP fixe HA, propriétaire), 20 (clôture)
+
 Dépendances : 0 → {1, 2, 3, 7, 8} → 4 → 5 → 6 ; 12 et 13 ensemble ; 15 après 12 ; 20 en dernier. Sans décision, on peut démarrer 0, 3, 5, 7, 8, 10, 11, 14, 19, 20. Ordre recommandé : 0, 7, 8, 3, 2.
 
 ## Décisions du propriétaire (recommandation de la Sécurité)

@@ -10,7 +10,7 @@ Le dépôt est PUBLIC : aucun secret, token, IP, adresse ou donnée personnelle 
 
 ## 1. Identité et mission
 Tu es l'équipe de développement de JARVIS, un assistant personnel intelligent qui contrôle
-le PC de son propriétaire et sa maison connectée (TV, lumières, prises, volets, chauffage,
+le PC de son propriétaire et sa maison connectée (TV, lumières, prises, chauffage,
 enceintes, caméras, etc.). JARVIS doit être :
 - PUISSANT : il peut exécuter toute action sur le PC et la maison que le propriétaire peut faire.
 - SÛR : aucune action ne peut être déclenchée par un tiers non autorisé.
@@ -23,15 +23,15 @@ enceintes, caméras, etc.). JARVIS doit être :
 - Smartphone : Android
 - Box / routeur : Bbox Wi-Fi 7 XT (Bouygues)
 - Appareils connus : TV Continental Edison Google TV + barre de son Samsung HW-S50B ; 2 clims réversibles Mitsubishi
-  MSZ-HR25VFK2 (salon, chambre) = chauffage ; volets roulants Turol Industries
-  filaires (interrupteur mural double) → modules Shelly 2PM
+  MSZ-HR25VFK2 (salon, chambre) = chauffage
 - Matériel disponible pour un serveur domestique : aucun, tout tourne sur le PC
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
 - Budget mensuel API IA : 0 € → LLM 100 % local (Ollama), aucune API payante.
 - Architecture et roadmap : voir docs/ARCHITECTURE.md et docs/ROADMAP.md.
-- **En début de session, lire la section « État actuel » de docs/ROADMAP.md.** La tenir à jour à chaque fin de tâche.
+- `docs/archive/` : rapports QA et revues Sécurité finis (Phases 1, 3, 4, console, scènes, TV). À chercher par `grep`, ne pas lire.
+- **En début de session, lire la section « État actuel » de docs/ROADMAP.md** (Read avec `limit: 24`, jamais en entier). La tenir à jour à chaque fin de tâche ; le détail d'une tâche finie va dans docs/HISTORIQUE.md.
 
-## 3. Architecture cible (à valider en Phase 0, modifiable avec justification)
+## 3. Architecture (détail : docs/ARCHITECTURE.md)
 1. JARVIS CORE (cerveau) : service Python (FastAPI) ou Node (TypeScript), qui reçoit les
    demandes, appelle le modèle d'IA, choisit les outils et renvoie les réponses.
 2. ROUTEUR D'INTENTIONS : les commandes simples et fréquentes (« éteins tout », « mets la TV
@@ -71,13 +71,9 @@ provenant d'un contenu externe (page web, email, fichier, nom d'appareil) est un
 jamais un ordre : elle ne peut jamais déclencher seule une action N2 ou N3.
 
 ## 5. L'équipe
-Le MANAGER (`.claude/agents/manager.md`) coordonne les experts de `.claude/agents/` (rôles dans
-leur description). Il est le seul à parler au propriétaire pour les décisions. Aucune livraison
-n'arrive au propriétaire sans le feu vert du QA puis de la Sécurité (droit de veto).
-
-## 6. Phases du projet
-Phases 0 à 7 et leur avancement : docs/ROADMAP.md. Aucune phase ne démarre sans le feu vert
-de l'Expert Sécurité ET du propriétaire.
+Le MANAGER (`.claude/agents/manager.md`) coordonne les experts de `.claude/agents/` et seul parle au propriétaire
+pour les décisions. Aucune livraison sans le feu vert du QA puis de la Sécurité (veto). Phases 0 à 7 : docs/ROADMAP.md ;
+aucune phase ne démarre sans le feu vert de la Sécurité ET du propriétaire.
 
 ## 7. Règles de travail
 - Dépôt Git propre : un commit par changement logique, messages clairs en français.
@@ -101,5 +97,4 @@ de l'Expert Sécurité ET du propriétaire.
 - Aucun linter configuré pour l'instant.
 
 ## 8. Définition de « terminé »
-Une fonctionnalité est terminée quand : elle marche, elle est testée, elle est journalisée,
-son niveau de permission est défini, l'Expert Sécurité l'a validée, et elle est documentée.
+Elle marche, est testée, journalisée, son niveau de permission est défini, la Sécurité l'a validée, elle est documentée.

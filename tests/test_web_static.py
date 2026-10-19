@@ -96,11 +96,19 @@ class WebStaticTest(unittest.TestCase):
             self.assertNotIn(dead, html + js + (WEB_DIR / "app.css").read_text(encoding="utf-8"))
 
     def test_ordre_du_menu_et_raccourcis(self):
-        # Ordre voulu par le propriétaire (2026-10-08, Voyages ajouté le 2026-10-13) ; Alt+n suit cet ordre dans app.js.
+        # Ordre voulu par le propriétaire (2026-10-08, Voyages le 2026-10-13, Conso ensuite) ; Alt+1..9 puis Alt+0 suivent cet ordre,
+        # posés en aria-keyshortcuts par app.js (une seule source : plus de décalage entre menu et raccourcis).
         html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
-        tabs = re.findall(r'data-view="(\w+)" aria-keyshortcuts="Alt\+(\d)"', html)
-        self.assertEqual([v for v, _ in tabs], ["chat", "settings", "social", "finance", "veille", "voyages", "bienetre", "devices", "audit"])
-        self.assertEqual([int(n) for _, n in tabs], list(range(1, 10)))
+        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r'class="tab" type="button" data-view="(\w+)"', html),
+                         ["chat", "settings", "social", "finance", "veille", "voyages", "conso", "bienetre", "devices", "audit"])
+        self.assertNotIn("aria-keyshortcuts", html)
+        self.assertIn("setAttribute('aria-keyshortcuts'", js)
+
+    def test_etats_de_chargement_annonces(self):
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        for m in re.finditer(r'<p id="([\w-]+-state)"[^>]*>Chargement…', html):
+            self.assertIn('role="status"', m.group(0), m.group(1))
 
     def test_service_worker_ne_met_pas_l_api_en_cache(self):
         sw = (WEB_DIR / "sw.js").read_text(encoding="utf-8")

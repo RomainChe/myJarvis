@@ -8,6 +8,7 @@ prendre la VRAM du jeu ; le GPU n'est rechargé qu'après 60 s sans jeu détect�
 """
 import json
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -19,7 +20,7 @@ from jarvis.core.modelcheck import is_good
 from jarvis.core.tts import ROOT
 
 MODEL_DIR = "whisper-large-v3-turbo"
-PROMPT = "Jarvis, salon, chambre, volets, clim, télé."  # court : il coûte du temps de décodage
+PROMPT = "Jarvis, salon, chambre, clim, télé."  # court : il coûte du temps de décodage
 GAME_CHECK_S, GAME_HOLD_S = 5, 60
 ERR_MSG = "Reconnaissance vocale indisponible."
 
@@ -28,12 +29,60 @@ class STTError(Exception):
     """Message fixe : ne contient ni audio ni texte reconnu."""
 
 
+class AudioTooLong(Exception):
+    pass
+
+
+class BadAudio(Exception):
+    """Conteneur ou codec hors liste, ou fichier illisible."""
+
+
+# Type annoncé -> (démuxeur imposé, test des octets magiques). Le Content-Type n'est qu'une étiquette : on ne laisse pas
+# ffmpeg deviner le format (playlists, concat, démuxeurs à sous-ressources), on exige ce que MediaRecorder produit.
+FORMATS = {
+    "audio/webm": ("matroska,webm", lambda b: b[:4] == bytes.fromhex("1a45dfa3")),
+    "audio/ogg": ("ogg", lambda b: b[:4] == b"OggS"),
+    "audio/mp4": ("mov,mp4,m4a,3gp,3g2,mj2", lambda b: b[4:8] == b"ftyp"),
+}
+CODECS = {"opus", "vorbis", "aac"}
+
+
+def decode_audio(raw: bytes, kind: str, max_seconds: float) -> np.ndarray:
+    """Audio compressé du téléphone -> int16 mono 16 kHz, en mémoire. Dépasse `max_seconds` : AudioTooLong, levée pendant le
+    décodage (un petit fichier très compressible ne remplit pas la mémoire). Format, octets ou codec inattendus : BadAudio."""
+    import io
+
+    import av  # déjà là avec faster-whisper
+    fmt = FORMATS.get(kind)
+    if fmt is None or not fmt[1](raw):
+        raise BadAudio
+    limit, parts, total = int(max_seconds * 16000), [], 0
+    try:
+        with av.open(io.BytesIO(raw), mode="r", format=fmt[0]) as container:
+            if not container.streams.audio or container.streams.audio[0].codec_context.name not in CODECS:
+                raise BadAudio
+            resampler = av.AudioResampler(format="s16", layout="mono", rate=16000)
+            for frame in container.decode(audio=0):
+                for out in resampler.resample(frame):
+                    part = out.to_ndarray().reshape(-1)
+                    total += len(part)
+                    if total > limit:
+                        raise AudioTooLong
+                    parts.append(part)
+    except (AudioTooLong, BadAudio):
+        raise
+    except Exception:
+        raise BadAudio from None
+    return np.concatenate(parts) if parts else np.zeros(0, np.int16)
+
+
 class Transcriber:
     def __init__(self, *, models=ROOT / "models", manifest=ROOT / "models" / "MANIFEST.json", loader=None,
                  gaming=games.detect, clock=time.monotonic):
         self.models, self.manifest, self._loader, self.gaming = Path(models), Path(manifest), loader, gaming
         self._clock, self._checked, self._game_until = clock, None, 0.0
         self._model, self.device, self._cuda_failed = None, None, False
+        self._lock = threading.Lock()
 
     def _load(self, device):
         os.environ["HF_HUB_OFFLINE"] = "1"
@@ -65,6 +114,10 @@ class Transcriber:
 
     def transcribe(self, audio: np.ndarray) -> str:
         """int16 mono 16 kHz -> texte (vide si rien d'intelligible). Toute erreur -> STTError au message fixe."""
+        with self._lock:  # micro du PC et bouton « parler » du téléphone partagent le modèle : une phrase à la fois
+            return self._transcribe(audio)
+
+    def _transcribe(self, audio: np.ndarray) -> str:
         pcm = audio.astype(np.float32) / 32768.0
         try:
             cpu_only = self._cpu_only()

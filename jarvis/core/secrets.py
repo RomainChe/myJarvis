@@ -6,7 +6,7 @@ from pathlib import Path
 import keyring
 
 SERVICE = "jarvis"
-NAMES = ("ha_token", "vapid_key", "mail_password", "bank_key", "mail_sig_key", "agent_key", "med_token", "med_pdl")  # liste blanche : une faute de frappe ne crée pas un secret orphelin
+NAMES = ("ha_token", "vapid_key", "mail_password", "bank_key", "mail_sig_key", "agent_key", "med_token", "med_pdl", "voice_key")  # liste blanche : une faute de frappe ne crée pas un secret orphelin
 
 
 MAIL_KEY_MIN = 32
@@ -40,6 +40,8 @@ def export_all(dest: Path) -> list[str]:
     dest = dest.resolve()
     if dest.is_relative_to(Path(__file__).resolve().parents[2]):
         raise ValueError("export refusé : le dossier est dans le dépôt (public)")
+    if any(p.lower().startswith("onedrive") for p in dest.parts):  # 0700 sans effet sous Windows : le cloud recevrait tout
+        raise ValueError("export refusé : dossier synchronisé par OneDrive (utiliser %LOCALAPPDATA%\\Temp)")
     dest.mkdir(parents=True, exist_ok=True)
     os.chmod(dest, 0o700)
     done = []

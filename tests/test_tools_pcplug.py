@@ -42,10 +42,11 @@ class PcPlugOnTest(PcBase):
         self.assert_refused_if_level_raised("pc_plug_on", {})
 
     def test_regle_du_routeur(self):
-        import jarvis.tools.assist, jarvis.tools.dev, jarvis.tools.mail, jarvis.tools.social  # noqa: F401,E401
+        import jarvis.tools.assist, jarvis.tools.dev, jarvis.tools.mail  # noqa: F401,E401
         from jarvis.core.router import Router
         router = Router()
-        for text in ("allume la prise du PC", "Jarvis, rallume le PC", "allume mon pc principal"):
+        for text in ("allume la prise du PC", "Jarvis, rallume le PC", "allume mon pc principal",
+                     "rallume la prise PC", "Jarvis, rallume la prise pc.", "allume pc", "Allume PC !"):
             self.assertEqual(router.route(text), ("pc_plug_on", {}), text)
         self.assertIsNone(router.route("allume la prise"))  # une seule prise aujourd'hui, mais pas d'ambiguïté plus tard
 

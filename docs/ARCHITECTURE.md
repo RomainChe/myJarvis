@@ -9,7 +9,7 @@ Statut : **validée** par le propriétaire et l'Expert Sécurité le 2026-10-07.
 | PC | Windows 11 Pro, i5-14600KF, 32 Go RAM, RTX 5070 Ti 16 Go | Assez puissant pour faire tourner un LLM et Whisper en local |
 | Serveur 24 h/24 | Aucun : tout tourne sur le PC | Jarvis et la domotique sont indisponibles quand le PC est éteint |
 | Smartphone | Android | Une PWA installable suffit (pas de store, pas de Mac) |
-| Appareils | TV Google TV, 2 clims réversibles, volets roulants | Intégrations Home Assistant en Phase 2 (§3.4) |
+| Appareils | TV Google TV, 2 clims réversibles | Intégrations Home Assistant en Phase 2 (§3.4) |
 | Budget IA | **0 €** | Aucun appel d'API payante : LLM local via Ollama |
 
 Tout ce qui est retenu est gratuit et open source, ou gratuit pour un usage personnel (Tailscale).
@@ -30,11 +30,9 @@ flowchart LR
     LLM[Ollama<br/>LLM local GPU]
     PCT[Outils PC]
     DB[(SQLite<br/>audit + mémoire)]
-    subgraph Hyper-V
-      HA[Home Assistant OS]
-    end
+    HA[Home Assistant<br/>Docker]
   end
-  DEV[TV, enceintes,<br/>volets, chauffage]
+  DEV[TV, enceintes,<br/>chauffage]
   PWA -- Tailscale HTTPS --> CORE
   CLI --> CORE
   MIC --> CORE
@@ -68,13 +66,11 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 - `keep_alive` réglable : le modèle reste chargé pour la réactivité, ou se décharge pour libérer le GPU (pour jouer, par exemple).
 - Le rôle du Contrôleur de tokens devient : taille du contexte, nombre d'outils exposés par requête, latence et VRAM.
 
-### 3.4 Domotique : Home Assistant OS dans une VM Hyper-V
-- C'est la méthode officiellement supportée sous Windows (Docker Desktop sous Windows ne gère pas le réseau `host` qu'exige la découverte des appareils).
-- La VM est en réseau ponté, donc HA a sa propre IP sur le réseau local.
-- Jarvis parle à HA uniquement via son API REST et WebSocket, avec un token longue durée rangé dans le keyring Windows.
-- **Risque accepté (revue Sécurité, constat 1) :** le token HA circule en HTTP clair vers `homeassistant.local` (mDNS), sur le LAN. Un appareil du réseau qui usurperait ce nom pourrait le capter ; limites : utilisateur `jarvis` non administrateur et token révocable à tout moment dans HA. À durcir en Phase 3/5 (IP fixe réservée dans la Bbox, HTTPS ou Tailscale). Le client refuse déjà proxy, redirections et identifiants dans l'URL.
-- **Risque accepté (revue Sécurité Phase 3, étape 1) :** le verrouillage d'enrôlement est global et en mémoire : un processus local peut envoyer 5 faux codes pour brûler le code du propriétaire (déni de service local ; une page web ne le peut pas, elle n'a pas l'`Origin`). Les refus d'authentification au-delà de 10 par minute ne sont pas journalisés (l'audit est en ajout seul, il ne se purge pas).
-- **Risque accepté :** PC éteint = plus de domotique pilotée par Jarvis. Les plannings de chauffage restent donc **dans les clims** (minuterie ou appli MELCloud), jamais seulement dans HA.
+### 3.4 Domotique : Home Assistant Container sur le mini-PC Debian
+- Décision du 2026-10-13 (HAOS en VM Hyper-V abandonné : il ne peut pas héberger le Core, et s'arrêtait avec le PC). HA tourne en Docker, réseau `host`, sur le mini-PC toujours allumé ; installation : docs/INSTALL_SERVEUR_HA.md, migration : docs/MIGRATION_CORE_MINIPC.md.
+- Jarvis parle à HA uniquement via REST et WebSocket (`http://127.0.0.1:8123` depuis le Core du mini-PC), utilisateur `jarvis` non administrateur, jeton longue durée dans le coffre. Le client refuse proxy, redirections et identifiants dans l'URL.
+- **Risque accepté (revue Sécurité Phase 3, étape 1) :** le verrouillage d'enrôlement est global et en mémoire : un processus local peut envoyer 5 faux codes pour brûler le code du propriétaire (déni de service local ; une page web ne le peut pas, elle n'a pas l'`Origin`). Les refus d'authentification au-delà de 10 par minute ne sont pas journalisés (l'audit est en ajout seul).
+- PC éteint : la domotique reste pilotée (Core sur le mini-PC). Les plannings de chauffage restent quand même **dans les clims**, jamais seulement dans HA.
 
 | Appareil | Intégration HA | Local ? | Matériel en plus |
 |---|---|---|---|
@@ -82,7 +78,6 @@ Tous les outils respectent la même interface (`Tool` : nom, description, schém
 | 2 clims Mitsubishi MSZ-HR25VFK2 | MELCloud (officielle) | non, cloud Mitsubishi | aucun si le Wi-Fi est déjà configuré |
 | idem, option locale | ESPHome sur le connecteur CN105 | oui | un ESP32 par clim (~15 €), ouverture de l'unité intérieure |
 | Barre de son Samsung HW-S50B | via la TV (HDMI ARC/CEC) ; SmartThings en option, compatibilité non garantie | oui (via la TV) | aucun |
-| Volets Turol Industries (filaires, interrupteur mural double) | Shelly (module « 2PM » en mode volet, derrière l'interrupteur existant, qui reste fonctionnel) | oui, Wi-Fi local, cloud Shelly désactivé | un module par volet (~30 €), neutre requis dans la boîte, pose en 230 V |
 | Bbox Wi-Fi 7 XT | aucune nécessaire | — | aucun (Tailscale n'ouvre aucun port) |
 
 ### 3.5 Applications : une PWA d'abord
@@ -103,7 +98,7 @@ L'icône de la zone de notification Windows et le raccourci clavier global sont 
 - `memory` : préférences et routines, en clé/valeur. La recherche vectorielle (`sqlite-vec`) ne sera ajoutée que si un vrai besoin de rappel sémantique apparaît (YAGNI).
 - Sauvegarde : copie quotidienne du fichier `.db` (Phase 5).
 
-- Routes PWA ajoutées en Phase 6 : `/api/dashboard` (N0, `jarvis/core/dashboard.py`, non journalisé) ; `/api/mic` et `/api/mic/challenge` (kill switch `~/.jarvis/mic_off`, `start_mic` dans `__main__.py`, journalisé `pwa:<id>`).
+- Routes PWA ajoutées en Phase 6 : `/api/dashboard` (N0, `jarvis/core/dashboard.py`, non journalisé) ; `/api/mic` et `/api/mic/challenge` (kill switch `~/.jarvis/mic_off`, `start_mic` dans `__main__.py`, journalisé `pwa:<id>`) ; `/api/stt` (bouton « parler » : audio brut du téléphone → texte, 6 par minute et par appareil, une transcription à la fois, journal sans texte).
 
 ### 3.8 Voix (Phase 4), 100 % locale
 - Mot de réveil : openWakeWord. Le modèle « hey jarvis » existe tout prêt ; « Jarvis » seul demandera un entraînement maison.
@@ -152,7 +147,7 @@ myJarvis/
 
 1. Core et Agent PC fusionnés dans un seul processus en session utilisateur (§3.1).
 2. Une PWA au lieu de Tauri + React Native (§3.5).
-3. Home Assistant OS dans Hyper-V, en acceptant qu'il s'arrête avec le PC (§3.4).
+3. Home Assistant : d'abord HAOS en VM Hyper-V, remplacé le 2026-10-13 par HA Container sur le mini-PC (§3.4).
 4. LLM 100 % local via Ollama, sans API payante (§3.3).
-5. Risque accepté : journal d'audit chaîné par SHA-256 sans HMAC. La clé serait lisible par tout processus du compte, donc inutile contre un attaquant local ; la chaîne détecte les erreurs, l'ancre externe (Phase 5) apportera la garantie (docs/SECURITY_REVIEW_PHASE_1.md, C1).
+5. Risque accepté : journal d'audit chaîné par SHA-256 sans HMAC. La clé serait lisible par tout processus du compte, donc inutile contre un attaquant local ; la chaîne détecte les erreurs, l'ancre externe (Phase 5) apportera la garantie (docs/archive/SECURITY_REVIEW_PHASE_1.md, C1).
 6. LLM : `qwen3:14b`, réflexion désactivée (docs/MODEL_BENCHMARK.md). Mode jeu : au lancement d'un jeu, Jarvis décharge le modèle (VRAM libérée) ; le routeur reste actif, une demande complexe reçoit « je suis en veille pendant ton jeu ». Hors jeu : déchargement après 15–30 min sans demande.

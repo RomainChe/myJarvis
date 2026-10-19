@@ -14,11 +14,12 @@
                                                        (Enable Banking, lecture seule ; terminal interactif)
     python -m jarvis portfolio import <export.csv>     (copie l'export de transactions Trade Republic dans ~/.jarvis/, lecture seule)
     python -m jarvis binance fetch [catégorie ...]      (historique Binance en lecture seule -> ~/.jarvis/binance-history.json ; clé dans .env)
-    python -m jarvis device add | list | revoke <id>   (terminal interactif)
+    python -m jarvis device add [--voice <nom>] | list | revoke <id|all>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
     python -m jarvis push test <id appareil>           (envoie une notification d'essai)
     python -m jarvis level list | set <outil> <0-3>    (relever est libre ; abaisser exige N3)
     python -m jarvis say "<texte>"                     (lit le texte à voix haute, source `voix`)
+    python -m jarvis voice   (PC : micro + Whisper + Piper en local, texte envoyé au Core ; JARVIS_CORE_URL, clé voice_key)
     python -m jarvis mic [listen] | on | off | devices (écoute « hey jarvis » ; `off` = kill switch persistant ; JARVIS_AUDIO_IN)
     python -m jarvis serve                             (127.0.0.1 seulement)
 """
@@ -54,7 +55,6 @@ import jarvis.tools.dev  # noqa: F401  (enregistre l'outil Claude Code)
 import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 from jarvis.tools.home import pcplug
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
-import jarvis.tools.social  # noqa: F401  (enregistre le planning lol-clipper)
 import jarvis.tools.voyages  # noqa: F401  (enregistre les outils voyages)
 import jarvis.tools.conso  # noqa: F401  (enregistre conso_pc)
 from jarvis.core.host import load_pc_tools
@@ -106,6 +106,9 @@ def check_models(audit: Audit) -> None:
 
 def start_mic(audit: Audit):
     """Micro toujours à l'écoute tant que `~/.jarvis/mic_off` n'existe pas ; échec = serveur sans micro, jamais bloquant."""
+    from jarvis.core.host import HAS_PC_TOOLS
+    if not HAS_PC_TOOLS:  # Core du mini-PC : ni micro ni GPU, la voix vient du client du PC (`python -m jarvis voice`)
+        return None
     try:
         from jarvis.core.chat import Chat
         from jarvis.core.mic import Mic, threshold_from_env, wake_name_from_env
@@ -147,7 +150,8 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=_voyages_watch, args=(audit,), daemon=True).start()
         threading.Thread(target=_conso_watch, daemon=True).start()
         threading.Thread(target=_conso_home_watch, args=(audit,), daemon=True).start()
-        server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
+        server = make_server(devices, audit, port, ts_host=ts_host, mic=mic,
+                             stt=getattr(mic.on_utterance, "stt", None) if mic else None)  # même modèle que le micro du PC
         threading.Thread(target=_bienetre, daemon=True).start()
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
               + " (Ctrl+C pour arrêter)", file=sys.stderr)
@@ -157,10 +161,19 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         for row in devices.list():
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
-    if sub == "add" and len(argv) == 2 or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
+    if sub == "add" and len(argv) in (2, 4) and (len(argv) == 2 or argv[2] == "--voice") or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
         if not sys.stdin.isatty():  # action d'un humain devant le PC, comme une confirmation N3
             print("Refusé : cette commande exige un terminal interactif.")
             return 1
+        if sub == "add" and len(argv) == 4:  # appareil de portée voix : la clé n'ouvre que /api/voice (micro du salon)
+            try:
+                dev_id, token = devices.add_scoped(argv[3], "voice")
+            except ValueError as e:
+                print(e)
+                return 2
+            audit.log("cli", "device_add", {"scope": "voice", "id": dev_id}, 3, "confirmé", "appareil de portée voix créé")
+            print(f"Appareil {dev_id} (portée voix). Clé, affichée une seule fois, à coller dans Home Assistant : {token}")
+            return 0
         if sub == "add":
             code = devices.new_code()
             audit.log("cli", "device_add", {}, 3, "confirmé", "code d'enrôlement créé")
@@ -181,7 +194,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         audit.log("cli", "device_revoke", {"id": int(argv[2])}, 3, "confirmé", "révoqué" if ok else "introuvable")
         print("Appareil révoqué." if ok else "Appareil introuvable ou déjà révoqué.")
         return 0 if ok else 1
-    print("Usage : device add | device list | device revoke <id>|all | serve")
+    print("Usage : device add [--voice <nom>] | device list | device revoke <id|all> | serve")
     return 2
 
 
@@ -274,10 +287,12 @@ def bank_cmd(argv: list[str], audit: Audit) -> int:
             for s in banking.status():
                 print(f"{s['bank']} | {s['accounts']} compte(s) | consentement : {'?' if s['days_left'] is None else s['days_left']} j")
         elif argv[1:] in (["fetch"], ["fetch", "daily"]):
-            if argv[-1] == "daily" and banking.fetched_today():  # tâche à l'ouverture de session : une seule fois par jour
+            # tâche planifiée plusieurs fois par jour : une lecture complète, puis seulement les banques en échec (quota)
+            todo = banking.pending_today() if argv[-1] == "daily" else None
+            if todo == []:
                 print("Déjà récupéré aujourd'hui.")
                 return 0
-            r = banking.fetch()
+            r = banking.fetch(banks=todo)
             audit.log("cli", "bank_fetch", {}, 2, "auto", f"{r['accounts']} compte(s), {len(r['errors'])} échec(s)")
             print(f"{r['accounts']} compte(s), {r['transactions']} transaction(s).", *r["errors"], sep="\n")
             return 1 if r["errors"] else 0
@@ -367,7 +382,7 @@ def _conso_watch() -> None:
 def _reminders(audit, mic) -> None:
     """Annonce minuteurs, rappels et briefing du matin : voix du PC (sauf hors ligne) + push sans le texte."""
     import time
-    from jarvis.core import doctor
+    from jarvis.core import agentlink, doctor
     from jarvis.tools.assist import build_briefing
     try:
         at = reminders.briefing_time()
@@ -388,6 +403,13 @@ def _reminders(audit, mic) -> None:
             done.append("push")
         except Exception:  # noqa: BLE001 (clé ou réseau : la voix passe quand même)
             pass
+        if voice is None:  # Core du mini-PC : le PC lit par l'agent (PC éteint ou agent absent = push seul)
+            try:
+                if agentlink.agent_url():
+                    agentlink.call("run", "say", {"text": spoken}, timeout=5)
+                    done.insert(0, "voix")
+            except (agentlink.AgentError, ValueError):
+                pass
         if voice is not None and not voice.offline and voice.speaker is not None and not voice.muted:
             for _ in range(40):  # une réponse en cours se termine d'abord (20 s au plus)
                 if not voice.speaker.is_speaking():
@@ -468,8 +490,7 @@ def main(argv: list[str]) -> int:
                              notify=lambda: doctor.notify_all(str(DB_PATH)),
                              notify_health=lambda: doctor.notify_all(str(DB_PATH), doctor.HEALTH_ALERT))
             return 0 if r == "ok" else 1
-        checks = doctor.report(audit, port, Path(os.environ.get("JARVIS_BACKUP_DIR") or Path.home() / ".jarvis" / "backups"),
-                               Path(__file__).resolve().parent.parent / "models")
+        checks = doctor.report(audit, port, doctor.backup_dir(), doctor.MODELS)
         for name, problem in checks:
             print(f"{'OK ' if problem is None else 'KO '} {name}" + (f" : {problem}" if problem else ""))
         return 1 if any(p for _, p in checks) else 0
@@ -540,6 +561,9 @@ def main(argv: list[str]) -> int:
             print(voice.speaker.error)
             return 1
         return 0
+    if argv == ["voice"]:  # client voix du PC : le Core est sur le mini-PC
+        from jarvis import voice_client
+        return voice_client.run(audit)
     if argv[0] == "mic":
         return mic_cmd(argv, audit)
     if argv[0] == "passkey":

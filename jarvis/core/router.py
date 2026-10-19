@@ -104,3 +104,31 @@ class Router:
         if not best or (set(core.split()) & ACTION_VERBS) - set(best[0].split()):
             return None
         return self.phrases[best[0]], {}
+
+
+# Homophones que le petit modèle Vosk du salon écrit mal (mesurés au lot 4c). Corrections étroites : le verbe n'est corrigé que si TOUTE la phrase est `<verbe> <article> <objet connu>`, « TF1 » seulement derrière
+# « sur » / « chaîne ». Elles ne font que redonner le texte voulu au routeur (motifs en fullmatch) et au LLM ; la garde
+# de permissions et le plafond N0/N1 de la voix restent seuls juges de l'action.
+# Objets connus du routeur : la correction ne vaut que pour toute la phrase `<verbe> <article> <objet>`, jamais pour un début de phrase.
+_OBJ = (r"(?:pc(?: principal)?|ordi(?:nateur)?|t[ée]l[ée](?:vision)?|tv|lumi[èe]res?|lampes?|salon|chambre|cuisine|clim(?:atisation)?|"
+        r"volume|son|barre de son|[ée]cran|musique|mode cin[ée]ma)(?: (?:du|de la|de) (?:salon|chambre|cuisine))?")
+_SUFFIX = r"(?: sur (?:chaîne |chaine )?TF1)?(?: [àa] \d{1,3}(?: ?%| pour ?cent)?)?"  # chaîne de la TV, niveau de volume
+_PHRASE = r"\s+(?:(?:le|la|les|mon|ma)\s+|l['’]\s?)" + _OBJ + _SUFFIX + r"[.!?]*"
+_VOICE_FIXES = [  # (motif de la phrase entière, remplacement du verbe, nombre de mots maximal ou None)
+    (re.compile(r"(?:avume|alume|allure|a lume|allumé)(" + _PHRASE + ")", re.IGNORECASE), "allume", None),
+    (re.compile(r"(?:a vu|a lu)(" + _PHRASE + ")", re.IGNORECASE), "allume", 4),  # « a vu la télé hier », « a lu le livre » : inchangés
+    (re.compile(r"(?:éteint|éteignent)(" + _PHRASE + ")", re.IGNORECASE), "éteins", None),
+    (re.compile(r"mais(" + _PHRASE + ")", re.IGNORECASE), "mets", None),
+]
+_TF1 = re.compile(r"\b(sur|chaîne|chaine)\s+(?:très fin|tres fin|t f un|t f 1|tf un|té éf un|tef un)\b", re.IGNORECASE)
+
+
+def voice_fix(text: str) -> str:
+    """Texte d'une reconnaissance vocale (Vosk) -> texte à router. Inchangé s'il ne contient aucun de ces homophones."""
+    text = _TF1.sub(r"\g<1> TF1", text, count=1)
+    stripped = text.strip()
+    for pattern, verb, max_words in _VOICE_FIXES:
+        m = pattern.fullmatch(stripped)
+        if m and (max_words is None or len(stripped.split()) <= max_words):
+            return verb + m.group(1)
+    return text

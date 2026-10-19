@@ -43,7 +43,8 @@ Invoke-RestMethod http://127.0.0.1:11434/api/version
 
 - Ollama doit écouter sur `127.0.0.1` uniquement : ne **jamais** définir `OLLAMA_HOST=0.0.0.0`
   (cela exposerait le modèle au réseau local). Tout changement d'exposition passe par
-  l'Expert Sécurité.
+  l'Expert Sécurité. Seule exception validée (2026-10-16) : Core sur le mini-PC, `OLLAMA_HOST` = IP Tailscale du PC,
+  pare-feu et ACL limités au mini-PC (docs/MIGRATION_CORE_MINIPC.md, lot 5, `deploy/windows/agent-task.ps1`).
 - L'installateur ajoute Ollama au démarrage de Windows.
 - Le modèle n'est pas encore choisi (ROADMAP, Phase 1 étape 5) : rien à télécharger pour l'instant.
   Le code actuel n'appelle pas encore Ollama.
@@ -109,89 +110,18 @@ Copy-Item "$env:USERPROFILE\.jarvis\backups\jarvis-AAAAMMJJ-HHMMSS-micro.db" "$e
 Limites actuelles : copies non chiffrées et sur le même disque que la base. Pour survivre à
 une panne du disque, `--dest` doit pointer vers un autre disque ou un NAS.
 
-## 7. Tâches planifiées (documentées, à créer à la main)
+## 7. Tâches planifiées
 
-Les deux tâches tournent **avec les droits normaux** de l'utilisateur (`RunLevel Limited`),
-jamais en service élevé : le Core doit voir le bureau de la session (ARCHITECTURE §3.1).
-L'enregistrement d'un déclencheur « à l'ouverture de session » peut demander une console
-administrateur ; la tâche elle-même reste non élevée.
+Depuis la bascule (2026-10-17), le Core tourne sur le mini-PC : ses tâches sont des **unités systemd utilisateur**
+(`deploy/systemd/` : `jarvis-core`, `jarvis-doctor` + timer 1 min = garde-fou, `jarvis-backup` 03:30, `jarvis-purge`,
+`jarvis-banque` 07:00 + relances 13:00 et 19:00 des seules banques en échec, `jarvis-update` toutes les 5 min).
+Procédure et retour arrière : docs/MIGRATION_CORE_MINIPC.md lot 5. Sur le PC ne reste que la tâche de l'agent
+(`deploy/windows/agent-task.ps1`). Les anciennes tâches Windows (« JARVIS - core », « - garde-fou », « - banque »,
+« - sauvegarde », « - mise à jour ») sont désactivées, à supprimer après une semaine sans retour arrière ; pour un Core
+de secours sur le PC, les recréer avec `Register-ScheduledTask` (historique git de ce fichier avant le 2026-10-19),
+une seule à la fois (un seul Core actif).
 
-Lancer ces commandes **depuis la racine du dépôt**, venv créé :
-
-```powershell
-$repo = (Get-Location).Path
-$pyw = Join-Path $repo ".venv\Scripts\pythonw.exe"   # pythonw : pas de fenêtre console
-$me = "$env:USERDOMAIN\$env:USERNAME"
-$principal = New-ScheduledTaskPrincipal -UserId $me -LogonType Interactive -RunLevel Limited
-```
-
-### 7.1 Sauvegarde quotidienne (utilisable dès maintenant)
-
-```powershell
-Register-ScheduledTask -TaskName "JARVIS - sauvegarde" -Principal $principal `
-  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m scripts.backup" -WorkingDirectory $repo) `
-  -Trigger (New-ScheduledTaskTrigger -Daily -At 03:00) `
-  -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)
-```
-
-`StartWhenAvailable` : si le PC était éteint à 3 h, la sauvegarde part au prochain démarrage.
-Le résultat se lit dans le Planificateur de tâches (colonne « Résultat de la dernière exécution »,
-`0x0` = succès, `0x1` = échec).
-
-### 7.2 Démarrage du Core à l'ouverture de session (créée le 2026-10-09)
-
-Pas de `.venv` (aucune dépendance) : utiliser le `pythonw.exe` du Python système.
-
-```powershell
-$pyw = (Get-Command pythonw).Source
-Register-ScheduledTask -TaskName "JARVIS - core" -Principal $principal `
-  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m jarvis serve" -WorkingDirectory $repo) `
-  -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $me) `
-  -Settings (New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
-             -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries)
-```
-
-- `RestartCount`/`RestartInterval` : relance automatique en cas de crash (3 essais, 1 min d'écart).
-- `ExecutionTimeLimit` à zéro : pas d'arrêt forcé au bout de 72 h (défaut Windows).
-
-Garde-fou chaque minute (étape 15, Phase 5) : `python -m jarvis doctor --watch` interroge le Core (2 essais à 5 s),
-relance la tâche « JARVIS - core » s'il est muet (au plus une fois par 90 s), écrit `core_restart` au journal et envoie
-une notification push (au plus une par 30 min). Il remplace l'ancienne tâche « JARVIS - verif horaire » (5 min,
-`scripts/verif_core.pyw`, supprimé) : à désenregistrer une fois la nouvelle en place.
-
-```powershell
-Register-ScheduledTask -TaskName "JARVIS - garde-fou" -Principal $principal `
-  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m jarvis doctor --watch" -WorkingDirectory $repo) `
-  -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)) `
-  -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -MultipleInstances IgnoreNew)
-Unregister-ScheduledTask -TaskName "JARVIS - verif horaire" -Confirm:$false
-```
-
-Bilan à la demande : `python -m jarvis doctor` (Core, journal, Ollama, Home Assistant, sauvegarde < 25 h, disque,
-modèles ; code 1 si un contrôle est KO).
-
-### 7.3 Récupération bancaire quotidienne (créée le 2026-10-09)
-
-`bank fetch daily` (Enable Banking, lecture seule) à l'ouverture de session (1 min de délai pour le réseau), une seule
-fois par jour : la commande saute si le cache date déjà d'aujourd'hui.
-Le consentement reste à renouveler à la main tous les 90 jours (`bank link`, terminal interactif) : l'onglet Finances
-affiche les jours restants et la commande à 14 jours de l'échéance.
-
-```powershell
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $me
-$trigger.Delay = "PT1M"
-Register-ScheduledTask -TaskName "JARVIS - banque" -Principal $principal `
-  -Action (New-ScheduledTaskAction -Execute $pyw -Argument "-m jarvis bank fetch daily" -WorkingDirectory $repo) `
-  -Trigger $trigger -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries)
-```
-
-Vérifier, lancer à la main, supprimer :
-
-```powershell
-Get-ScheduledTask -TaskName "JARVIS*"
-Start-ScheduledTask -TaskName "JARVIS - sauvegarde"
-Unregister-ScheduledTask -TaskName "JARVIS - core" -Confirm:$false
-```
+Bilan à la demande : `python -m jarvis doctor` (Core, journal, Ollama, Home Assistant, sauvegarde < 25 h, disque, modèles ; code 1 si un contrôle est KO).
 
 ## 8. Intégration continue
 

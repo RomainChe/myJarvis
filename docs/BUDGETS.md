@@ -34,7 +34,7 @@ Conclusion : le code existant pèse ~55 ms sur une commande CLI. Il n'est pas un
 | Routeur d'intentions (normalisation, motifs, `difflib`) | 20 ms | à mesurer à l'étape 4 ; `difflib` limité au catalogue de la catégorie |
 | Garde de permissions + `check_args` | 1 ms | 0,02 ms (M) |
 | Outil PC local | 200 ms | dépend de l'outil |
-| Outil domotique via HA (local : Shelly, Android TV) | 300 ms | 50-300 ms (E) |
+| Outil domotique via HA (local : Android TV) | 300 ms | 50-300 ms (E) |
 | Journal d'audit | 5 ms | 2,2 ms (M) |
 | Réponse texte | 10 ms | — |
 | **Total** | **≤ 750 ms** | marge de 250 ms (voix : Piper en Phase 4, 100-300 ms (E) avant le premier son) |

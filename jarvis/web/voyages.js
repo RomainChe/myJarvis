@@ -7,35 +7,13 @@ const stat = (title, big, sub) => {
   if (sub) s.append(el('p', 'muted', sub));
   return s;
 };
-// Hôtels (hotel-price-tracker) : même donnée que le carré du dashboard, détail par étape. Texte seul.
-function renderHotels(h) {
-  const box = $('hotels-list');
-  box.replaceChildren();
-  if (!h?.configured) return;
-  const cur = h.devise === 'EUR' ? '€' : h.devise, n = (v) => `${Math.round(v)} ${cur}`;
-  const d = el('details', 'panel hud');
-  d.open = true;
-  d.append(el('summary', '', `Hôtels · ${n(h.total_recommande)}`));
-  const strip = el('div', 'strip');
-  strip.append(stat('Total recommandé', n(h.total_recommande), h.complet ? 'hébergement + trajets' : 'hébergement + trajets · incomplet'),
-    stat('Moins cher', n(h.total_moins_cher)), stat('Dernier relevé', day(h.date)));
-  d.append(strip);
-  const pick = (label, o) => o && el('p', 'voy-offer', `${label} : ${o.hotel} · ${o.note10}/10 · ${n(o.nuit)} la nuit · ${n(o.total)}`);
-  for (const e of h.etapes ?? []) {
-    const when = e.chk_in && e.chk_out ? ` · ${day(e.chk_in)} → ${day(e.chk_out)}` : '';
-    d.append(el('h3', 'voy-h', `${e.ville}${when}${e.nuits ? ` · ${e.nuits} nuit${e.nuits > 1 ? 's' : ''}` : ''}`),
-      ...[pick('Recommandé', e.recommande), pick('Moins cher', e.moins_cher)].filter(Boolean));
-  }
-  box.append(d);
-}
 async function loadVoyages() {
   const err = $('voyages-error'), state = $('voyages-state'), list = $('voyages-list');
-  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren(); $('hotels-list').replaceChildren();
+  err.hidden = true; state.hidden = false; state.textContent = 'Chargement…'; list.replaceChildren();
   try {
     const r = await api('/api/voyages');
     if (!r.ok || !r.data) throw new Error('bad');
     if (views.voyages.hidden) return; // vue quittée pendant le chargement
-    renderHotels(r.data.hotels);
     if (!r.data.searches.length) { state.textContent = r.data.configured ? 'Aucun prix relevé.' : 'Projet flight-price-tracker introuvable.'; return; }
     state.hidden = true;
     const sync = r.data.sync_error ? r.data.sync_error
@@ -50,19 +28,28 @@ async function loadVoyages() {
       const strip = el('div', 'strip');
       strip.append(stat('Meilleur prix', eur(s.best.price), delta), stat('Plus bas observé', eur(s.lowest), `${s.history.length} relevé(s)`),
         stat('Dernier relevé', day(s.last_run)));
-      const b = s.best, offer = el('p', 'voy-offer');
-      const stops = b.stops == null ? '' : b.stops ? ` · ${b.stops} escale${b.stops > 1 ? 's' : ''}` : ' · direct';
-      const dur = b.duration_min ? ` · ${Math.floor(b.duration_min / 60)} h ${String(b.duration_min % 60).padStart(2, '0')}` : '';
-      offer.append(el('strong', '', `${b.origin} → ${b.dest}`), el('span', '', ` · ${day(b.depart_date)} → ${day(b.return_date)}${b.airlines ? ` · ${b.airlines}` : ''}${stops}${dur} · ${b.source}`));
+      const b = s.best, offer = el('div', 'voy-offer');
+      const route = el('p', 'voy-route');
+      route.append(el('span', 'voy-iata', b.origin), el('span', 'voy-arrow', '→'), el('span', 'voy-iata', b.dest));
+      const chips = el('ul', 'plain chips');
+      const chip = (t, cls = '') => chips.append(el('li', `chip ${cls}`, t));
+      chip(`${day(b.depart_date)} → ${day(b.return_date)}`);
+      if (b.airlines) chip(b.airlines);
+      if (b.stops != null) chip(b.stops ? `${b.stops} escale${b.stops > 1 ? 's' : ''}` : 'Direct', b.stops ? '' : 'ok');
+      if (b.duration_min) chip(`${Math.floor(b.duration_min / 60)} h ${String(b.duration_min % 60).padStart(2, '0')}`);
+      if (b.source) chip(b.source, 'src');
+      offer.append(route, chips);
       if (b.link && URL.canParse(b.link) && new URL(b.link).protocol === 'https:') {
-        const a = el('a', '', "Voir l'offre");
+        const a = el('a', 'link-btn', "Voir l'offre");
         a.href = b.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        offer.append(el('br'), a, el('span', 'muted', ` · ${new URL(b.link).hostname}`));
+        a.append(el('span', 'host', new URL(b.link).hostname));
+        offer.append(a);
       }
       const by = el('ul', 'plain voy-origins');
+      const low = Math.min(...s.by_origin.map((o) => o.price));
       for (const o of s.by_origin) {
-        const li = el('li');
-        li.append(el('span', '', o.origin), el('span', 'voy-price', eur(o.price)));
+        const li = el('li', o.price === low ? 'low' : '');
+        li.append(el('span', 'voy-code', o.origin), el('span', 'voy-price', eur(o.price)));
         by.append(li);
       }
       d.append(strip, el('h3', 'voy-h', 'Meilleure offre'), offer, el('h3', 'voy-h', 'Par aéroport de départ'), by);

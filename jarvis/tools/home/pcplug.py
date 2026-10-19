@@ -17,7 +17,7 @@ from jarvis.core.levels import effective
 from jarvis.core.tools import REGISTRY, Level, tool
 
 PLUG = "switch.prise_pc"
-SENSOR = "sensor.prise_pc_current_consumption"
+SENSOR = "sensor.prise_pc_consommation_actuelle"
 WAIT_S, POLL_S, SETTLE_S = 5 * 60, 5, 30
 _audit: Audit | None = None
 _busy = threading.Lock()  # un seul cycle d'arrêt à la fois

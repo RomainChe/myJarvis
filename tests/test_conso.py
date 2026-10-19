@@ -217,7 +217,7 @@ class RouterTest(unittest.TestCase):
 
     def test_autres_intentions_inchangees(self):
         r = Router()
-        for text in ("éteins le pc", "volume à 20", "prix des hotels", "mode cinéma"):
+        for text in ("éteins le pc", "volume à 20", "prix des vols", "mode cinéma"):
             self.assertNotEqual((r.route(text) or ("",))[0], "conso_pc", text)
 
 

@@ -20,6 +20,7 @@ from jarvis.core.secrets import get_secret
 from jarvis.core.tools import REGISTRY
 
 TRACE = Path.home() / ".jarvis" / "agent.log"
+BIND_WAIT_S, BIND_RETRY_S = 180, 5  # au démarrage de Windows, l'adresse Tailscale arrive après la session
 PC_TOOLS = frozenset(n for n, t in REGISTRY.items() if t.run.__module__.startswith("jarvis.tools.pc"))
 
 
@@ -64,6 +65,16 @@ def make_handler(key: str):
     return Handler
 
 
+def bind_server(host: str, port: int, handler, *, make=ThreadingHTTPServer, sleep=time.sleep):
+    """Serveur lié à host:port ; réessaie tant que l'adresse n'existe pas encore (Tailscale pas prêt), puis abandonne."""
+    for _ in range(BIND_WAIT_S // BIND_RETRY_S):
+        try:
+            return make((host, port), handler)
+        except OSError:
+            sleep(BIND_RETRY_S)
+    return make((host, port), handler)
+
+
 def main(argv: list[str]) -> int:
     if argv == ["catalog"]:  # régénère jarvis/pc_catalog.json après tout ajout ou changement d'outil PC
         data = json.dumps(agentlink.build_catalog(REGISTRY, PC_TOOLS), indent=1, ensure_ascii=False) + "\n"
@@ -85,7 +96,7 @@ def main(argv: list[str]) -> int:
         print("clé absente : python -m jarvis secret set agent_key")
         return 2
     print(f"Agent PC sur {host}:{port} ({len(PC_TOOLS)} outils)")
-    ThreadingHTTPServer((host, port), make_handler(key)).serve_forever()
+    bind_server(host, port, make_handler(key)).serve_forever()
     return 0
 
 

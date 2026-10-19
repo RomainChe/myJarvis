@@ -12,6 +12,7 @@ from unittest import mock
 
 from jarvis import __main__ as cli
 from jarvis import server
+from jarvis.core import chat as chat_mod, permissions
 from jarvis.core import devices as dev
 from jarvis.core.audit import Audit
 from jarvis.core.chat import Chat
@@ -26,8 +27,14 @@ def free_port() -> int:
 
 class ServerBase(unittest.TestCase):
     mic = None  # remplacé par les tests du bouton micro
+    stt = None  # remplacé par les tests du bouton « parler »
 
     def setUp(self):
+        # D2 : kill_process sert ici de N2 ordinaire ; la clé d'accès exigée par STRONG_N2 est testée à part (test_webauthn).
+        for module in (chat_mod, permissions):
+            patch = mock.patch.object(module, "STRONG_N2", frozenset())
+            patch.start()
+            self.addCleanup(patch.stop)
         self.port = free_port()
         self.devices, self.audit = Devices(":memory:"), Audit(":memory:")
         self.chat = Chat(self.audit)
@@ -37,7 +44,7 @@ class ServerBase(unittest.TestCase):
             (self.web / name).write_text(text)
         (self.web / "sub").mkdir()
         (self.web / "sub" / "x.js").write_text("export {}")
-        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat, self.web, mic=self.mic)
+        self.srv = server.make_server(self.devices, self.audit, self.port, self.chat, self.web, mic=self.mic, stt=self.stt)
         threading.Thread(target=self.srv.run, daemon=True).start()
         for _ in range(100):
             if self.srv.started:

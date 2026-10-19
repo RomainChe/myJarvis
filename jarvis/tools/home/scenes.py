@@ -1,9 +1,9 @@
 """Scènes : enchaînent des outils et vérifient l'état réel ensuite (jamais « c'est fait » sans confirmation).
 
-Mode cinéma = TV allumée (la barre de son suit en HDMI-CEC) + appli demandée. Les volets et la lumière du salon
-(DOMOTIQUE_PLAN §4) ne sont pas encore équipés (Shelly) : la scène les signale comme non traités.
+Mode cinéma = TV allumée (la barre de son suit en HDMI-CEC) + appli demandée. La lumière du salon
+(DOMOTIQUE_PLAN §4) n'est pas encore équipée (Shelly) : la scène la signale comme non traitée.
 Écart au plan (script HA `script.jarvis_*`) : l'utilisateur `jarvis` n'est pas administrateur, il ne peut pas créer de
-script HA. La scène vit dans Jarvis ; à migrer vers un script HA quand les volets seront posés.
+script HA. La scène vit dans Jarvis ; à migrer vers un script HA quand le matériel sera posé.
 """
 import time
 
@@ -14,7 +14,7 @@ from jarvis.tools.home import tv
 
 _sleep, _now = time.sleep, time.monotonic  # remplacés dans les tests
 WAIT_S = 15  # échéance (temps réel) par étape : la scène bloque l'appelant ~1 min au pire (HA lent : +5 s par lecture)
-NOT_EQUIPPED = ["volets du salon", "lumière du salon", "volume préréglé"]
+NOT_EQUIPPED = ["lumière du salon", "volume préréglé"]
 
 
 def _wait(ok, result: dict) -> bool:

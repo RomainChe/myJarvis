@@ -158,7 +158,7 @@ Date : 2026-10-07. Périmètre : `jarvis/tools/pc/` (19 outils enregistrés, tou
 | Outils : nominal / entrée invalide / permission refusée | OK (couverts par `tests/test_tools_*.py`, niveau relevé à N2 bloqué par la garde) |
 | Pannes de config : `apps.json` absent -> « aucune application autorisée : <chemin> n'existe pas » ; JSON cassé / non UTF-8 -> « apps.json illisible (JSONDecodeError / UnicodeDecodeError) » ; fichier > 64 Kio ; liste ou `null` -> « application non autorisée » ; `scripts/` absent -> « script introuvable » | OK, aucune trace Python |
 | Presse-papiers occupé, fichier verrouillé, corbeille en échec | OK (tests existants) ; après BUG-09 le message est propre aussi en CLI |
-| Routeur : « mets le volume à 30 », « mets en pause », « verrouille », « suivant » routés ; « verrouille la porte / la serrure / le volet / la voiture », « mets la musique en pause », « pause café », « coupe le son de la télé », « éteins la télé », « baisse le volume », « éteins le PC » : renvoyés au LLM, aucun faux positif | OK |
+| Routeur : « mets le volume à 30 », « mets en pause », « verrouille », « suivant » routés ; « verrouille la porte / la serrure / la voiture », « mets la musique en pause », « pause café », « coupe le son de la télé », « éteins la télé », « baisse le volume », « éteins le PC » : renvoyés au LLM, aucun faux positif | OK |
 | Latence bout en bout `python -m jarvis "etat du pc"` : 0,40 s ; `"mets le volume à 150"` (refusé par l'outil) : 0,17 s | OK (< 1 s) |
 | Journal : `clipboard_write` journalisé `<21 car.>`, le texte n'apparaît jamais (`audit 50` + grep = 0) ; `run_script`, `clipboard_read`, `screenshot` en `private` | OK |
 

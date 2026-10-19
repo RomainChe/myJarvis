@@ -123,7 +123,7 @@ def agent_url() -> str | None:
     return trusted_base_url(raw, URL_ENV) if raw else None
 
 
-def call(op: str, name: str, args: dict, *, urlopen=_open) -> Any:
+def call(op: str, name: str, args: dict, *, urlopen=_open, timeout: float = TIMEOUT_S) -> Any:
     base = agent_url()
     if not base:
         raise AgentError("agent PC non configuré")
@@ -137,7 +137,7 @@ def call(op: str, name: str, args: dict, *, urlopen=_open) -> Any:
     body = json.dumps({"op": op, "tool": name, "args": args, "ts": time.time(), "nonce": nonce}).encode()
     req = urllib.request.Request(base + "/call", body, {"Content-Type": "application/json", "X-Jarvis-Sig": sign(key, body, REQ)})
     try:
-        with urlopen(req, timeout=TIMEOUT_S) as r:
+        with urlopen(req, timeout=timeout) as r:
             raw, sig = r.read(BODY_MAX + 1), r.headers.get("X-Jarvis-Sig")
     except OSError as e:  # refus, délai, 401 : le PC est éteint, la clé diffère ou l'horloge dérive
         raise AgentError(f"PC injoignable ({type(e).__name__})") from None

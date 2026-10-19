@@ -7,7 +7,7 @@ const money = (n, cur) => {
 };
 function clearFinance() {
   for (const id of ['fin-accounts', 'fin-tx', 'fin-consent', 'fin-crypto', 'fin-cycle', 'fin-portfolio']) $(id).replaceChildren();
-  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = $('fin-portfolio').hidden = true;
+  $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = $('fin-portfolio').hidden = $('fin-invest').hidden = true;
   $('fin-bank-at').textContent = '';
 }
 // D3 : Finances s'ouvre 10 min après une signature de la clé d'accès (un token volé ne lit rien). Vrai si déverrouillé.
@@ -34,6 +34,7 @@ async function loadFinance() {
     if (!b.ok) throw new Error('bad');
     if (views.finance.hidden) return; // vue quittée pendant le chargement
     renderBank(b.data?.bank); renderCrypto(b.data?.crypto); renderPortfolio(b.data?.portfolio);
+    $('fin-invest').hidden = $('fin-crypto').hidden && $('fin-portfolio').hidden; // partie Investissement : titres-PEA puis Ledger
     state.hidden = !!b.data?.bank || !$('fin-crypto').hidden || !$('fin-portfolio').hidden ? true : false;
     if (!state.hidden) state.textContent = 'Aucune donnée bancaire : lance « python -m jarvis bank fetch ».';
   } catch (e) {
@@ -51,13 +52,13 @@ function cardTitle(text, logo) {
   return h;
 }
 // Comptes Enable Banking : libellés = contenu externe, posés en textContent seulement
-const CONSENT_WARN = 14; // jours : à partir de là, la commande de renouvellement s'affiche
+const CONSENT_WARN = 10; // jours : en dessous, la commande de renouvellement s'affiche
 function renderBank(b) {
   if (!b) return;
   const at = new Date(b.fetched_at);
   $('fin-bank-at').textContent = Number.isNaN(at.getTime()) ? '' : `Comptes mis à jour le ${at.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
   $('fin-consent').replaceChildren(...(b.consent || []).map((c) => {
-    const late = !Number.isInteger(c.days_left) || c.days_left <= CONSENT_WARN;
+    const late = !Number.isInteger(c.days_left) || c.days_left < CONSENT_WARN;
     const li = el('li', late ? 'warn' : 'muted', !Number.isInteger(c.days_left) ? `${c.bank} : échéance du consentement inconnue`
       : c.days_left < 0 ? `${c.bank} : consentement expiré` : `${c.bank} : consentement valable encore ${c.days_left} j`);
     if (late && c.renew) li.append(el('code', '', c.renew)); // construite et filtrée côté serveur (banking.renew_cmd)
@@ -148,7 +149,9 @@ function renderCycle(c) {
     tag.dataset.cat = f.dataset.cat = x.name;
     f.style.width = `${(x.amount / top) * 100}%`;
     w.append(f);
-    li.append(tag, w, el('span', 'cyc-amt', eur(x.amount)));
+    const amt = el('span', 'cyc-amt', eur(x.amount));
+    if (x.prev != null) amt.append(el('small', 'muted', `préc. ${eur(x.prev)}`));
+    li.append(tag, w, amt);
     return li;
   }));
   cats.append(cycTotal('Total consommation', c.conso.total, 'gold'));

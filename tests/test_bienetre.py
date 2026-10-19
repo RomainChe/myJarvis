@@ -95,8 +95,9 @@ class BienetreTest(unittest.TestCase):
 
     def test_config(self):
         cfg = Path(tempfile.mkdtemp()) / "b.json"
-        cfg.write_text('{"dir": "D:/x"}', encoding="utf-8")
-        self.assertEqual(bienetre.project_dir(cfg), Path("D:/x"))
+        absolu = Path(tempfile.gettempdir()) / "x"  # absolu sous Windows comme sous Linux (pas « D:/x »)
+        cfg.write_text(json.dumps({"dir": str(absolu)}), encoding="utf-8")
+        self.assertEqual(bienetre.project_dir(cfg), absolu)
         self.assertEqual(bienetre.project_dir(cfg.with_name("absent.json")), bienetre.DEFAULT_DIR)
         cfg.write_text('{"dir": "relatif/x"}', encoding="utf-8")
         self.assertEqual(bienetre.project_dir(cfg), bienetre.DEFAULT_DIR)  # chemin relatif refusé

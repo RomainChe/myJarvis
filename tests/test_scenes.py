@@ -73,7 +73,7 @@ class CinemaTest(PcBase):
         out = self.run_tool("scene_cinema", {"app": " Netflix "})
         self.assertEqual(self.calls, ["on", "netflix"])
         self.assertEqual((out["tv"], out["app"]), ("allumée", "netflix"))
-        self.assertIn("volets du salon", out["non_traité"])  # on ne prétend pas avoir fait ce qui n'existe pas
+        self.assertIn("lumière du salon", out["non_traité"])  # on ne prétend pas avoir fait ce qui n'existe pas
 
     def test_tv_deja_allumee_et_sans_appli(self):
         self.state = {"state": "on", "app": "accueil"}

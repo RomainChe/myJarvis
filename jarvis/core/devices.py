@@ -17,6 +17,7 @@ CODE_TTL_S = 120
 MAX_FAILS = 5  # échecs d'enrôlement avant de brûler tous les codes en attente
 LOCKOUT_S = 300
 NAME_MAX = 40
+SCOPES = ("full", "voice")  # « voice » : une clé qui n'ouvre que POST /api/voice (micro du salon), jamais la PWA
 TOKEN_TTL_S = 90 * 86400
 
 SCHEMA = """
@@ -49,6 +50,8 @@ class Devices:
             if col.split()[0] not in cols:
                 self.db.execute(f"ALTER TABLE devices ADD COLUMN {col}")
         self.db.execute("UPDATE devices SET expires = ? WHERE expires IS NULL", (_now() + TOKEN_TTL_S,))
+        if "scope" not in [r[1] for r in self.db.execute("PRAGMA table_info(devices)")]:  # base d'avant le lot 4c
+            self.db.execute("ALTER TABLE devices ADD COLUMN scope TEXT NOT NULL DEFAULT 'full'")  # appareils existants : accès complet
         self.fails, self.locked_until = 0, 0.0  # en mémoire : un redémarrage remet le compteur à zéro
 
     def new_code(self) -> str:
@@ -83,14 +86,30 @@ class Devices:
                                   (name, _h(token), now, now + TOKEN_TTL_S))
             return cur.lastrowid, token
 
+    def add_scoped(self, name: str, scope: str) -> tuple[int, str]:
+        """Crée un appareil de portée limitée (CLI seulement) : (id, token), le token n'est montré qu'une fois."""
+        name = name.strip()
+        if not name or len(name) > NAME_MAX or not name.isprintable() or scope not in SCOPES:
+            raise ValueError("nom ou portée invalide")
+        token = secrets.token_urlsafe(32)
+        with self.lock:
+            cur = self.db.execute("INSERT INTO devices (name, token_hash, created, expires, scope) VALUES (?, ?, ?, ?, ?)",
+                                  (name, _h(token), _now(), _now() + TOKEN_TTL_S, scope))
+        return cur.lastrowid, token
+
     def check(self, token: str) -> tuple[int, str] | None:
-        """(id, nom) de l'appareil si le token est valide, non expiré et non révoqué. Vérifié en base à chaque requête.
+        """(id, nom) de l'appareil si le token est valide, non expiré et non révoqué. Vérifié en base à chaque requête."""
+        found = self.check_scoped(token)
+        return found and found[:2]
+
+    def check_scoped(self, token: str) -> tuple[int, str, str] | None:
+        """(id, nom, portée) : comme `check`, pour que l'appelant refuse une clé de portée limitée hors de sa route.
 
         Le token précédent (avant renouvellement) est accepté jusqu'au premier usage du nouveau.
         """
         digest = _h(token)
         with self.lock:
-            row = self.db.execute("SELECT id, name, token_hash, prev_hash FROM devices "
+            row = self.db.execute("SELECT id, name, token_hash, prev_hash, scope FROM devices "
                                   "WHERE (token_hash = ? OR prev_hash = ?) AND revoked = 0 AND expires >= ?",
                                   (digest, digest, _now())).fetchone()
             if row is None or not (hmac.compare_digest(row[2], digest) or hmac.compare_digest(row[3] or "", digest)):
@@ -98,7 +117,7 @@ class Devices:
             current = hmac.compare_digest(row[2], digest)
             self.db.execute("UPDATE devices SET last_used = ?" + (", prev_hash = NULL" if current else "") + " WHERE id = ?",
                             (_now(), row[0]))
-        return row[0], row[1]
+        return row[0], row[1], row[4]
 
     def rotate(self, device_id: int, used: str, clean: bool = False) -> str | None:
         """Nouveau token valable `TOKEN_TTL_S` ; None si l'appareil est révoqué entre-temps.
@@ -126,4 +145,4 @@ class Devices:
 
     def list(self) -> list[tuple]:
         with self.lock:
-            return self.db.execute("SELECT id, name, created, last_used, revoked FROM devices ORDER BY id").fetchall()
+            return self.db.execute("SELECT id, name, created, last_used, revoked, scope FROM devices ORDER BY id").fetchall()

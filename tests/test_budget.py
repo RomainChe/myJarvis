@@ -2,7 +2,7 @@
 import unittest
 from datetime import date
 
-from jarvis.core.budget import CM, TR, report
+from jarvis.core.budget import CM, TR, classify, report
 
 
 def tx(bank, day, amount, label=""):
@@ -30,7 +30,7 @@ CYCLE = [
     tx(TR, "2026-09-19", -126.99),
     tx(TR, "2026-09-26", -216.00),
     tx(TR, "2026-09-05", -81.45, "TICKETMASTER"),
-    tx(TR, "2026-09-04", -3.90),
+    tx(TR, "2026-09-04", -9.90),
 ]
 
 
@@ -65,6 +65,46 @@ class BudgetTest(unittest.TestCase):
         prog = next(x for x in self.r["saving"]["items"] if x["name"] == "Épargne programmée")
         self.assertEqual(prog["amount"], 92.0)
         self.assertEqual(self.r["saving"]["rate"], round(self.r["saving"]["total"] / 2500 * 100))
+
+    def test_epargne_datee_du_vendredi(self):
+        """Trade Republic comptabilise parfois les plans du mercredi un autre jour : le lot de plans identifie le jour."""
+        r = report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")]
+                   + [tx(TR, "2026-10-16", a) for a in (-10.0,) * 5 + (-7.0, -13.0, -15.0, -69.72, -1.55)]
+                   + [tx(TR, "2026-10-09", -69.72)]  # seul, un vendredi : des courses
+                   + [tx(TR, "2026-10-02", a) for a in (-10.0, -10.0, -69.61)]  # un seul plan : pas un lot
+                   + [tx(TR, "2026-10-14", a) for a in (-10.0, -7.0, -13.0)]  # lot qui arrive au fil de l'eau, 3 plans sur 4
+                   + [tx(TR, "2026-10-15", -10.0)], date(2026, 10, 17))  # le jeudi suivant, même fenêtre
+        prog = next(x for x in r["saving"]["items"] if x["name"] == "Épargne programmée")
+        self.assertEqual(prog["amount"], 154.72 + 40)
+        self.assertEqual(next(x for x in r["saving"]["items"] if x["name"] == "Saveback + arrondis")["amount"], 1.55)
+        self.assertAlmostEqual(r["conso"]["total"], 69.72 + 10 + 10 + 69.61)  # courses isolées + plan unique du 2 octobre
+
+    def test_pea_exceptionnel_et_fourchette_80(self):
+        d = frozenset({"2026-10-09"})
+        self.assertEqual(classify(tx(TR, "2026-10-09", -35.27), d)[0], "saving")
+        self.assertEqual(classify(tx(TR, "2026-10-09", -79.5), d)[0], "saving")
+        self.assertEqual(classify(tx(TR, "2026-10-09", -35.27))[0], "conso")  # hors jour de lot
+
+    def test_lot_date_du_lundi(self):
+        r = report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")]
+                   + [tx(TR, "2026-10-12", a) for a in (-10.0, -10.0, -7.0, -13.0, -15.0)]
+                   + [tx(TR, "2026-10-15", -78.0)], date(2026, 10, 17))  # lundi ; 78 € le jeudi sans plan : des courses
+        self.assertEqual(next(x for x in r["saving"]["items"] if x["name"] == "Épargne programmée")["amount"], 55)
+        self.assertEqual(next(x for x in r["conso"]["detail"] if x["name"] == "Courses")["amount"], 78)
+
+    def test_voyage_et_comparaison_cycle_precedent(self):
+        r = report([tx(CM, "2026-09-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE"), tx(CM, "2026-09-10", -100.00, "CB CARREFOUR"),
+                    tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE"), tx(CM, "2026-10-05", -180.00, "CB CARREFOUR"),
+                    tx(CM, "2026-10-06", -300.00, "CB RYANAIR")], date(2026, 10, 17))
+        courses = next(c for c in r["conso"]["cats"] if c["name"] == "Courses")
+        self.assertEqual((courses["amount"], courses["prev"]), (180, 100))
+        texts = {p["icon"]: p["text"] for p in r["points"]}
+        self.assertIn("Voyage 300,00 €", texts["✈️"])
+        self.assertIn("180,00 € contre 100,00 €", texts["💡"])
+        self.assertIsNone(report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")], date(2026, 10, 17))["conso"]["prev_total"])
+
+    def test_petits_achats_en_courses(self):
+        self.assertEqual(classify(tx(TR, "2026-10-11", -6.16))[1]["cat"], "Courses")
 
     def test_virements_internes_et_dividendes_hors_budget(self):
         total = sum(x["amount"] for x in self.r["conso"]["detail"])

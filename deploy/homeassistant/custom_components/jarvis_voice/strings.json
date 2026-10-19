@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "JARVIS Voice",
+        "description": "Clé créée par `python -m jarvis device add --voice voix-salon` sur le Core.",
+        "data": {"url": "URL du Core", "key": "Clé de l'appareil voix", "client": "Nom du micro (a-z, 0-9, _ -)"}
+      }
+    },
+    "error": {"invalid": "Réglage invalide (URL http://127.0.0.1 ou https, clé non vide, nom du micro)."},
+    "abort": {"already_configured": "Ce micro est déjà configuré."}
+  }
+}

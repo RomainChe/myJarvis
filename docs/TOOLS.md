@@ -42,7 +42,19 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
   `vram_total_mb`, `temperature_c`) ou `null` si `nvidia-smi` est absent ou ne répond pas.
 - **Exemple** : « Jarvis, état du système » ou `python -m jarvis run system_status`.
 - **Notes** : API Windows via `ctypes` ; `nvidia-smi` est appelé par son chemin absolu dans
-  `System32` (pas de recherche dans le `PATH`), avec un délai maximal de 5 s.
+  `System32` (pas de recherche dans le `PATH`), avec un délai maximal de 5 s. Core sur le mini-PC : l'encart
+  Système du tableau de bord l'appelle par l'agent (délai 3 s, vide si le PC est éteint).
+
+## pc_bienetre / pc_social
+
+- **Description** : onglets Bien-être et Réseaux pour le Core du mini-PC, lus sur le PC par l'agent.
+- **Niveau** : N0, `owner_only` (jamais proposés au LLM, appelés seulement par `/api/bienetre` et `/api/social`).
+- **Paramètres** : aucun.
+- **Retour** : `pc_bienetre` = `core.bienetre.snapshot()` ; `pc_social` = `core.social.snapshot()` + compteurs YouTube
+  (le jeton de lol-clipper reste sur le PC).
+- **Exemple** : ouvrir l'onglet Réseaux de la PWA.
+- **Notes** : PC éteint, Bien-être affiche « PC éteint » ; Réseaux affiche le dernier relevé gardé par le Core
+  (`~/.jarvis/social-cache.json`) avec sa date. Après ajout : `python -m jarvis.agent catalog` et relance de l'agent.
 
 ## list_processes
 
@@ -217,7 +229,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : aucun.
 - **Retour** : `power` : `shutdown`, `prise` : `coupure planifiée` (la coupure vient ensuite, en tâche de fond).
 - **Exemple** : « éteins la prise du PC » (LLM puis confirmation) ou `python -m jarvis run pc_off_plug`.
-- **Notes** : `jarvis/tools/home/pcplug.py`, entités `switch.prise_pc` et `sensor.prise_pc_current_consumption` (plus de script HA). Avant tout : prise joignable et puissance lisible, sinon rien n'est lancé ; refusé si ce Core tourne sur le PC (il s'arrêterait avec lui) ou si `power` est relevé au-dessus de cet outil. L'arrêt passe par l'agent (échec = rien n'est coupé). Puis, en fond : attend la chute de puissance sous `JARVIS_PC_IDLE_W` (défaut 10 W, bornes 5-100 ; mesure de veille : INSTALL_SERVEUR_HA §10.2) pendant 5 min au plus, laisse 30 s, revérifie, coupe ; l'issue (« prise coupée » ou « prise conservée : … ») est écrite au journal (source `pcplug`). Sans intention du routeur (S12/C4). Testé avec des mocks, jamais en réel.
+- **Notes** : `jarvis/tools/home/pcplug.py`, entités `switch.prise_pc` et `sensor.prise_pc_consommation_actuelle` (plus de script HA). Avant tout : prise joignable et puissance lisible, sinon rien n'est lancé ; refusé si ce Core tourne sur le PC (il s'arrêterait avec lui) ou si `power` est relevé au-dessus de cet outil. L'arrêt passe par l'agent (échec = rien n'est coupé). Puis, en fond : attend la chute de puissance sous `JARVIS_PC_IDLE_W` (défaut 10 W, bornes 5-100 ; mesure de veille : INSTALL_SERVEUR_HA §10.2) pendant 5 min au plus, laisse 30 s, revérifie, coupe ; l'issue (« prise coupée » ou « prise conservée : … ») est écrite au journal (source `pcplug`). Sans intention du routeur (S12/C4). Testé avec des mocks, jamais en réel.
 
 ## clipboard_write
 
@@ -245,24 +257,6 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Retour** : `total` et `mails` (8 au plus, les plus récents d'abord : `de`, `objet`, `extrait` de 120 caractères).
 - **Exemple** : `python -m jarvis run mail_recent hours=24`.
 - **Notes** : IMAP/SSL en lecture seule (`BODY.PEEK`, rien n'est marqué lu, aucun envoi ni suppression). Compte dans `~/.jarvis/mail.json` (`{"host": "imap.gmail.com", "user": "..."}`), mot de passe d'application dans le coffre : `python -m jarvis secret set mail_password`.
-
-## social_schedule
-
-- **Description** : liste les publications programmées de lol-clipper (fichiers `<vidéo>.publish.todo`), les plus proches d'abord.
-- **Niveau** : N0 (lecture).
-- **Paramètres** : aucun.
-- **Retour** : `scheduled` (10 au plus : `title`, `platform` = `youtube` / `tiktok` / `all`, `at` heure locale `AAAA-MM-JJTHH:MM`).
-- **Exemple** : `python -m jarvis run social_schedule`.
-- **Notes** : dossier de lol-clipper dans `~/.jarvis/social.json` (`{"clips_dir": "..."}`), sinon `~/Videos/LoL Clips`.
-
-## social_reschedule
-
-- **Description** : décale une publication programmée : change seulement `publish_at` du `.publish.todo` désigné par son titre exact.
-- **Niveau** : N2 (confirmation avec aperçu « ancienne → nouvelle heure »), `taint_blocked` (refusé au LLM après du contenu externe). Refusé à la voix (plafond N0/N1).
-- **Paramètres** : `title` (titre exact de `social_schedule`), `at` (`AAAA-MM-JJTHH:MM`, heure locale, futur, 30 jours au plus, créneau libre dans le même dossier, au moins 10 minutes d'avance).
-- **Retour** : `title`, `from`, `to`.
-- **Exemple** : `python -m jarvis run social_reschedule title=ma_video at=2026-10-12T18:00`.
-- **Notes** : ni création, ni suppression, ni publication immédiate (restent à lol-clipper, qui met en ligne à la nouvelle heure). Refusé si l'ancien créneau est échu ou dans les 2 minutes (lol-clipper est peut-être en train de publier) ou si la vidéo est déjà en ligne (`<titre>.youtube.json` / `.tiktok.json`). Écriture atomique avec relecture avant remplacement, liens symboliques ignorés, titre absent ou ambigu refusé. `social_schedule` n'est pas marqué `external` (noms de fichiers de lol-clipper, enveloppés dans `<data>`) : sinon le LLM ne pourrait plus enchaîner lister puis décaler. Dépend du format `publish_at` ISO naïf de lol-clipper (`upload.py`).
 
 ## claude_code (`jarvis/tools/dev.py`)
 
@@ -328,9 +322,28 @@ Home Assistant via `jarvis/core/ha.py` (token dans le coffre Windows, utilisateu
 - **Description** : mode cinéma. Allume la TV du salon (la barre de son suit en HDMI-CEC) si elle ne l'est pas, lance l'appli demandée, puis **vérifie l'état réel** (jusqu'à 15 s par étape). Une TV non confirmée n'ouvre pas d'appli.
 - **Niveau** : N1, `taint_blocked` (lance une appli, comme `tv_open_app`). Les sous-outils (`tv_on`, `tv_open_app`) sont appelés sans repasser par la garde, donc non journalisés à part : si le propriétaire en relève un au-dessus de N1, **toute la scène est refusée** avant la première action. Bloquante : échéance de 15 s par étape, soit ~1 min au pire avec un HA lent (+5 s par lecture).
 - **Paramètres** : `app` : `youtube`, `netflix`, `twitch`, `spotify`, ou chaîne vide (aucune appli). Une appli inconnue est refusée avant toute action.
-- **Retour** : `tv` (`allumée` / `non confirmée`), `app` (nom / `non confirmée` / `null`), `erreur` (présent seulement si HA a échoué : 401, 403, injoignable), `non_traité` : ce que la scène ne fait pas encore (volets, lumière du salon, volume préréglé : matériel absent ou volume absolu indisponible).
+- **Retour** : `tv` (`allumée` / `non confirmée`), `app` (nom / `non confirmée` / `null`), `erreur` (présent seulement si HA a échoué : 401, 403, injoignable), `non_traité` : ce que la scène ne fait pas encore (lumière du salon, volume préréglé : matériel absent ou volume absolu indisponible).
 - **Exemples** : « mets le mode cinéma », « lance le mode cinéma sur Netflix » (motifs exacts du routeur) ; `python -m jarvis run scene_cinema app=netflix`.
-- **Notes** : écart au plan (script HA) : l'utilisateur `jarvis` n'est pas administrateur et ne peut pas créer de script HA ; à migrer quand les volets (Shelly) seront posés.
+- **Notes** : écart au plan (script HA) : l'utilisateur `jarvis` n'est pas administrateur et ne peut pas créer de script HA ; à migrer vers un script HA quand le matériel sera posé.
+
+## say (`jarvis/tools/pc/say.py`)
+
+- **Description** : lit un court texte à voix haute sur le PC (Piper, sortie `JARVIS_AUDIO_OUT` de l'agent).
+- **Niveau** : N1.
+- **Paramètres** : `text` (texte, 1 000 caractères au plus, 500 lus).
+- **Retour** : `say` = `ok` ou `occupé` (déjà en train de parler : rien n'est lu, rien n'est mis en file).
+- **Exemple** : `python -m jarvis run say text="Minuteur terminé."`.
+- **Notes** : exécuté par l'agent PC. Le Core du mini-PC l'appelle pour les minuteurs, rappels et le briefing (`_reminders`) ; PC éteint ou agent muet, seul le push part. `hidden=("text",)` : le journal écrit `<n car.>`.
+
+## POST /api/voice (client voix du PC, `jarvis/voice_client.py`)
+
+- **Rôle** : le client `python -m jarvis voice` (PC) garde micro, Whisper et Piper en local et n'envoie que le texte reconnu. Le Core appelle `Voice.handle` : routeur puis LLM, source `voix`, journal d'audit côté Core.
+- **Plafond** : N0 et N1 seulement. N2 : « Action sensible : fais-la depuis l'application » (aucune demande créée). N3 : refusé. Texte = donnée, jamais un ordre.
+- **Authentification** : clé d'appareil (`Bearer`, `python -m jarvis device add` sur le Core). Côté PC elle est dans le coffre Windows : `python -m jarvis secret set voice_key`. Jamais dans un fichier ni `.env`.
+- **Clé de portée voix** (lot 4c) : `python -m jarvis device add --voice <nom>` crée un appareil dont la clé n'ouvre QUE `POST /api/voice` (403 « portée insuffisante » partout ailleurs, ligne `scope` au journal). Les appareils existants restent `full` (migration automatique). Micro du salon : Voice PE + Home Assistant, voir docs/MIGRATION_CORE_MINIPC.md §Lot 4c.
+- **Homophones** : `router.voice_fix` corrige, avant le routeur et le LLM, quelques erreurs mesurées de Vosk en début de phrase (« a vu le pc », « éteint la télé », « mais la TV », « sur très fin » -> TF1).
+- **Requête** : `{"text": 1 à 1 000 car., "client": "pc"}` ; `client` (a-z, 0-9, `_`, `-`, 32 au plus) identifie le micro et est journalisé `appareil/client`. **Réponse** : `{"answer": ...}` (4 000 car. au plus). Limite : 20 phrases par minute et par appareil (429), en plus du quota général.
+- **Réglages du client** : `JARVIS_CORE_URL` (`https://<nom>.ts.net`, https obligatoire), `JARVIS_VOICE_CLIENT` (défaut `pc`), `JARVIS_AUDIO_IN` / `JARVIS_AUDIO_OUT` (casque), `JARVIS_WAKE_WORD`. Core injoignable : « Le Core ne répond pas. », rien d'autre.
 
 ## Minuteurs, rappels et briefing (`jarvis/tools/assist.py`, `jarvis/core/reminders.py`)
 
@@ -338,6 +351,7 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 
 | Outil | Niveau | Paramètres | Retour | Exemple |
 |---|---|---|---|---|
+| `current_time` | N0 | aucun | « Il est 22 h 05, samedi 17 octobre 2026. » | « quelle heure est-il », « quel jour sommes-nous » (routeur, sans LLM) |
 | `timer_set` | N1, `taint_blocked` | `duration` (« 20 minutes », « 1h30 », « une demi-heure »), `label` (peut être vide) | heure de fin | « mets un minuteur de 10 minutes pour les pâtes », « rappelle-moi de sortir le linge dans 20 minutes » |
 | `reminder_set` | N1, `taint_blocked` | `when` (« dans 2 heures », « à 7h30 », « demain à 8h »), `label` | heure du rappel | « réveille-moi à 7h », « rappelle-moi à 18h30 d'appeler Paul » |
 | `reminder_list` | N0 | aucun | une ligne par rappel : `#id à HH:MM : minuteur/rappel` (jamais le texte, qui reste journal-safe et lisible à la voix) | « mes rappels » |
@@ -362,16 +376,9 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Paramètres** : aucun. **Exemple** : « Jarvis, prix des vols » → « Japon 2027-05-05 : 870 € depuis Paris, du 05/05 au 22/05, 1 escale(s) (relevé du 04/10). Baisse de 30 € … ».
 - **Notes** : changer de destination reste `voyage_destination` (N2) : par le chat avec confirmation dans la PWA, jamais à la voix.
 
-## hotel_itineraire (`jarvis/tools/voyages.py`)
-
-- **Description** : dernier relevé d'hébergement de hotel-price-tracker (`historique/resume.json`, écrit et commité par son workflow) : total recommandé et moins cher (hébergement + trajets), hôtel recommandé par ville. JARVIS ne recalcule rien. Même lecture que le carré « Hôtels · Japon » du dashboard (`/api/voyages`, clé `hotels`).
-- **Niveau** : N0, `external` (JSON d'un dépôt public : donnée). Routeur sans LLM : « prix des hôtels », « où en sont les hôtels », « combien coûte l'hébergement ».
-- **Paramètres** : aucun. **Exemple** : « Jarvis, prix des hôtels » → « Hébergement du 06/05 au 22/05 : 2345 € recommandé, 2100 € le moins cher, trajets compris (relevé du 13/10). Osaka : … ».
-- **Notes** : dossier du clone = clé `hotel_dir` de `~/.jarvis/voyages.json` (défaut `~/Desktop/WebstormProject/hotel-price-tracker`). `git fetch origin main` au plus une fois par heure puis `git show origin/main:historique/resume.json`, comme pour les vols ; fichier borné à 64 Ko, champs tronqués, nombres validés ; un champ illisible écarte l'hôtel, un total illisible = « aucun relevé ».
-
 ## conso_pc (`jarvis/tools/conso.py`)
 
-- **Description** : énergie consommée par le PC, mesurée par sa prise Tapo P110 (`sensor.prise_pc_current_consumption` via Home Assistant), en kWh et en € (prix saisi par le propriétaire), avec la période d'avant. Même lecture que l'onglet « Consommation » et le carré « Conso · PC » (`/api/conso`).
+- **Description** : énergie consommée par le PC, mesurée par sa prise Tapo P110 (`sensor.prise_pc_consommation_actuelle` via Home Assistant), en kWh et en € (prix saisi par le propriétaire), avec la période d'avant. Même lecture que l'onglet « Consommation » et le carré « Conso · PC » (`/api/conso`).
 - **Niveau** : N0 (lecture du cache local `~/.jarvis/conso.db`). Pas `external` : seuls des nombres calculés par le Core en sortent. Routeur sans LLM : « combien consomme le PC », « combien le PC a consommé aujourd'hui / cette semaine / ce mois-ci », « la consommation du PC ».
 - **Paramètres** : `periode` = `jour`, `semaine` (7 jours glissants) ou `mois` (30 jours glissants) ; alias « aujourd'hui ». Autre valeur : refusée. **Exemple** : « Jarvis, combien le PC a consommé aujourd'hui ? » → « Le PC a consommé 1,50 kWh aujourd'hui (environ 0,38 €), contre 2,00 kWh hier. »
 - **Notes** : un fil du Core échantillonne la puissance chaque minute et l'intègre par jour (trapèze, intervalle > 3 min ignoré) ; Core éteint ou prise illisible = trou, jamais comblé : « Mesuré sur N h seulement : le total est sous-estimé ». Rétention 65 jours, un total par jour (aucune courbe fine : RGPD). Sans mesure : « donnée indisponible ». Prix du kWh : `~/.jarvis/conso.json`, modifiable par `PUT /api/conso/tarif` (0 < prix ≤ 5 €, une ligne au journal sans le montant). Le total du logement (Enedis) et les conseils viennent aux étapes 2 et 3.
