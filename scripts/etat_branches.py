@@ -70,13 +70,12 @@ def inventaire(root: str) -> dict:
         wt["operation"] = operation_en_cours(wt["chemin"]) if exists else None
         wt["hors_convention"] = wt["chemin"] != principal and "/.claude/worktrees/" not in wt["chemin"].replace("\\", "/")
     par_branche = {wt["branche"]: wt for wt in wts if wt["branche"]}
-    first_parent = set(out(root, "rev-list", "--first-parent", "main").split())
     has_origin_main = git(root, "rev-parse", "-q", "--verify", "refs/remotes/origin/main")[0] == 0
 
     branches = []
-    refs = out(root, "for-each-ref", "refs/heads", "--format=%(refname:short)\t%(upstream:short)\t%(committerdate:unix)\t%(objectname)")
+    refs = out(root, "for-each-ref", "refs/heads", "--format=%(refname:short)\t%(upstream:short)\t%(committerdate:unix)")
     for line in refs.splitlines():
-        name, upstream, date, sha = line.split("\t")
+        name, upstream, date = line.split("\t")
         if name == "main":
             continue
         retard, avance = compte(root, f"main...{name}")
@@ -86,10 +85,12 @@ def inventaire(root: str) -> dict:
              "upstream": upstream or None, "etats": []}
         if upstream and git(root, "rev-parse", "-q", "--verify", upstream)[0] == 0:
             b["vs_upstream"] = dict(zip(("avance", "retard"), compte(root, f"{name}...{upstream}")))
-        if wt and (wt["operation"] or wt["detache"] or wt["verrouille"]):
+        if wt and (wt["operation"] or wt["detache"]):  # verrouillé est normal : Claude Code verrouille ses worktrees
             b["etats"].append("bloquee")
         if avance == 0:
-            b["etats"].append("neuve" if sha in first_parent else "fusionnee")
+            # aucun commit jamais fait sur la branche (reflog) : une session qui démarre, pas un travail fini
+            reflog = out(root, "reflog", "show", "--format=%gs", f"refs/heads/{name}").splitlines()
+            b["etats"].append("fusionnee" if any(e.startswith("commit") for e in reflog) else "neuve")
         else:
             if "+" not in out(root, "cherry", "main", name).split():
                 b["etats"].append("squash")
