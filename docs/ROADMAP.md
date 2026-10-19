@@ -15,7 +15,8 @@ Règle : cette section reste sous ~2 Ko. Une tâche finie se résume en une lign
 - **Essais réels en attente** : rappels/briefing (voix + push), outil Claude Code, `voyage_recherche` (envoie un e-mail).
 - **À faire par le propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md (sauvegardes hors mini-PC, `secret set mail_sig_key`, tests C5/F6/G2) ; droits TikTok ; Swile et Ledger à brancher.
 - **Décisions en attente** : destination des sauvegardes, consignes des clims (reportées), texte du rappel dans le push, choix des pistes Phase 7.
-- **Droits** : commit, push et merge dans `main` sans confirmation ; push forcé interdit. Un worktree par session parallèle.
+- **Droits** : commit, push et merge dans `main` sans confirmation ; push forcé interdit (`main` protégée sur GitHub). Un worktree par session parallèle ; ménage : agent garde-branches « HYGIÈNE ».
+- **CI** : dépendances installées ; reste 4 erreurs sur le runner (chemin temporaire court `RUNNER~1` refusé par `system.py` : contrôle du dossier utilisateur), décision du propriétaire.
 
 ## Phases 0 à 6 (détail : docs/HISTORIQUE.md)
 - **0 Cadrage** ✅ · **1 Core + outils PC** ✅ (docs/TOOLS.md, docs/archive/SECURITY_REVIEW_PHASE_1.md) · **2 Domotique** ✅ (docs/DOMOTIQUE_PLAN.md)
