@@ -12,7 +12,7 @@ Règle : cette section reste sous ~2 Ko. Une tâche finie se résume en une lign
 - **Bouton « parler » PWA** (`/api/stt`, feu vert Sécurité) : reste l'essai sur le téléphone (HTTPS Tailscale) et 375/1280 px. Sur le mini-PC `/api/stt` répond 503 (pas de Whisper) : relayer vers le PC si voulu.
 - **Finances** : relance des banques en échec à 13 h et 19 h faite ; compte d’une banque en échec marqué « non actualisé » dans l’onglet. Reste : vérifier `journalctl --user -u jarvis-banque` le 2026-10-20.
 - **Consommation** : reste l'essai 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente de décision.
-- **Refonte UI v2** (2026-10-19, cache v57) : tous les onglets refaits, puis Dashboard/Finances retouchés (détail : docs/HISTORIQUE.md). Reste l'œil du propriétaire sur des données réelles (PC et téléphone).
+- **Refonte UI v2** (2026-10-19, cache v58) : tous les onglets refaits, puis Dashboard/Finances retouchés (détail : docs/HISTORIQUE.md). Reste l'œil du propriétaire sur des données réelles (PC et téléphone).
 - **Phase 5 étapes 1 et 9** (token volé, `feat/phase5-token-vole`, fusionnée le 2026-10-19) : D2/D6, clé d'accès pour les N2 forts (D3, Finances, retirée le 2026-10-19 par le propriétaire), token 90 j renouvelé, « révoquer tout ». Reste revue Sécurité de la fusion et essai sur le téléphone.
 - **Essais réels en attente** : rappels/briefing (voix + push), outil Claude Code, `voyage_recherche` (envoie un e-mail).
 - **À faire par le propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md (sauvegardes hors mini-PC, `secret set mail_sig_key`, tests C5/F6/G2) ; droits TikTok ; Swile et Ledger à brancher.
