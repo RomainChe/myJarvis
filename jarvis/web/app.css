@@ -399,6 +399,8 @@ h2.section { margin-top: var(--j-space-4); }
   /* Pleine largeur : colonnes collées aux bords, encarts agrandis de ~30 % (demande du propriétaire). */
   #app { max-width: none; }
   .console { grid-template: "side convo digest" minmax(0, 1fr) / 400px minmax(0, 1fr) 460px; }
+  .wave { width: 24px; } /* colonne centrale étroite à 1280 px : la saisie garde sa place */
+  .composer textarea::placeholder { letter-spacing: .04em; font-size: var(--j-text-sm); }
   .side { gap: var(--j-space-4); }
   .digest { grid-area: digest; display: flex; flex-direction: column; gap: var(--j-space-4); overflow: hidden auto; }
   #view-chat .side .panel, #view-chat .digest .panel { padding: var(--j-space-5) var(--j-space-6); }
