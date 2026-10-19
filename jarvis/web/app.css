@@ -316,7 +316,6 @@ h2.section { margin-top: var(--j-space-5); }
 .row .meta { display: flex; flex-wrap: wrap; gap: var(--j-space-2); align-items: center; font-size: var(--j-text-xs); color: var(--j-color-muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
 .row .tool { font: 500 var(--j-text-md)/1.4 var(--j-font); }
 .row.current { box-shadow: inset 2px 0 0 var(--j-color-accent); }
-.row.revoked { opacity: .7; }
 /* Pastille d'état : fond soft, texte et contour pleins (jamais du texte sur un fond plein de la même teinte). */
 .badge {
   display: inline-flex; align-items: center; height: 22px; margin: 0; padding: 0 var(--j-space-2); border: 1px solid; border-radius: 999px;
