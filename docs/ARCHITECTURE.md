@@ -102,7 +102,7 @@ L'icône de la zone de notification Windows et le raccourci clavier global sont 
 - `memory` : préférences et routines, en clé/valeur. La recherche vectorielle (`sqlite-vec`) ne sera ajoutée que si un vrai besoin de rappel sémantique apparaît (YAGNI).
 - Sauvegarde : copie quotidienne du fichier `.db` (Phase 5).
 
-- Routes PWA ajoutées en Phase 6 : `/api/dashboard` (N0, `jarvis/core/dashboard.py`, non journalisé) ; `/api/mic` et `/api/mic/challenge` (kill switch `~/.jarvis/mic_off`, `start_mic` dans `__main__.py`, journalisé `pwa:<id>`).
+- Routes PWA ajoutées en Phase 6 : `/api/dashboard` (N0, `jarvis/core/dashboard.py`, non journalisé) ; `/api/mic` et `/api/mic/challenge` (kill switch `~/.jarvis/mic_off`, `start_mic` dans `__main__.py`, journalisé `pwa:<id>`) ; `/api/stt` (bouton « parler » : audio brut du téléphone → texte, 6 par minute et par appareil, une transcription à la fois, journal sans texte).
 
 ### 3.8 Voix (Phase 4), 100 % locale
 - Mot de réveil : openWakeWord. Le modèle « hey jarvis » existe tout prêt ; « Jarvis » seul demandera un entraînement maison.

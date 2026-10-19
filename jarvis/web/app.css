@@ -219,6 +219,11 @@ input[aria-invalid="true"] { border-color: var(--j-color-danger); }
 .send svg { width: 20px; height: 20px; stroke-width: 2; }
 .send:hover:not(:disabled) { box-shadow: var(--j-glow); filter: brightness(1.08); }
 .send:disabled { opacity: .45; cursor: not-allowed; }
+.talk { background: transparent; color: var(--j-color-accent); border: 1px solid var(--j-color-border-strong); }
+.talk svg { fill: none; stroke: currentColor; stroke-linecap: round; }
+.talk[aria-pressed="true"] { background: var(--j-color-accent); color: var(--j-color-on-accent); animation: talk-pulse 1.2s ease-in-out infinite; }
+@keyframes talk-pulse { 50% { box-shadow: var(--j-glow); } }
+@media (prefers-reduced-motion: reduce) { .talk[aria-pressed="true"] { animation: none; } }
 
 /* Orbe JARVIS : noyau lumineux + anneau qui respire ; la grande version ajoute des anneaux concentriques. */
 .orb {

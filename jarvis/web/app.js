@@ -74,12 +74,13 @@ const hhmm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', m
 async function api(path, { method = 'GET', body, auth = true } = {}) {
   const headers = {};
   if (auth && token) headers.Authorization = `Bearer ${token}`;
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const raw = body instanceof Blob; // audio du bouton « parler » : envoyé tel quel, pas en JSON
+  if (body !== undefined) headers['Content-Type'] = raw ? body.type.split(';')[0] : 'application/json';
   let res;
   try {
     res = await fetch(path, {
       method, headers, cache: 'no-store', credentials: 'omit',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
     });
   } catch {
     setLink(false);

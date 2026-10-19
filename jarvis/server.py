@@ -17,6 +17,7 @@ import uvicorn  # noqa: E402
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field, StrictBool, StrictInt
 
@@ -72,8 +73,12 @@ HEADERS = {
     "Cross-Origin-Resource-Policy": "same-origin",
     "Cache-Control": "no-store",
     "X-Frame-Options": "DENY",  # redondant avec frame-ancestors, pour les vieux navigateurs
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "Permissions-Policy": "camera=(), microphone=(self), geolocation=(), payment=(), usb=()",  # micro : bouton « parler » de la PWA
 }
+STT_TYPES = {"audio/webm", "audio/ogg", "audio/mp4"}  # ce que MediaRecorder produit (Chrome/Android, Firefox, Safari)
+STT_BODY_MAX = 512 * 1024  # ~30 s d'Opus ; la durée décodée est bornée à part (STT_SECONDS_MAX)
+STT_SECONDS_MAX = 30
+STT_MAX = 6  # transcriptions par appareil et par minute : une phrase de 30 s occupe Whisper plusieurs secondes
 _now = time.monotonic  # remplacé dans les tests
 WEB_DIR = Path(__file__).parent / "web"
 # Fichiers statiques : dossier plat, extensions de cette liste seulement. Un chemin ne sert que s'il est EXACTEMENT
@@ -179,7 +184,8 @@ class LevelIn(BaseModel):
 
 
 def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-               web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None) -> FastAPI:
+               web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None,
+               stt=None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)  # pas de /docs ni de schéma public
     # Host accepté -> Origin attendu pour ce Host. Liste fermée : jamais de joker, jamais de confiance dans l'IP source
     # ni dans les en-têtes Tailscale (derrière `tailscale serve`, tout arrive de 127.0.0.1).
@@ -270,12 +276,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if request.method != "GET":
             if request.headers.get("origin") != origin:  # absent ou différent : refus (CSRF)
                 return reply(403, "origine refusée")
-            if request.headers.get("content-type", "").split(";")[0].strip() != "application/json":
-                return reply(415, "JSON attendu")
+            audio = request.url.path == "/api/stt"  # seule route qui reçoit autre chose que du JSON
+            kind = request.headers.get("content-type", "").split(";")[0].strip()
+            if kind not in (STT_TYPES if audio else {"application/json"}):
+                return reply(415, "audio attendu" if audio else "JSON attendu")
             length = request.headers.get("content-length", "")
-            if not length.isdigit():
+            if not (length.isascii() and length.isdigit()):
                 return reply(411, "longueur requise")
-            if int(length) > BODY_MAX:
+            if int(length) > (STT_BODY_MAX if audio else BODY_MAX):
                 return reply(413, "corps trop gros")
         response = await call_next(request)
         for key, value in HEADERS.items():
@@ -314,20 +322,61 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     voices: dict[str, Voice] = {}  # (appareil/client) -> Voice : « hors ligne » ne vaut que pour le micro qui l'a dit
     voice_calls: dict[int, deque[float]] = {}
 
+    stt_slot = threading.BoundedSemaphore(1)  # une transcription à la fois : jamais de file de threads bloqués derrière Whisper
+
+    def voice_over_quota(device: int, cap: int = VOICE_MAX) -> bool:  # compteur commun à /api/voice et /api/stt
+        with counters:
+            recent = voice_calls.setdefault(device, deque())
+            while recent and _now() - recent[0] > QUOTA_WINDOW_S:
+                recent.popleft()
+            over = len(recent) >= cap
+            if not over:
+                recent.append(_now())
+        return over
+
+    @app.post("/api/stt")
+    async def stt_say(request: Request):
+        """Audio du micro du téléphone -> texte (Whisper du PC). Ne lance aucune action : le texte repart par /api/chat."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if stt is None:
+            return reply(503, "reconnaissance vocale indisponible")
+        if voice_over_quota(auth[0], STT_MAX):
+            return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
+        if not stt_slot.acquire(blocking=False):
+            return reply(503, "reconnaissance vocale occupée")
+        try:
+            from jarvis.core.stt import AudioTooLong, BadAudio, STTError, decode_audio  # import tardif : extra `voice`
+            raw, kind = await request.body(), request.headers["content-type"].split(";")[0].strip()
+
+            def run():
+                pcm = decode_audio(raw, kind, STT_SECONDS_MAX)  # en mémoire seulement : l'audio ne touche jamais le disque
+                return stt.transcribe(pcm), len(pcm) / 16000
+
+            try:
+                text, seconds = await run_in_threadpool(run)
+            except AudioTooLong:
+                code, why = 413, "audio trop long"
+            except BadAudio:
+                code, why = 422, "audio illisible"
+            except STTError:
+                code, why = 503, "reconnaissance vocale indisponible"
+            else:
+                audit.log(f"pwa:{auth[0]}", "stt", {"secondes": round(seconds, 1)}, None, "auto", "voix du téléphone transcrite")  # jamais le texte
+                return {"text": text}
+            audit.log(f"pwa:{auth[0]}", "stt", {}, None, "refusé", why)
+            return reply(code, why)
+        finally:
+            stt_slot.release()
+
     @app.post("/api/voice")
     def voice_say(body: VoiceIn, request: Request):
         """Texte reconnu par un client voix -> réponse à lire. Plafond N0/N1 (cf. Voice.handle) ; le texte est une donnée."""
         auth = authenticate(request, voice_route=True)
         if isinstance(auth, JSONResponse):
             return auth
-        with counters:
-            recent = voice_calls.setdefault(auth[0], deque())
-            while recent and _now() - recent[0] > QUOTA_WINDOW_S:
-                recent.popleft()
-            over = len(recent) >= VOICE_MAX
-            if not over:
-                recent.append(_now())
-        if over:
+        if voice_over_quota(auth[0]):
             return reply(429, "trop de requêtes", **{"Retry-After": str(QUOTA_WINDOW_S)})
         key = f"{auth[0]}/{body.client}"
         with counters:
@@ -682,7 +731,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
 
 def make_server(devices: Devices, audit: Audit, port: int, chat: Chat | None = None,
-                web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None) -> uvicorn.Server:
-    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host, push, mic), host=HOST, port=port, access_log=False,
+                web_dir: Path = WEB_DIR, ts_host: str | None = None, push: Push | None = None, mic=None,
+                stt=None) -> uvicorn.Server:
+    config = uvicorn.Config(create_app(devices, audit, port, chat, web_dir, ts_host, push, mic, stt), host=HOST, port=port, access_log=False,
                             server_header=False, proxy_headers=False, log_level="warning")
     return uvicorn.Server(config)

@@ -150,7 +150,8 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=_voyages_watch, args=(audit,), daemon=True).start()
         threading.Thread(target=_conso_watch, daemon=True).start()
         threading.Thread(target=_conso_home_watch, args=(audit,), daemon=True).start()
-        server = make_server(devices, audit, port, ts_host=ts_host, mic=mic)
+        server = make_server(devices, audit, port, ts_host=ts_host, mic=mic,
+                             stt=getattr(mic.on_utterance, "stt", None) if mic else None)  # même modèle que le micro du PC
         threading.Thread(target=_bienetre, daemon=True).start()
         print(f"Serveur local sur http://{HOST}:{port}" + (f" et https://{ts_host} (via tailscale serve)" if ts_host else "")
               + " (Ctrl+C pour arrêter)", file=sys.stderr)
