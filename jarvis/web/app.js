@@ -193,11 +193,12 @@ function show(name) {
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
 
-// Raccourcis clavier (bureau) : Alt+1..9 suit l'ordre du menu, « / » met le focus sur la saisie du chat.
+// Raccourcis clavier (bureau) : Alt+1..9 puis Alt+0 suivent l'ordre du menu, « / » met le focus sur la saisie du chat.
 const tabOrder = [...document.querySelectorAll('.tab')].map((t) => t.dataset.view);
+document.querySelectorAll('.tab').forEach((t, i) => { if (i < 10) t.setAttribute('aria-keyshortcuts', `Alt+${(i + 1) % 10}`); });
 document.addEventListener('keydown', (e) => {
   if ($('app').hidden || !$('overlay').hidden || e.ctrlKey || e.metaKey) return;
-  if (e.altKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); show(tabOrder[Number(e.key) - 1]); return; }
+  if (e.altKey && /^\d$/.test(e.key)) { e.preventDefault(); show(tabOrder[(Number(e.key) + 9) % 10]); return; }
   if (e.key === '/' && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
     e.preventDefault(); show('chat'); $('chat-input').focus();
   }

@@ -225,6 +225,8 @@ input[aria-invalid="true"] { border-color: var(--j-color-danger); }
 @keyframes talk-pulse { 50% { box-shadow: var(--j-glow); } }
 @media (prefers-reduced-motion: reduce) { .talk[aria-pressed="true"] { animation: none; } }
 
+@media (pointer: coarse) { .btn { min-height: var(--j-target); } }
+
 /* Orbe JARVIS : noyau lumineux + anneau qui respire ; la grande version ajoute des anneaux concentriques. */
 .orb {
   position: relative; width: 48px; height: 48px; border-radius: 50%;
