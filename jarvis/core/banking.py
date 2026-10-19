@@ -321,8 +321,8 @@ def _outflows(accounts: list) -> list[dict]:
 
 
 def view(limit: int = 30) -> dict | None:
-    """Pour l'onglet Finances : soldes par compte, `limit` dernières opérations et jours de consentement restants,
-    sans uid ni session.
+    """Pour l'onglet Finances : soldes par compte (`stale` : dernière lecture de sa banque en échec, solde d'un cache
+    précédent), `limit` dernières opérations et jours de consentement restants, sans uid ni session.
 
     None si rien n'a encore été récupéré ou si le cache est illisible (coffre indisponible) : l'onglet reste utilisable.
     """
@@ -334,11 +334,12 @@ def view(limit: int = 30) -> dict | None:
     if not data:
         return None
     accounts = data.get("accounts") or []
-    txs = [dict(t, account=f"{a['bank']} · {a['name']}", currency=a["currency"]) for a in accounts for t in a["transactions"]]
+    failed = set(data.get("failed") or [])
+    txs =[dict(t, account=f"{a['bank']} · {a['name']}", currency=a["currency"]) for a in accounts for t in a["transactions"]]
     monday = (date.today() - timedelta(days=date.today().weekday())).isoformat()
     spent = round(-sum(t["amount"] for t in _outflows(accounts) if t["date"] >= monday), 2)
     total = round(sum(a["balance"] or 0 for a in accounts if a["currency"] == "EUR"), 2)
     flat = [dict(t, bank=a["bank"]) for a in accounts if a["currency"] == "EUR" for t in a["transactions"]]
     return {"fetched_at": data.get("fetched_at"), "consent": consent, "total": total, "week_spent": spent, "cycle": budget.report(flat),
-            "accounts": [{k: a[k] for k in ("bank", "name", "currency", "balance")} for a in accounts],
+            "accounts": [{**{k: a[k] for k in ("bank", "name", "currency", "balance")}, "stale": a["bank"] in failed} for a in accounts],
             "transactions": sorted(txs, key=lambda t: t["date"], reverse=True)[:limit]}

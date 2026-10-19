@@ -10,11 +10,27 @@ function clearFinance() {
   $('fin-bank').hidden = $('fin-crypto').hidden = $('fin-cycle').hidden = $('fin-portfolio').hidden = $('fin-invest').hidden = true;
   $('fin-bank-at').textContent = '';
 }
+// D3 : Finances s'ouvre 10 min après une signature de la clé d'accès (un token volé ne lit rien). Vrai si déverrouillé.
+async function unlockFinance() {
+  const ch = await api('/api/passkey/challenge', { method: 'POST', body: { action: 'finance' } });
+  if (!ch.ok) { toast('Enregistrez d’abord une clé d’accès (Réglages) pour ouvrir Finances.'); return false; }
+  const assertion = await getAssertion(ch.data);
+  if (!assertion) { toast('Clé d’accès non validée.'); return false; }
+  const ok = (await api('/api/finance/unlock', { method: 'POST', body: { assertion } })).ok;
+  if (!ok) toast('Déverrouillage refusé.');
+  return ok;
+}
+$('fin-unlock').addEventListener('click', async () => {
+  $('fin-unlock').disabled = true;
+  try { if (await unlockFinance()) await loadFinance(); } catch { /* api() a déjà prévenu */ } finally { $('fin-unlock').disabled = false; }
+});
 async function loadFinance() {
   const err = $('fin-error'), state = $('fin-state');
   err.hidden = true; state.hidden = false; state.textContent = 'Chargement…';
+  $('fin-unlock').hidden = true;
   try {
     const b = await api('/api/finance/bank');
+    if (b.status === 403) { clearFinance(); state.textContent = 'Finances verrouillées.'; $('fin-unlock').hidden = false; return; }
     if (!b.ok) throw new Error('bad');
     if (views.finance.hidden) return; // vue quittée pendant le chargement
     renderBank(b.data?.bank); renderCrypto(b.data?.crypto); renderPortfolio(b.data?.portfolio);
@@ -51,6 +67,7 @@ function renderBank(b) {
   $('fin-accounts').replaceChildren(...b.accounts.map((a) => {
     const s = el('section', 'panel hud stat');
     s.append(cardTitle(a.bank, LOGOS[a.bank]), el('p', 'big', money(a.balance, a.currency)), el('p', 'muted', a.name));
+    if (a.stale) s.append(el('p', 'warn', 'Non actualisé : dernière lecture en échec'));
     return s;
   }));
   $('fin-tx').replaceChildren(...(b.transactions.length ? b.transactions.slice(0, 6).map((t) => {

@@ -2,7 +2,8 @@
 
 - Le serveur crée la demande de confirmation (id aléatoire, aperçu calculé ICI, jamais le texte du LLM) ; elle sert une
   seule fois, expire après 60 s, et seul l'appareil qui a posé la question peut l'approuver. Approuver = `True` strict.
-- N3 : l'appareil doit signer le défi de CETTE demande avec sa clé d'accès (WebAuthn) ; sans clé, ou sans WebAuthn, refusé.
+- N3, et les N2 « forts » de `STRONG_N2` (D2 : un token volé ne suffit pas) : l'appareil doit signer le défi de CETTE
+  demande avec sa clé d'accès (WebAuthn) ; sans clé, ou sans WebAuthn, refusé.
 - Le journal garde la longueur et le SHA-256 de la demande, jamais son texte (l'audit est en ajout seul, non purgeable).
 """
 import hashlib
@@ -73,7 +74,8 @@ class Pending:
     preview: str
     deadline: float
     level: int = 2
-    webauthn: dict | None = None  # N3 : options de navigator.credentials.get, défi lié à cette demande
+    webauthn: dict | None = None  # N3 et N2 forts : options de navigator.credentials.get, défi lié à cette demande
+    keyed: bool = False  # clé d'accès exigée : « oui » sans assertion valide vaut refus
     verified: bool = False
     event: threading.Event = field(default_factory=threading.Event)
     approved: bool = False
@@ -153,7 +155,7 @@ class Chat:
                     if p.event.is_set() or _now() > p.deadline:
                         return False
                     p.approved = approve is True
-                    if p.approved and p.level >= Level.N3:
+                    if p.approved and p.keyed:
                         p.verified = p.approved = (assertion is not None and self.passkeys is not None
                                                    and self.passkeys.verify(device, f"confirm:{p.id}", assertion))
                         if not p.verified:
@@ -164,11 +166,12 @@ class Chat:
 
     def _confirm(self, job: Job, tool: Tool, args: dict) -> bool:
         # le chat est la PWA : clé d'accès pour les outils du propriétaire et les N2 forts D2 (cf. permissions.execute)
-        level = max(effective(tool), Level.N3) if tool.owner_only or tool.name in STRONG_N2 else effective(tool)
+        level = max(effective(tool), Level.N3) if tool.owner_only else effective(tool)
         job.strong = False
-        if level >= Level.N3 and not (self.passkeys and self.passkeys.has(job.device)):  # inutile de demander
+        keyed = level >= Level.N3 or level == Level.N2 and tool.name in STRONG_N2
+        if keyed and not (self.passkeys and self.passkeys.has(job.device)):  # inutile de demander
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé",
-                           "N3 refusé : aucune clé d'accès pour cet appareil")
+                           f"N{int(level)} refusé : clé d'accès requise, aucune pour cet appareil")
             return False
         if job.aborted or _now() > job.deadline:
             self.audit.log(f"pwa:{job.device}", "confirm", {"tool": tool.name}, int(level), "refusé",
@@ -177,8 +180,8 @@ class Chat:
         preview = tool.preview(args)
         if len(preview) > PREVIEW_MAX:
             preview = preview[:PREVIEW_MAX] + "… (aperçu tronqué : refuse si tu ne reconnais pas la cible)"
-        p = Pending(secrets.token_urlsafe(16), tool.name, preview, _now() + CONFIRM_TTL_S, int(level))
-        if level >= Level.N3:
+        p = Pending(secrets.token_urlsafe(16), tool.name, preview, _now() + CONFIRM_TTL_S, int(level), keyed=keyed)
+        if keyed:
             p.webauthn = self.passkeys.request_options(job.device, f"confirm:{p.id}")
         with self.lock:
             job.pending = p

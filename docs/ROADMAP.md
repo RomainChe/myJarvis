@@ -10,8 +10,9 @@ Règle : cette section reste sous ~2 Ko. Une tâche finie se résume en une lign
 - **Mini-PC** (docs/MIGRATION_CORE_MINIPC.md, « Reste à faire ») : lots 0 à 5 faits. Le 2026-10-25 au plus tôt (une semaine sans retour arrière) : supprimer VM Hyper-V et tâches Windows désactivées. Reste : revue Sécurité de `pc_off_plug`, test à blanc de la prise Tapo (INSTALL_SERVEUR_HA §10.3), tuile Mini-PC à essayer.
 - **Voix** : PC (4b) et salon (4c) déployés ; reste latence PC ~5 s, Voice PE à recevoir puis `hey_jarvis` et comptage des faux réveils. `jarvis_fr` : essai `JARVIS_WAKE_WORD=jarvis_fr` + `JARVIS_WAKE_THRESHOLD=0.7`, puis revue Sécurité.
 - **Bouton « parler » PWA** (`/api/stt`, feu vert Sécurité) : reste l'essai sur le téléphone (HTTPS Tailscale) et 375/1280 px. Sur le mini-PC `/api/stt` répond 503 (pas de Whisper) : relayer vers le PC si voulu.
-- **Finances** : relance des banques en échec à 13 h et 19 h faite. Reste : vérifier `journalctl --user -u jarvis-banque` le 2026-10-20.
-- **Consommation** : reste l'essai 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente de décision. **Refonte visuelle PWA** (cache v53) : reste l'œil sur des données réelles.
+- **Finances** : relance des banques en échec à 13 h et 19 h faite ; compte d’une banque en échec marqué « non actualisé » dans l’onglet. Reste : vérifier `journalctl --user -u jarvis-banque` le 2026-10-20.
+- **Consommation** : reste l'essai 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente de décision. **Refonte visuelle PWA** (cache v54) : reste l'œil sur des données réelles.
+- **Phase 5 étapes 1 et 9** (token volé, `feat/phase5-token-vole`, fusionnée le 2026-10-19) : D2/D3/D6, clé d'accès pour les N2 forts et Finances, token 90 j renouvelé, « révoquer tout ». Reste revue Sécurité de la fusion et essai sur le téléphone.
 - **Essais réels en attente** : rappels/briefing (voix + push), outil Claude Code, `voyage_recherche` (envoie un e-mail).
 - **À faire par le propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md (sauvegardes hors mini-PC, `secret set mail_sig_key`, tests C5/F6/G2) ; droits TikTok ; Swile et Ledger à brancher.
 - **Décisions en attente** : destination des sauvegardes, consignes des clims (reportées), texte du rappel dans le push, choix des pistes Phase 7.

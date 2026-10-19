@@ -384,6 +384,109 @@ class DevicesTest(unittest.TestCase):
         self.assertEqual(sum(r is not None for r in results), 1)
 
 
+class TokenTest(unittest.TestCase):
+    """D6 : token valable 90 jours glissants, renouvelé à chaque ouverture, ancien valable jusqu'au premier usage du nouveau."""
+    def setUp(self):
+        self.t = [1000.0]
+        patch = mock.patch.object(dev, "_now", lambda: self.t[0])
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.d = Devices(":memory:")
+        self.id, self.token = self.d.enroll(self.d.new_code(), "tel")
+
+    def test_expire_apres_90_jours_sans_renouvellement(self):
+        self.t[0] += dev.TOKEN_TTL_S - 1
+        self.assertIsNotNone(self.d.check(self.token))
+        self.t[0] += 2
+        self.assertIsNone(self.d.check(self.token))
+        self.assertIsNone(self.d.rotate(self.id, self.token))  # expiré : plus de renouvellement possible
+
+    def test_renouvellement_prolonge_et_remplace(self):
+        self.t[0] += dev.TOKEN_TTL_S - 1
+        new = self.d.rotate(self.id, self.token)
+        self.assertIsNotNone(self.d.check(self.token))  # réponse pas encore arrivée : l'ancien marche
+        self.assertEqual(self.d.check(new), (self.id, "tel"))
+        self.assertIsNone(self.d.check(self.token))  # le nouveau a servi : l'ancien est mort
+        self.t[0] += dev.TOKEN_TTL_S - 1
+        self.assertIsNotNone(self.d.check(new))
+
+    def test_reponse_perdue_l_ancien_reste_valable(self):
+        self.d.rotate(self.id, self.token)  # le téléphone n'a jamais reçu ce token
+        newer = self.d.rotate(self.id, self.token)  # ouverture suivante, avec l'ancien
+        self.assertIsNotNone(self.d.check(self.token))
+        self.assertIsNotNone(self.d.check(newer))
+
+    def test_revoque_ni_renouvele_ni_valable(self):
+        self.d.revoke(self.id)
+        self.assertIsNone(self.d.rotate(self.id, self.token))
+        self.assertIsNone(self.d.check(self.token))
+
+    def test_base_d_avant_d6_migree_sans_couper_les_appareils(self):
+        path = str(Path(tempfile.mkdtemp()) / "old.db")
+        import sqlite3
+        db = sqlite3.connect(path)
+        db.executescript("CREATE TABLE devices (id INTEGER PRIMARY KEY, name TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,"
+                         " created REAL NOT NULL, last_used REAL, revoked INTEGER NOT NULL DEFAULT 0);")
+        db.execute("INSERT INTO devices (name, token_hash, created) VALUES ('tel', ?, 0)", (dev._h("ancien"),))
+        db.commit()
+        db.close()
+        self.assertEqual(Devices(path).check("ancien")[1], "tel")
+        self.t[0] += dev.TOKEN_TTL_S + 1
+        self.assertIsNone(Devices(path).check("ancien"))
+
+    def test_expiration_a_la_seconde_pres(self):
+        self.t[0] += dev.TOKEN_TTL_S  # borne incluse
+        self.assertIsNotNone(self.d.check(self.token))
+        self.t[0] += 0.001
+        self.assertIsNone(self.d.check(self.token))
+
+    def test_renouvellements_concurrents_un_seul_gagnant(self):
+        """Deux onglets (ou un voleur) renouvellent en même temps avec le même token : jamais deux tokens neufs valables."""
+        news, barrier = [], threading.Barrier(8)
+
+        def go():
+            barrier.wait()
+            news.append(self.d.rotate(self.id, self.token))
+        threads = [threading.Thread(target=go) for _ in range(8)]
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join()
+        self.assertTrue(all(news))
+        self.assertIsNotNone(self.d.check(self.token))  # l'ancien reste valable tant qu'aucun neuf n'a servi
+        self.assertEqual(sum(self.d.check(n) is not None for n in news), 1)
+        self.assertIsNone(self.d.check(self.token))
+
+    def test_revoquer_tout_sauf_un(self):
+        other = self.d.enroll(self.d.new_code(), "pc")[1]
+        self.assertEqual(self.d.revoke_all(keep=self.id), 1)
+        self.assertIsNotNone(self.d.check(self.token))
+        self.assertIsNone(self.d.check(other))
+        self.assertEqual(self.d.revoke_all(), 1)
+        self.assertIsNone(self.d.check(self.token))
+
+
+class TokenRouteTest(ServerBase):
+    def test_renouvellement_par_la_route(self):
+        _, token = self.enroll()
+        self.assertEqual(self.call("POST", "/api/token", {})[0], 401)
+        status, body, _ = self.call("POST", "/api/token", {}, token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(self.call("GET", "/api/ping", token=body["token"])[0], 200)
+        self.assertEqual(self.call("GET", "/api/ping", token=token)[0], 401)
+        self.assertIn("token_rotate", str(self.audit.last(5)))
+        self.assertNotIn(body["token"], str(self.audit.last(20)))
+
+    def test_route_reponse_perdue_puis_expire(self):
+        _, token = self.enroll()
+        self.call("POST", "/api/token", {}, token=token)  # réponse jamais reçue
+        status, body, _ = self.call("POST", "/api/token", {}, token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(self.call("GET", "/api/ping", token=body["token"])[0], 200)
+        with mock.patch.object(dev, "_now", lambda: time.time() + dev.TOKEN_TTL_S + 60):
+            self.assertEqual(self.call("POST", "/api/token", {}, token=body["token"])[0], 401)
+
+
 class CliTest(unittest.TestCase):
     def setUp(self):
         self.db = ":memory:"
@@ -420,6 +523,13 @@ class CliTest(unittest.TestCase):
         self.assertIn("device_add", rows)
         self.assertIn("device_revoke", rows)
         self.assertNotIn(token, rows)
+
+    def test_revoke_all(self):
+        tokens = [self.devices.enroll(self.devices.new_code(), n)[1] for n in ("tel", "pc")]
+        self.assertEqual(self.run_cli(["device", "revoke", "all"], tty=False)[0], 1)  # terminal exigé
+        code, out = self.run_cli(["device", "revoke", "all"], tty=True)
+        self.assertEqual((code, all(self.devices.check(t) is None for t in tokens)), (0, True))
+        self.assertIn("2 appareil(s)", out)
 
     def test_url_d_enrolement_dans_le_fragment(self):
         with mock.patch.object(cli, "ts_host_from_env", return_value=TS):

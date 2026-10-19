@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from jarvis.core import finance
-from tests.test_server import ServerBase
+from test_webauthn import WebAuthnServerBase
 
 NB = "\u00a0"
 
@@ -88,10 +88,16 @@ class FinanceTest(unittest.TestCase):
         self.assertEqual(finance.finance_dir(cfg.with_name("absent.json")), finance.DEFAULT_DIR)
 
 
-class FinanceRouteTest(ServerBase):
+class FinanceRouteTest(WebAuthnServerBase):
+    def setUp(self):  # D3 : Finances déverrouillées par la clé d'accès (verrou testé dans test_webauthn.FinanceUnlockTest)
+        super().setUp()
+        self.register_key()
+        options = self.call("POST", "/api/passkey/challenge", {"action": "finance"})[1]
+        self.assertEqual(self.call("POST", "/api/finance/unlock", {"assertion": self.a.get(options)})[0], 200)
+
     def test_authentification_exigee_lecture_journalisee(self):
-        self.assertEqual(self.call("GET", "/api/finance")[0], 401)
-        _, token = self.enroll()
+        self.assertEqual(self.call("GET", "/api/finance", token="x" * 20)[0], 401)
+        token = self.token
         with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}), \
                 mock.patch("jarvis.server.bank_view", return_value={"accounts": []}) as bank, \
                 mock.patch("jarvis.server.crypto_view", return_value=None) as crypto,                 mock.patch("jarvis.server.portfolio_view", return_value=None), \
@@ -108,7 +114,7 @@ class FinanceRouteTest(ServerBase):
         self.assertIn("bank_read", str(body))
 
     def test_lectures_repetees_une_seule_ligne_par_minute(self):
-        _, token = self.enroll()
+        token = self.token
         with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}):
             for _ in range(5):
                 self.assertEqual(self.call("GET", "/api/finance", token=token)[0], 200)
@@ -116,7 +122,7 @@ class FinanceRouteTest(ServerBase):
         self.assertEqual(str(body).count("finance_read"), 1)
 
     def test_route_bancaire_authentifiee(self):
-        self.assertEqual(self.call("GET", "/api/finance/bank")[0], 401)
+        self.assertEqual(self.call("GET", "/api/finance/bank", token="x" * 20)[0], 401)
 
 
 if __name__ == "__main__":

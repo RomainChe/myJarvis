@@ -1,5 +1,11 @@
 # Décisions et risques acceptés
 
+## 2026-10-19 — Phase 5 étapes 1 et 9 : token volé, rotation D6 (revue Sécurité : feu vert sous conditions)
+- **Choix** : durée du token renouvelée par rotation (`/api/token`), pas par simple usage ; le token précédent reste valable jusqu'au premier usage du nouveau ; clé d'accès pour les N2 forts (`STRONG_N2`) et Finances ; « révoquer tout ».
+- **M1 (moyenne, non durci)** : un voleur qui présente l'ancien token après le renouvellement légitime peut le faire tourner à son tour ; le propriétaire est alors éjecté (message « token volé ? »), ce qui sert de détection. Durcissement possible : refuser la rotation avec le token précédent.
+- **B1 (basse)** : le déverrouillage de Finances (10 min) est lié à l'appareil, pas au token ; couvert par « révoquer tout ».
+- **B2 (basse, disponibilité)** : une clé de portée voix ne se renouvelle pas et expire 90 jours après sa création (le micro du salon se tait sans alerte) : refaire `device add --voice <nom>` tous les 90 jours, ou allonger le TTL de cette portée (décision du propriétaire).
+
 ## 2026-10-14 — Onglet Consommation, étape 3 : conseils (revue Sécurité : feu vert sous conditions)
 - **Choix** : `conso_conseils` en N0, règles déterministes (hausse du logement, part du PC, hausse du PC), texte construit uniquement à partir de chiffres calculés par le Core, jamais d'une chaîne de MyElectricalData ; aucun push.
 - **Corrigé** : (1) `conso_conseils`, `conso_pc`, `conso_totale` en `private=True` : le journal ne garde que le type et la longueur du résultat (kWh, € et part du PC = habitudes de vie). Test : résultat absent du journal.
@@ -127,6 +133,11 @@
 - **Risque accepté par le propriétaire (RGPD)** : une recherche ponctuelle publie sa destination et ses dates dans les journaux GitHub Actions du dépôt public `flight-price-tracker`, et l'e-mail de résultats y reste en artefact 7 jours. Même exposition que `voyage_destination` (ci-dessus).
 - **Corrigé** : (2) une recherche par minute au plus (`SEARCH_EVERY_S`). Documenté : mention du dépôt public dans docs/TOOLS.md.
 - **Non retenu** : (3) `-R` explicite : le dépôt reste déduit du clone configuré (`voyages.json`), source unique pour la lecture, le push et la recherche.
+
+## 2026-10-14 — Phase 5, étapes 1 et 9 : D2, D3, D6 (décision du propriétaire)
+- **D2** : clé d'accès exigée pour les N2 `run_script`, `delete_file`, `kill_process`, `power`, `clipboard_read`, `screenshot`, `mail_recent` dans la PWA (`chat.STRONG_N2`). La voix et le terminal ne changent pas : ils n'utilisent pas de token.
+- **D3** : clé d'accès pour ouvrir Finances (10 min par signature), pas pour la Veille.
+- **D6** : token d'appareil valable 90 jours glissants, renouvelé à chaque ouverture de la PWA ; « révoquer tout » au terminal et dans la PWA (avec clé d'accès).
 
 ## 2026-10-14 — `claude_code` depuis la PWA : clé d'accès exigée (revue Sécurité Phase 5, constat H1)
 - **Décision du propriétaire** : l'outil reste N1 (exception du CLAUDE.md §4), mais une demande venant de `pwa:*` exige la signature de la clé d'accès de l'appareil, comme une confirmation N3. Le terminal local (`cli`) reste sans confirmation.

@@ -71,7 +71,7 @@ const clip = (s, n) => { const t = String(s ?? ''); return t.length > n ? `${t.s
 const CACHEABLE = /^\/api\/(dashboard|social|voyages|finance|finance\/bank|bienetre|veille|audit|devices|levels|memory|reminders)$/;
 const lastRead = new Map();
 const hhmm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-async function api(path, { method = 'GET', body, auth = true } = {}) {
+async function api(path, { method = 'GET', body, auth = true, retried = false } = {}) {
   const headers = {};
   if (auth && token) headers.Authorization = `Bearer ${token}`;
   const raw = body instanceof Blob; // audio du bouton « parler » : envoyé tel quel, pas en JSON
@@ -96,7 +96,11 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
   setStatus('');
   setLink(true);
   document.body.classList.remove('stale');
-  if (res.status === 401 && auth) { await signOut(); throw new Error('unauthorized'); }
+  if (res.status === 401 && auth) {
+    const stored = await getToken(); // un autre onglet a renouvelé le token (D6) : on reprend le sien, une fois
+    if (!retried && stored && stored !== token) { token = stored; return api(path, { method, body, auth, retried: true }); }
+    await signOut(); throw new Error('unauthorized');
+  }
   if (res.status === 429) toast('Jarvis est occupé, réessayez dans un instant.');
   const data = await res.json().catch(() => null);
   if (res.ok && method === 'GET' && data && CACHEABLE.test(path)) lastRead.set(path, { data, at: Date.now() });
@@ -129,7 +133,7 @@ async function signOut() {
   $('overlay').hidden = true;
   $('app').inert = false;
   setBusy(false);
-  setStatus('Non autorisé : associez de nouveau cet appareil.');
+  setStatus('Non autorisé : associez de nouveau cet appareil. Si vous n’avez rien fait, un token a pu être volé : sur le PC, « python -m jarvis device revoke all ».');
   showEnroll();
 }
 
@@ -265,7 +269,7 @@ async function handlePending(p, say = addMsg) {
   if (choice === 'expired') { say('note', 'Demande expirée, rien n\'a été fait.'); return; }
   let approve = choice === 'approve';
   let assertion;
-  if (approve && p.webauthn) { // N3 : la clé d'accès signe le défi de CETTE demande
+  if (approve && p.webauthn) { // N3 et N2 forts : la clé d'accès signe le défi de CETTE demande
     assertion = await getAssertion(p.webauthn);
     if (!assertion) { approve = false; toast('Clé d\'accès non validée : action annulée.'); }
   }

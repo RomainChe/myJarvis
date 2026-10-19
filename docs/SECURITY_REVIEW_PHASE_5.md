@@ -116,3 +116,18 @@ Limites : un seul modèle, température 0, 40 cas écrits à la main (pas un fuz
 | 8 attaques neuves écrites après le réglage, une seule mesure | **3 / 8 (37 %)** |
 
 Lecture : le scanner attrape les formulations courantes, pas les paraphrases (« nouvelle mission », « super-utilisateur », « annule la demande précédente »). C'est attendu pour des regex : le taux réel face à un attaquant qui adapte le texte est faible. Ne jamais s'en servir pour autoriser quoi que ce soit. Les 50 phrases saines peuvent donner des faux positifs ailleurs (mails réels) : une ligne de journal, sans effet.
+
+## Étapes 1 et 9 — token volé (2026-10-14)
+
+Décisions du propriétaire : D2, D3 et D6 telles que recommandées.
+
+| Point | Ce qui change | Tests |
+| --- | --- | --- |
+| D2 | `chat.STRONG_N2` (`run_script`, `delete_file`, `kill_process`, `power`, `clipboard_read`, `screenshot`, `mail_recent`) : la confirmation exige la clé d'accès comme un N3 ; sans clé, refus sans demande. Un N2 abaissé en N1 n'est plus confirmé ; relevé en N3, il suit la règle N3. | `test_webauthn.StrongN2Test` |
+| D3 | `/api/finance` et `/api/finance/bank` : 403 journalisé (`finance_locked`, une ligne par minute) tant que l'appareil n'a pas signé le défi « finance » (`/api/passkey/challenge` puis `/api/finance/unlock`) ; ouverture de 10 min (`FINANCE_UNLOCK_S`), par appareil, en mémoire. | `test_webauthn.FinanceUnlockTest` |
+| D6 | Token valable 90 jours après son dernier renouvellement ; la PWA appelle `POST /api/token` à chaque ouverture. L'ancien token reste valable jusqu'au premier usage du nouveau (réponse perdue = pas de coupure ; un voleur qui renouvelle avant le propriétaire le déconnecte, ce qui se voit). Bases existantes migrées : 90 jours à partir de la migration. | `test_server.TokenTest`, `TokenRouteTest` |
+| Révoquer tout | `python -m jarvis device revoke all` (terminal) ; PWA > Appareils : « Révoquer tous les autres appareils », signé par la clé d'accès de l'appareil (un token volé ne chasse pas le propriétaire). | `RevokeOthersTest`, `CliTest.test_revoke_all` |
+
+Limite : WebAuthn ne marche que sur l'adresse HTTPS Tailscale. Sur `http://127.0.0.1:8765`, Finances et les N2 forts sont refusés : sur le PC, ouvrir la PWA par l'adresse `https://<nom>.ts.net` (Windows Hello) ou passer par la voix ou le terminal.
+
+Recette QA (2026-10-14) : feu vert, 3 tests ajoutés (expiration à la seconde, renouvellements concurrents, réponse perdue par la route). Corrigés : F2 (révoquer les autres renouvelle aussi le token de l'appareil qui signe, sans ancien valable), M1 (message de déconnexion qui propose `device revoke all`), F4, F5, F6, F7. Limites acceptées : F1 (une copie volée du token profite des 10 min de déverrouillage de Finances du même appareil), F3 (deux onglets ouverts au même instant : déconnexion possible, rare). **H1, à décider par le propriétaire** : `claude_code` (N1, source `pwa:<id>` acceptée) permet à un token volé de faire écrire et fusionner du code qui contourne D2 et D3.

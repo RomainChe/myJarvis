@@ -10,6 +10,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
+from typing import Literal
 
 os.environ["HF_HUB_OFFLINE"] = "1"  # (9) avant tout import voix : le serveur n'ouvre jamais le réseau pour un modèle
 
@@ -64,6 +65,7 @@ VOICE_MAX = 20  # phrases par appareil et par minute : une phrase dite en prend 
 # ponytail: plafond par appareil et par minute sur toutes les routes (l'écran en fait ~60) : borne le journal gonflé par un pair
 # valide à QUOTA_MAX + 1 lignes/min ; un quota par route si l'usage légitime s'en approche.
 QUOTA_MAX, QUOTA_WINDOW_S = 240, 60
+FINANCE_UNLOCK_S = 600  # D3 : une signature de la clé d'accès ouvre Finances 10 min sur cet appareil
 HEADERS = {
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
                                "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
@@ -177,6 +179,14 @@ class MicIn(BaseModel):
     assertion: Assertion | None = None  # réarmer avec une clé d'accès enregistrée : signature du défi « mic:on »
 
 
+class AssertionIn(BaseModel):
+    assertion: Assertion
+
+
+class ChallengeIn(BaseModel):  # actions protégées par la clé d'accès hors chat : liste fermée
+    action: Literal["finance", "devices:revoke"]
+
+
 class LevelIn(BaseModel):
     tool: str = Field(max_length=64, pattern=r"^[A-Za-z0-9_]+$")
     level: int = Field(ge=0, le=3, strict=True)
@@ -197,6 +207,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     quota_logged: dict[int, float] = {}  # une seule ligne de journal par appareil et par fenêtre
     counters = threading.Lock()  # les routes sync tournent dans un pool : deque et dict partagés
     reads_logged: dict[tuple[int, str], float] = {}  # (appareil, lecture) -> dernière ligne de journal
+    finance_unlocked: dict[int, float] = {}  # appareil -> fin du déverrouillage de Finances (en mémoire)
     passkeys = Passkeys(devices, ts_host)  # sans nom Tailscale (HTTPS), WebAuthn est désactivé : N3 reste refusé
     push = push or Push(devices, subject_from_env())
     dashboard = Dashboard(system_status)
@@ -216,14 +227,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
                 failures.popleft()
             return len(failures) >= AUTH_FAIL_MAX
 
-    def log_read(device: int, tool: str, detail: str) -> None:
+    def log_read(device: int, tool: str, detail: str, decision: str = "auto") -> None:
         """Une ligne par appareil et par minute et par lecture : un token volé ne gonfle pas le journal à 240/min.
         Trace avant lecture (journal en échec = rien lu) ; la ligne de la minute couvre les lectures suivantes."""
         with counters:
             last = reads_logged.get((device, tool))
             if last is not None and 0 <= _now() - last < QUOTA_WINDOW_S:
                 return
-        audit.log(f"pwa:{device}", tool, {}, 2, "auto", detail)  # lève si le journal échoue : rien n'est mémorisé
+        audit.log(f"pwa:{device}", tool, {}, 2, decision, detail)  # lève si le journal échoue : rien n'est mémorisé
         with counters:
             reads_logged[(device, tool)] = _now()
 
@@ -424,6 +435,31 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         return {"devices": [{"id": r[0], "name": r[1], "created": r[2], "last_used": r[3], "revoked": bool(r[4]), "scope": r[5]}
                             for r in devices.list()], "current": auth[0]}
 
+    @app.post("/api/token")
+    def token_rotate(request: Request):  # D6 : la PWA renouvelle son token à chaque ouverture (90 jours glissants)
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        token = devices.rotate(auth[0], request.headers["authorization"].partition(" ")[2])
+        if token is None:
+            return reply(401, "non autorisé")
+        log_read(auth[0], "token_rotate", "token renouvelé")
+        return {"token": token}
+
+    @app.post("/api/devices/revoke-others")
+    def devices_revoke_others(body: AssertionIn, request: Request):  # téléphone perdu : couper tous les autres d'un coup
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        source = f"pwa:{auth[0]}"
+        if not passkeys.verify(auth[0], "devices:revoke", body.assertion.model_dump()):  # un token volé ne chasse pas le propriétaire
+            audit.log(source, "device_revoke", {"tous": True}, 3, "refusé", "assertion absente ou invalide")
+            return reply(403, "authentification forte requise")
+        audit.log(source, "device_revoke", {"tous": True}, 3, "confirmé", "révocation des autres appareils")  # trace d'abord
+        revoked = devices.revoke_all(keep=auth[0])
+        # Le token de CET appareil change aussi, sans ancien valable : une copie volée sur ce même appareil est coupée.
+        return {"revoked": revoked, "token": devices.rotate(auth[0], "", clean=True)}
+
     @app.get("/api/push")
     def push_state(request: Request):
         auth = authenticate(request)
@@ -476,6 +512,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         audit.log(f"pwa:{auth[0]}", "passkey_register", {}, 3, "confirmé" if ok else "refusé",
                   "clé d'accès enregistrée" if ok else "enregistrement refusé")
         return {"ok": True} if ok else reply(403, "enregistrement refusé")
+
+    @app.post("/api/passkey/challenge")
+    def passkey_challenge(body: ChallengeIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        options = passkeys.request_options(auth[0], body.action)
+        return reply(403, "aucune clé d'accès pour cet appareil") if options is None else options
 
     @app.get("/api/levels")
     def level_list(request: Request):
@@ -570,11 +614,35 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         audit.log(f"pwa:{auth[0]}", "conso_tarif", {}, 1, "auto", "prix du kWh modifié")  # le montant reste hors journal
         return {"price_kwh": conso_core.load_price()}
 
+    def finance_locked(device: int) -> JSONResponse | None:
+        """D3 : Finances exige une clé d'accès signée depuis moins de `FINANCE_UNLOCK_S` (un token volé ne lit rien)."""
+        with counters:
+            until = finance_unlocked.get(device)
+        if until is not None and _now() < until:
+            return None
+        log_read(device, "finance_locked", "clé d'accès requise", "refusé")
+        return reply(403, "clé d'accès requise")
+
+    @app.post("/api/finance/unlock")
+    def finance_unlock(body: AssertionIn, request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if not passkeys.verify(auth[0], "finance", body.assertion.model_dump()):
+            audit.log(f"pwa:{auth[0]}", "finance_unlock", {}, 2, "refusé", "assertion absente ou invalide")
+            return reply(403, "authentification forte requise")
+        audit.log(f"pwa:{auth[0]}", "finance_unlock", {}, 2, "confirmé", f"Finances ouvertes {FINANCE_UNLOCK_S // 60} min")
+        with counters:
+            finance_unlocked[auth[0]] = _now() + FINANCE_UNLOCK_S
+        return {"ok": True}
+
     @app.get("/api/finance")
     def finance_state(request: Request):
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
+        if locked := finance_locked(auth[0]):
+            return locked
         log_read(auth[0], "finance_read", "rapports financiers lus")
         return finance_snapshot()
 
@@ -583,6 +651,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
+        if locked := finance_locked(auth[0]):
+            return locked
         log_read(auth[0], "bank_read", "comptes bancaires, Ledger et portefeuille lus")
         binance.refresh_if_stale()  # historique Binance relu en tâche de fond au plus une fois par jour
         return {"bank": bank_view(), "crypto": binance.enrich(crypto_view()), "portfolio": portfolio_view()}

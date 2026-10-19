@@ -21,7 +21,15 @@ $('dg-fin-show').addEventListener('click', async () => {
   const run = digestRun;
   $('dg-fin-show').hidden = true;
   let b = null, f = null, failed = false;
-  try { b = (await getData('/api/finance/bank')).bank; } catch { failed = true; }
+  try {
+    let r = await api('/api/finance/bank');
+    if (r.status === 403) { // D3 : le clic sert de geste pour la clé d'accès
+      if (!await unlockFinance()) { if (run === digestRun) { $('dg-fin').textContent = 'Verrouillé.'; $('dg-fin-show').hidden = false; } return; }
+      r = await api('/api/finance/bank');
+    }
+    if (!r.ok || !r.data) throw new Error('bad');
+    b = r.data.bank;
+  } catch { failed = true; }
   if (!b) try { f = (await getData('/api/finance')).latest; failed = false; } catch { failed = true; }
   if (run !== digestRun || views.chat.hidden) return;
   if (b) {
