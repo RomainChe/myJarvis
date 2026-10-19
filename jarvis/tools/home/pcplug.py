@@ -73,8 +73,7 @@ def _cycle() -> None:
         pass
 
 
-@tool("pc_plug_on", "Remet sous tension la multiprise du PC et des écrans (prise Tapo) : le PC démarre seul si le BIOS est "
-      "réglé sur « Power On » après coupure secteur (docs/INSTALL_SERVEUR_HA.md §10.4).", Level.N1)
+@tool("pc_plug_on", "Remet sous tension la multiprise du PC et des écrans ; le PC démarre seul.", Level.N1)
 def pc_plug_on() -> dict:
     if ha.state(PLUG).get("state") not in ("on", "off"):  # « unavailable » : on le dit au lieu d'un faux « c'est fait »
         raise ha.HAError("prise du PC injoignable")
@@ -82,8 +81,8 @@ def pc_plug_on() -> dict:
     return {"prise": "on"}
 
 
-@tool("pc_off_plug", "Éteint le PC proprement (agent PC), attend qu'il soit éteint, puis coupe la multiprise du PC et des "
-      "écrans (prise Tapo). Jarvis reste en ligne sur le mini-PC. Pour éteindre le PC seul, utiliser `power`.", Level.N2)
+@tool("pc_off_plug", "Éteint le PC proprement puis coupe sa multiprise (PC et écrans). Pour éteindre le PC seul : "
+                     "`power`.", Level.N2)
 def pc_off_plug() -> dict:
     if HAS_PC_TOOLS:  # ce Core s'arrêterait avec le PC : la prise ne serait jamais coupée
         raise RuntimeError("arrêt avec coupure de prise indisponible : ce Core tourne sur le PC (utiliser `power`)")
