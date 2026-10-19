@@ -1,6 +1,6 @@
 """Recette QA des outils TV : pannes HA, réponses hostiles, journal, routeur, taint. Faux serveur local uniquement.
 
-Les bugs de docs/QA_REPORT_TV.md sont corrigés ; ces tests les gardent corrigés.
+Les bugs de docs/archive/QA_REPORT_TV.md sont corrigés ; ces tests les gardent corrigés.
 """
 import threading
 import unittest

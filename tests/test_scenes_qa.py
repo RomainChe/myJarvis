@@ -1,7 +1,7 @@
 """Recette QA de scene_cinema : paramètre app, échéance, pannes HA à chaque étape, niveaux, journal, routage, taint.
 
 HA est simulé au niveau de `ha.state` / `ha.call_service` (aucune requête réseau) ; l'horloge est simulée.
-Les bugs de docs/QA_REPORT_SCENES.md sont corrigés ; ces tests les gardent corrigés.
+Les bugs de docs/archive/QA_REPORT_SCENES.md sont corrigés ; ces tests les gardent corrigés.
 """
 import dataclasses
 import unittest
