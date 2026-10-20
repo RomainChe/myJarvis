@@ -1,6 +1,6 @@
 # JARVIS TV (APK)
 
-Écran d'accueil Android TV : la maquette `tv/` dans une WebView, sans réseau ni permission.
+Écran d'accueil Android TV : la maquette `tv/` dans une WebView, sans réseau (Bowd : voir plus bas).
 Roadmap : Phase 7, piste 6, étape (b).
 
 ## Ce que fait l'appli
@@ -10,11 +10,13 @@ Roadmap : Phase 7, piste 6, étape (b).
 - La page plante ou ne charge pas : ouverture de l'accueil Google TV.
 - Déclarée écran d'accueil candidat (`HOME`) et visible dans la liste des applis (`LEANBACK_LAUNCHER`). Le launcher Google TV n'est ni désactivé ni désinstallé à cette étape.
 
-## Tuiles OpenFlix et Bowd (sites web)
-Ce ne sont pas des applis Android : `Apps.java` ouvre leur adresse fixe dans le navigateur de la TV (`openflix.pro`, `bowdtv.com`).
-- À installer une fois sur la TV, depuis le Play Store : un navigateur adapté à la télécommande (par exemple **TV Bro** ou **Puffin TV**). Google TV n'en fournit pas par défaut.
-- Sans navigateur, la tuile affiche « Application absente de la TV ». Aucun autre téléchargement.
-- Ajouter un site : une ligne `SITES.put("clé", "https://…")` dans `Apps.java` et une tuile `data-app="clé"` dans `tv/index.html`.
+## Tuiles Bowd et OpenFlix : WebView dédiée (`SiteActivity`)
+Les deux sites s'ouvrent dans une WebView de l'APK (seule permission : `INTERNET`, déclarée pour toute l'APK mais utilisée uniquement par `SiteActivity` ; la WebView de l'accueil n'a pas de réseau, ses requêtes hors assets sont refusées). Sans pont JS, non exportée, navigation principale limitée au domaine du site. Ajouter un site : une ligne `SITES.put("clé", "https://…")` dans `Apps.java` et une tuile `data-app="clé"` dans `tv/index.html`.
+- **Bowd** : sa règle autorise de fermer la pub aussitôt. Les popups de la régie sont avalées à l'ouverture ; le compteur « Voir une publicité (n/2) » avance quand même. Le bouton « Passer la pub » est cliqué dès que le site le rend actif (après son compte à rebours).
+- **OpenFlix** : le site exige de rester 3 s sur la pub. Elle s'affiche en vrai, plein écran, avec un compte à rebours, puis se ferme seule ; Retour l'abandonne (il faudra recommencer). Rien n'est caché ni raccourci. La vérification Cloudflare reste à cocher à la télécommande.
+- OpenFlix : se connecter par e-mail et mot de passe (la connexion Google est refusée dans une WebView).
+- Session : la connexion au site (cookies, stockage local) reste dans la WebView de l'appli, non sauvegardée (`allowBackup=false`). La pub OpenFlix reste en https et ne reçoit aucune saisie de ta part ; ne tape jamais de mot de passe dans la fenêtre de pub.
+- Retour : ferme la pub, sinon page précédente, sinon retour à l'accueil JARVIS.
 
 ## Compiler (PC)
 Prérequis : JDK 17 (`JAVA_HOME`) et SDK Android (`ANDROID_HOME`, plateforme 34). Logos : `python scripts/tv_logos.py` avant le build (sinon les tuiles affichent les noms).

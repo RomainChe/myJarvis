@@ -26,7 +26,7 @@ final class Apps {
         PACKAGES.put("playstore", "com.android.vending");
     }
 
-    /** Sites ouverts dans le navigateur de la TV : URL fixes côté Java, la page ne fournit jamais d'adresse. */
+    /** Sites ouverts dans SiteActivity (WebView de l'APK) : URL fixes côté Java, la page ne fournit jamais d'adresse. */
     private static final Map<String, String> SITES = new HashMap<>();
     static {
         SITES.put("openflix", "https://openflix.pro/");
@@ -52,7 +52,8 @@ final class Apps {
                 break;
             default:
                 if (SITES.containsKey(key)) {
-                    i = new Intent(Intent.ACTION_VIEW, Uri.parse(SITES.get(key)));
+                    Uri url = Uri.parse(SITES.get(key));
+                    i = new Intent(ctx, SiteActivity.class).setData(url).putExtra(SiteActivity.EXTRA_AD_SECONDS, 0);
                     break;
                 }
                 String pkg = PACKAGES.get(key);
