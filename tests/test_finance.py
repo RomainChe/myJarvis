@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from jarvis.core import finance
+from test_server import quiet_resume
 from test_webauthn import WebAuthnServerBase
 
 NB = "\u00a0"
@@ -91,28 +92,24 @@ class FinanceTest(unittest.TestCase):
 class FinanceRouteTest(WebAuthnServerBase):  # sans clé d'accès : D3 retirée (test_webauthn.FinanceOpenTest)
 
     def test_authentification_exigee_lecture_journalisee(self):
-        self.assertEqual(self.call("GET", "/api/finance", token="x" * 20)[0], 401)
+        self.assertEqual(self.call("GET", "/api/resume", token="x" * 20)[0], 401)
         token = self.token
-        with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}), \
-                mock.patch("jarvis.server.bank_view", return_value={"accounts": []}) as bank, \
-                mock.patch("jarvis.server.crypto_view", return_value=None) as crypto,                 mock.patch("jarvis.server.portfolio_view", return_value=None), \
-                mock.patch("jarvis.server.binance.refresh_if_stale") as refresh:  # jamais de lecture Binance réelle en test
-            status, body, _ = self.call("GET", "/api/finance", token=token)
-            self.assertEqual((status, set(body)), (200, {"configured", "latest", "trend"}))  # dashboard : aucune donnée bancaire
-            bank.assert_not_called()
+        quiet_resume(self)
+        with mock.patch("jarvis.server.bank_view", return_value={"accounts": []}),                 mock.patch("jarvis.server.crypto_view", return_value=None) as crypto,                 mock.patch("jarvis.server.portfolio_view", return_value=None),                 mock.patch("jarvis.server.binance.refresh_if_stale") as refresh:  # jamais de lecture Binance réelle en test
+            status, body, _ = self.call("GET", "/api/resume", token=token)
+            self.assertEqual((status, body["finance"]), (200, {"b": {"accounts": []}}))  # dashboard : solde seul
             crypto.assert_not_called()
             refresh.assert_not_called()
             self.assertEqual(self.call("GET", "/api/finance/bank", token=token)[:2], (200, {"bank": {"accounts": []}, "crypto": None, "portfolio": None}))
             refresh.assert_called_once()
         status, body, _ = self.call("GET", "/api/audit?limit=20", token=token)
-        self.assertIn("finance_read", str(body))
         self.assertIn("bank_read", str(body))
 
     def test_lectures_repetees_une_seule_ligne_par_minute(self):
         token = self.token
-        with mock.patch("jarvis.server.finance_snapshot", return_value={"configured": True, "latest": None, "trend": []}):
-            for _ in range(5):
-                self.assertEqual(self.call("GET", "/api/finance", token=token)[0], 200)
+        quiet_resume(self)
+        for _ in range(5):
+            self.assertEqual(self.call("GET", "/api/resume", token=token)[0], 200)
         _, body, _ = self.call("GET", "/api/audit?limit=50", token=token)
         self.assertEqual(str(body).count("finance_read"), 1)
 

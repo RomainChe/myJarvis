@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest import mock
 
 from jarvis.core import minipc
-from tests.test_server import ServerBase
+from tests.test_server import ServerBase, quiet_resume
 
 APT_OUT = """Reading package lists...
 Inst libssl3 [3.0.1] (3.0.2 Debian-Security:12/stable-security [amd64])
@@ -54,12 +54,12 @@ class Mesures(unittest.TestCase):
 
 class Route(ServerBase):
     def test_authentification_exigee(self):
-        self.assertEqual(self.call("GET", "/api/minipc")[0], 401)
+        self.assertEqual(self.call("GET", "/api/resume")[0], 401)
         _, token = self.enroll()
-        with mock.patch.object(minipc, "status", return_value={"problems": []}):
-            status, body, _ = self.call("GET", "/api/minipc", token=token)
-        self.assertEqual((status, body), (200, {"problems": []}))
-
+        quiet_resume(self)
+        with mock.patch.object(minipc, "status", return_value={"problems": ["x"]}):
+            status, body, _ = self.call("GET", "/api/resume", token=token)
+        self.assertEqual((status, body["minipc"]), (200, {"problems": ["x"]}))
 
 if __name__ == "__main__":
     unittest.main()
