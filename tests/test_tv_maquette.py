@@ -30,7 +30,7 @@ class TvMaquetteTest(unittest.TestCase):
         html = (TV_DIR / "index.html").read_text(encoding="utf-8")
         java = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
         tiles = set(re.findall(r'data-app="([a-z]+)"', html))
-        allowed = set(re.findall(r'PACKAGES\.put\("([a-z]+)"', java)) | set(re.findall(r'case "([a-z]+)":', java))
+        allowed = set(re.findall(r'(?:PACKAGES|SITES)\.put\("([a-z]+)"', java)) | set(re.findall(r'case "([a-z]+)":', java))
         self.assertTrue(tiles)
         self.assertEqual(tiles, allowed)
         bridge = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/MainActivity.java").read_text(encoding="utf-8")
