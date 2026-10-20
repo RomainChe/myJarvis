@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.tv.TvContract;
+import android.net.Uri;
 import android.provider.Settings;
 
 import java.util.HashMap;
@@ -24,6 +25,13 @@ final class Apps {
         PACKAGES.put("playstore", "com.android.vending");
     }
 
+    /** Sites ouverts dans le navigateur de la TV : URL fixes côté Java, la page ne fournit jamais d'adresse. */
+    private static final Map<String, String> SITES = new HashMap<>();
+    static {
+        SITES.put("openflix", "https://openflix.pro/");
+        SITES.put("bowd", "https://bowdtv.com/");
+    }
+
     private Apps() {}
 
     /** Intention pour la clé, ou null si la clé est inconnue ou l'appli absente de la TV. */
@@ -42,6 +50,10 @@ final class Apps {
                 i = stockHome();
                 break;
             default:
+                if (SITES.containsKey(key)) {
+                    i = new Intent(Intent.ACTION_VIEW, Uri.parse(SITES.get(key)));
+                    break;
+                }
                 String pkg = PACKAGES.get(key);
                 if (pkg == null) return null;
                 i = pm.getLeanbackLaunchIntentForPackage(pkg);
