@@ -4,7 +4,11 @@ import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Message;
+import android.os.SystemClock;
 import android.view.Gravity;
+import android.view.InputDevice;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebChromeClient;
@@ -17,6 +21,9 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Site de streaming dans une WebView à nous (sans pont JavaScript). Les popups publicitaires :
@@ -48,6 +55,8 @@ public class SiteActivity extends Activity {
     private View adLayer;
     private String siteHost;
     private int adSeconds;
+    private String navJs = ""; // navigation télécommande (tv/site/sitenav.js), injectée à chaque page
+    private long jsBackAt; // dernier Retour pris par la page : un 2e Retour rapproché revient toujours en arrière
 
     @Override
     protected void onCreate(Bundle state) {
@@ -69,6 +78,15 @@ public class SiteActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
+        s.setSupportZoom(false); // sinon la WebView zoome sur le champ de recherche et l'écran déborde
+        try (InputStream in = getAssets().open("site/sitenav.js")) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
+            navJs = out.toString("UTF-8"); // readAllBytes : API 33 seulement
+        } catch (IOException e) {
+            navJs = ""; // ponytail: sans le fichier, le site reste utilisable à l'ancienne (D-pad natif)
+        }
         if (siteHost.endsWith("openflix.pro")) web.setInitialScale(85); // la TV donne 960 px CSS : la barre d'OpenFlix y passe à la ligne
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -78,6 +96,7 @@ public class SiteActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                view.evaluateJavascript(navJs, null);
                 if (adSeconds == 0) {
                     view.evaluateJavascript(SKIP_JS, null);
                     view.evaluateJavascript(HIDE_BANNER_JS, null);
@@ -170,11 +189,51 @@ public class SiteActivity extends Activity {
         return host != null && (host.equals(siteHost) || host.endsWith("." + siteHost));
     }
 
+    /** OK sur un contenu d'un autre domaine (case Cloudflare, lecteur intégré) : la page n'y peut rien, on y tape pour de vrai. */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent ev) {
+        int k = ev.getKeyCode();
+        if (adLayer == null && fullscreen == null && ev.getAction() == KeyEvent.ACTION_UP
+                && (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER)) {
+            web.evaluateJavascript("window.__jarvisNav ? __jarvisNav.tap() : null", this::tap);
+        }
+        return super.dispatchKeyEvent(ev);
+    }
+
+    private void tap(String json) { // "[fx,fy]" en fraction de la WebView, ou "null"
+        String[] p = json.replaceAll("[\\[\\] ]", "").split(",");
+        if (p.length != 2) return;
+        float fx, fy;
+        try {
+            fx = Float.parseFloat(p[0]);
+            fy = Float.parseFloat(p[1]);
+        } catch (NumberFormatException e) {
+            return;
+        }
+        if (!(fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1)) return; // la page ne fait toucher que dans sa propre vue
+        float x = fx * web.getWidth(), y = fy * web.getHeight();
+        long t = SystemClock.uptimeMillis();
+        for (int action : new int[]{MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP}) {
+            MotionEvent m = MotionEvent.obtain(t, SystemClock.uptimeMillis(), action, x, y, 0);
+            m.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+            web.dispatchTouchEvent(m);
+            m.recycle();
+        }
+    }
+
     @Override
     public void onBackPressed() {
         if (adLayer != null) closeAd();
         else if (fullscreen != null) web.getWebChromeClient().onHideCustomView();
-        else if (web.canGoBack()) web.goBack();
+        else if (SystemClock.uptimeMillis() - jsBackAt < 800) nativeBack(); // la page ne peut pas bloquer Retour
+        else web.evaluateJavascript("window.__jarvisNav ? __jarvisNav.back() : false", v -> {
+            if ("true".equals(v)) jsBackAt = SystemClock.uptimeMillis(); // popup fermée ou sortie des contrôles
+            else nativeBack();
+        });
+    }
+
+    private void nativeBack() {
+        if (web.canGoBack()) web.goBack();
         else finish();
     }
 

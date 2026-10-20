@@ -14,7 +14,7 @@ TV_DIR = ROOT / "tv"
 class TvMaquetteTest(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node absent : navigation TV non testée")
     def test_navigation_dpad(self):
-        r = subprocess.run(["node", "--test", str(ROOT / "tests" / "tv_nav.test.js")],
+        r = subprocess.run(["node", "--test", str(ROOT / "tests" / "tv_nav.test.js"), str(ROOT / "tests" / "tv_sitenav.test.js")],
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
@@ -78,6 +78,12 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertIn("onCreateWindow", site)
         self.assertIn("Passer la pub", site)
         self.assertIn("Application Android disponible", site)
+        # Navigation télécommande : script du dépôt injecté à chaque page, sans zoom, tap borné à la vue, Retour jamais bloqué.
+        self.assertIn('getAssets().open("site/sitenav.js")', site)
+        self.assertIn("view.evaluateJavascript(navJs, null)", site)
+        self.assertIn("setSupportZoom(false)", site)
+        self.assertIn("fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1", site)
+        self.assertIn("jsBackAt < 800) nativeBack()", site)
         apps = (base / "java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
 
     def test_scripts_charges(self):
