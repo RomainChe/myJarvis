@@ -17,7 +17,7 @@ android {
     // L'interface est celle de la maquette (tv/ à la racine du dépôt), embarquée telle quelle : une seule source.
     sourceSets {
         main {
-            assets.srcDirs = ['../../tv']
+            assets.srcDirs = ['../../tv', 'src/main/assets'] // + sitenav.js (sites Bowd/OpenFlix)
         }
     }
 
