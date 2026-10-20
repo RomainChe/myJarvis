@@ -55,7 +55,7 @@ def _read(path: Path) -> tuple[datetime, list[dict]] | None:
         data = json.loads(raw.decode("utf-8")) if len(raw) <= MAX_BYTES else None
         at = datetime.fromisoformat(data["at"])
         rows = data["drivers"][:MAX_DRIVERS]
-    except (OSError, ValueError, TypeError, KeyError):  # absent, illisible ou trop gros : comme jamais vérifié
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):  # absent, illisible, trop gros ou trop imbriqué
         return None
     drivers = [d for d in map(_driver, rows) if d]
     drivers.sort(key=lambda d: (STATUSES.index(d["status"]), -d["days"]))

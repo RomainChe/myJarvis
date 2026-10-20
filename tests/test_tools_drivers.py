@@ -17,7 +17,7 @@ from jarvis.tools.pc import drivers
 from pcbase import PcBase, yes
 
 
-class DriverwatchTest(PcBase):
+class DriverwatchBase(PcBase):
     def setUp(self):
         super().setUp()
         tmp = tempfile.TemporaryDirectory()
@@ -29,6 +29,8 @@ class DriverwatchTest(PcBase):
         self.popen = mock.patch.object(drivers.subprocess, "Popen").start()
         self.addCleanup(mock.patch.stopall)
 
+
+class DriverwatchTest(DriverwatchBase):
     def test_niveaux(self):
         self.assertEqual(REGISTRY["driverwatch_accept"].level, Level.N1)
         self.assertTrue(REGISTRY["driverwatch_accept"].taint_blocked)
@@ -71,7 +73,7 @@ class DriverwatchTest(PcBase):
 NOW = datetime(2026, 10, 20, 12, 0).timestamp()
 
 
-class PcDriversTest(DriverwatchTest):
+class PcDriversTest(DriverwatchBase):
     def setUp(self):
         super().setUp()
         self.status = Path(self.dir) / "status.json"
@@ -110,7 +112,7 @@ class PcDriversTest(DriverwatchTest):
         self.assertEqual(self.spawn.call_count, 2)
 
     def test_fichier_illisible_ou_trop_gros(self):
-        for text in ("{pas du json", json.dumps({"at": "hier", "drivers": []}), "x" * (drivers.MAX_BYTES + 1)):
+        for text in ("{pas du json", json.dumps({"at": "hier", "drivers": []}), "x" * (drivers.MAX_BYTES + 1), "[" * 60000):
             self.status.write_text(text, encoding="utf-8")
             self.assertIsNone(drivers._read(self.status), text[:20])
 
