@@ -57,6 +57,12 @@ public class SiteActivity extends Activity {
     private static final long LONG_PRESS_MS = 600; // minuteur : la TV ne livre pas toujours les répétitions de touche
     private static final int STEP = 40; // px par appui en mode pointeur, accéléré si la touche est maintenue
     private static final int SCROLL = 400; // px défilés quand le pointeur bute sur un bord
+    // Lecteur plein écran : %s = 'toggle' ou un décalage en secondes. Vidéo du plein écran, sinon la première de la page.
+    // Le site garde ses propres contrôles ; ceci rend juste OK, lecture-pause et l'avance rapide fiables à la télécommande.
+    static final String VIDEO_JS = "(a=>{const f=document.fullscreenElement;"
+            + "const v=(f&&(f.tagName==='VIDEO'?f:f.querySelector('video')))||document.querySelector('video');"
+            + "if(!v)return false;if(a==='toggle'){if(v.paused)v.play();else v.pause();}"
+            + "else v.currentTime=Math.max(0,v.currentTime+a);return true;})(%s)";
 
     private FrameLayout root;
     private View pointer;
@@ -171,7 +177,14 @@ public class SiteActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        if (adLayer != null || fullscreen != null) return super.dispatchKeyEvent(e); // pub et lecteur plein écran : touches telles quelles
+        if (adLayer != null) return super.dispatchKeyEvent(e); // pub : touches telles quelles
+        if (fullscreen != null) {
+            String action = videoAction(e.getKeyCode());
+            if (action == null) return super.dispatchKeyEvent(e);
+            // ponytail: vidéo dans une iframe d'un autre domaine = introuvable, la touche est alors perdue ; renvoyer la touche au site si ça arrive
+            if (e.getAction() == KeyEvent.ACTION_DOWN) web.evaluateJavascript(String.format(VIDEO_JS, action), null);
+            return true; // le relâchement est avalé aussi : le site ne reçoit jamais une moitié de touche
+        }
         int k = e.getKeyCode();
         if (k == KeyEvent.KEYCODE_DPAD_CENTER) {
             // OK est retenu jusqu'au relâchement : appui long = bascule du pointeur, appui court = toucher ou OK pour la page.
@@ -286,6 +299,26 @@ public class SiteActivity extends Activity {
 
     private boolean isSiteHost(String host) {
         return host != null && (host.equals(siteHost) || host.endsWith("." + siteHost));
+    }
+
+    /** Action du lecteur pour une touche, ou null si la touche reste au site. */
+    static String videoAction(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                return "'toggle'";
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                return "-10";
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                return "10";
+            default:
+                return null;
+        }
     }
 
     @Override

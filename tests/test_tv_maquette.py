@@ -18,6 +18,12 @@ class TvMaquetteTest(unittest.TestCase):
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    @unittest.skipUnless(shutil.which("node"), "Node absent : touches du lecteur TV non testées")
+    def test_touches_lecteur_plein_ecran(self):
+        r = subprocess.run(["node", "--test", str(ROOT / "tests" / "tv_lecteur.test.js")],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_liaison_au_core_verrouillee(self):
         # La page ne choisit ni l'URL ni l'en-tête : deux routes fixes, https vers *.ts.net, clé chiffrée, aucune redirection.
         link = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/CoreLink.java").read_text(encoding="utf-8")

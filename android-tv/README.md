@@ -21,7 +21,7 @@ Les deux sites s'ouvrent dans une WebView de l'APK (seule permission : `INTERNET
 - **Télécommande et téléphone** (appli Google TV du téléphone : mêmes touches, et son clavier pour les champs) :
   - par défaut, les flèches passent d'un élément cliquable au plus proche (cadre bleu), OK le clique ; OK sur un champ y entre (clavier), Entrée valide. Rien dans la direction : la page défile. Script `app/src/main/assets/sitenav.js`, injecté à chaque page.
   - **appui long sur OK** : pointeur (pastille blanche). Flèches = souris (accélère si maintenue), OK = toucher, pointeur au bord = défilement, Retour ou nouvel appui long = fin. Sert pour les lecteurs vidéo (en iframe, hors de portée du script) et la case Cloudflare, sur laquelle le pointeur s'ouvre seul.
-  - lecteur plein écran et pub OpenFlix : touches transmises telles quelles.
+  - **lecteur plein écran** : OK et lecture-pause basculent la vidéo, gauche/droite et retour/avance rapide déplacent de 10 s (JS `VIDEO_JS` sur le `<video>` de la page) ; une vidéo dans une iframe d'un autre domaine n'est pas pilotée. Pub OpenFlix : touches transmises telles quelles.
 
 ## Liaison au Core (étape c)
 La page affiche la météo et les rappels du Core et lance les scènes, sans connaître ni l'adresse ni la clé : `CoreLink.java` fait l'appel (deux routes fixes : `GET /api/tv`, `POST /api/voice`), en https vers un nom `*.ts.net`, sans redirection. Sans configuration ou Core injoignable : « JARVIS hors ligne », tuiles JARVIS grisées, apps et réglages intacts.
