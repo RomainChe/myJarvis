@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Aucune permission : l'interface est locale. La liaison au Core (étape c) ajoutera INTERNET. -->
+<!-- Seule permission : INTERNET, pour SiteActivity (Bowd). L'accueil, lui, reste coupé du réseau (MainActivity). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -45,5 +47,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Non exportée : seul MainActivity (via Apps) la lance, avec l'adresse fixe de Bowd. -->
+        <activity
+            android:name=".SiteActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode"
+            android:exported="false" />
     </application>
 </manifest>
