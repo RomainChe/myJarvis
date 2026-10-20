@@ -18,6 +18,12 @@ class TvMaquetteTest(unittest.TestCase):
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_appui_long_sans_keydown_repete(self):
+        # La WebView de la TV ne livre pas les keydown répétés : l'appui long passe par un minuteur.
+        js = (TV_DIR / "tv.js").read_text(encoding="utf-8")
+        self.assertNotIn("e.repeat", js)
+        self.assertIn("HOLD_MS", js)
+
     def test_garde_fous(self):
         for p in sorted(TV_DIR.glob("*.*")):  # tv/logos/ (local, hors Git) n'est pas du code
             text = p.read_text(encoding="utf-8")

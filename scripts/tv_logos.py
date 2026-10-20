@@ -25,18 +25,26 @@ LOGOS = {
 }
 
 
-def fetch(name, commons_file):
-    dest = DEST / f"{name}.svg"
+# Sites sans logo sur Commons : logo publié par le site lui-même (nom de fichier local, URL, hôte attendu).
+SITE_LOGOS = {
+    "openflix": ("openflix.svg", "https://openflix.pro/opfx-logo-full.svg", "openflix.pro"),
+    "bowd": ("bowd.png", "https://bowdtv.com/brand/icon-192.png", "bowdtv.com"),
+}
+PNG = b"\x89PNG\r\n\x1a\n"
+
+
+def fetch(filename, url, hosts):
+    dest = DEST / filename
     if dest.exists():
         return "déjà là"
-    req = urllib.request.Request(COMMONS + urllib.parse.quote(commons_file),
-                                 headers={"User-Agent": "jarvis-tv-maquette/1.0 (usage local)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "jarvis-tv-maquette/1.0 (usage local)"})
     with urllib.request.urlopen(req, timeout=30) as r:
-        if urllib.parse.urlsplit(r.geturl()).hostname not in HOSTS:
-            raise ValueError("redirection hors de Wikimedia")
+        if urllib.parse.urlsplit(r.geturl()).hostname not in hosts:
+            raise ValueError("redirection hors de l'hôte attendu")
         data = r.read(MAX + 1)
-    if len(data) > MAX or b"<svg" not in data[:4096]:
-        raise ValueError("pas un SVG ou trop gros")
+    ok = (b"<svg" in data[:4096]) if filename.endswith(".svg") else data.startswith(PNG)
+    if len(data) > MAX or not ok:
+        raise ValueError("format inattendu ou trop gros")
     dest.write_bytes(data)
     time.sleep(3)  # Wikimedia répond 429 aux rafales
     return "téléchargé"
@@ -45,9 +53,11 @@ def fetch(name, commons_file):
 def main():
     DEST.mkdir(parents=True, exist_ok=True)
     failed = 0
-    for name, commons_file in LOGOS.items():
+    jobs = [(n, f"{n}.svg", COMMONS + urllib.parse.quote(f), HOSTS) for n, f in LOGOS.items()]
+    jobs += [(n, f, url, {host}) for n, (f, url, host) in SITE_LOGOS.items()]
+    for name, filename, url, hosts in jobs:
         try:
-            print(f"{name} : {fetch(name, commons_file)}")
+            print(f"{name} : {fetch(filename, url, hosts)}")
         except Exception as e:  # un logo manquant n'empêche pas les autres (la tuile affiche alors le nom)
             failed += 1
             print(f"{name} : échec ({e})")

@@ -12,6 +12,8 @@ let toastTimer;
 let moving = null; // tuile appli en cours de déplacement
 let pressed = false; // Entrée enfoncée sur cette page : un relâchement orphelin ne lance rien
 let held = false; // Entrée maintenue : l'appui long a ouvert le déplacement, le relâchement ne lance rien
+let holdTimer;
+const HOLD_MS = 600;
 
 // Logo absent (tv/logos/ n'est pas dans Git) : la tuile affiche le nom. Une image peut avoir échoué avant ce script.
 function logoToText(img) {
@@ -127,6 +129,20 @@ function moveApp(d) {
 
 document.addEventListener('keydown', (e) => {
   const dir = TvNav.KEYS[e.key];
+  if (e.key === 'Enter') {
+    // Appui simple : action au relâchement (keyup). Appui long sur une appli : déplacement.
+    // Minuteur plutôt que la répétition : la WebView de la TV ne livre pas les keydown répétés.
+    e.preventDefault();
+    if (pressed) return;
+    pressed = true;
+    if (!moving && pos.r === APPS) {
+      holdTimer = setTimeout(() => {
+        held = true;
+        startMoving(tiles[pos.r][pos.c]);
+      }, HOLD_MS);
+    }
+    return;
+  }
   if (moving) {
     // Mode déplacement : seules gauche/droite bougent l'appli ; Retour valide, Entrée valide au relâchement.
     e.preventDefault();
@@ -135,14 +151,6 @@ document.addEventListener('keydown', (e) => {
   } else if (dir) {
     e.preventDefault();
     focusAt(TvNav.next(centers(), pos, dir, last));
-  } else if (e.key === 'Enter') {
-    // Appui simple : action au relâchement (keyup). Appui long sur une appli : déplacement.
-    e.preventDefault();
-    if (!e.repeat) pressed = true;
-    else if (!held && pos.r === APPS) {
-      held = true;
-      startMoving(tiles[pos.r][pos.c]);
-    }
   } else if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
     // Retour : revient sur la première appli ; l'accueil ne se ferme jamais.
     e.preventDefault();
@@ -156,6 +164,7 @@ document.addEventListener('keyup', (e) => {
   if (e.key !== 'Enter' || !pressed) return;
   e.preventDefault();
   pressed = false;
+  clearTimeout(holdTimer);
   if (held) held = false;
   else if (moving) stopMoving();
   else activate(tiles[pos.r][pos.c]);

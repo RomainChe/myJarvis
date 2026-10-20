@@ -100,6 +100,8 @@ body {
 .app { width: 18.5rem; height: 10rem; justify-content: center; align-items: center; background: var(--app-bg); color: var(--focus-text); border: 0; filter: brightness(.78); }
 .app:focus { filter: none; }
 .app img { max-width: 72%; max-height: 46%; object-fit: contain; }
+.app[data-app="bowd"] img { max-height: 70%; } /* icône carrée, pas un logo large */
+.app[data-app="openflix"] img { filter: invert(1) hue-rotate(180deg); } /* logo blanc : lisible sur la tuile claire */
 
 /* Déplacement d'une appli : la tuile se soulève, flèches de part et d'autre, les autres s'effacent. */
 .app.moving { position: relative; transform: translateY(-.75rem) scale(1.07); box-shadow: 0 0 0 4px var(--c), 0 24px 48px rgb(0 0 0 / .6); }
