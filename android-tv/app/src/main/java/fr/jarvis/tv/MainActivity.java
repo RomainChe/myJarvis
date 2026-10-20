@@ -17,15 +17,24 @@ import android.webkit.WebViewClient;
 
 import androidx.webkit.WebViewAssetLoader;
 
+import org.json.JSONObject;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /** Écran d'accueil JARVIS : la maquette tv/ servie depuis les assets, sans réseau. */
 public class MainActivity extends Activity {
     private static final String HOME_URL = "https://appassets.androidplatform.net/assets/index.html";
 
     private WebView web;
+    private CoreLink core;
+    private final ExecutorService io = Executors.newSingleThreadExecutor(); // un appel au Core à la fois
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        core = new CoreLink(this);
+        core.importConfig();
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
@@ -60,7 +69,7 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        // Seul pont exposé : lancer une appli de la liste blanche (Apps) ; la page est locale et ne navigue pas.
+        // Pont exposé : lancer une appli de la liste blanche (Apps) et deux appels fixes au Core (CoreLink) ; la page est locale et ne navigue pas.
         web.addJavascriptInterface(new Bridge(), "JarvisTV");
         setContentView(web);
         web.loadUrl(HOME_URL);
@@ -87,6 +96,17 @@ public class MainActivity extends Activity {
     }
 
     private final class Bridge {
+        /** Appel asynchrone au Core ; la réponse revient par window.onCore(id, statut, corps). `id` : chiffres seulement. */
+        @JavascriptInterface
+        public void core(String id, String route, String text) {
+            if (id == null || !id.matches("[0-9]{1,9}")) return;
+            io.execute(() -> {
+                CoreLink.Result r = core.call(route, text);
+                String js = "window.onCore(\"" + id + "\"," + r.status + "," + JSONObject.quote(r.body) + ")";
+                runOnUiThread(() -> web.evaluateJavascript(js, null));
+            });
+        }
+
         @JavascriptInterface
         public boolean launch(String key) {
             Intent i = Apps.intentFor(MainActivity.this, key);

@@ -67,9 +67,57 @@ function setOffline(off) {
   document.getElementById('status').textContent = off ? 'JARVIS hors ligne' : 'JARVIS en ligne';
 }
 
+// Liaison au Core (APK seulement) : le pont Java fait l'appel ; la page ne voit ni l'adresse ni la clé,
+// et affiche ce qui revient en textContent seulement. Sur PC (maquette), pas de pont : données fictives.
+const linked = !!(window.JarvisTV && window.JarvisTV.core);
+const waiting = new Map();
+let seq = 0;
+
+function core(route, text) {
+  return new Promise((resolve) => {
+    const id = String(++seq);
+    waiting.set(id, resolve);
+    window.JarvisTV.core(id, route, text || '');
+  });
+}
+
+window.onCore = (id, status, body) => {
+  const done = waiting.get(id);
+  waiting.delete(id);
+  if (done) done({ status, body });
+};
+
+function parse(r) {
+  try { return r.status === 200 ? JSON.parse(r.body) : null; } catch (e) { return null; }
+}
+
+const deg = (v) => (Number.isFinite(v) ? `${Math.round(v)}°` : '?');
+
+async function refresh() {
+  const d = parse(await core('tv'));
+  setOffline(!d);
+  if (!d) return;
+  const w = d.weather;
+  if (w && Number.isFinite(w.temp_c)) {
+    document.getElementById('wx-temp').textContent = `${Math.round(w.temp_c)} °C`;
+    document.getElementById('wx-sub').textContent = `${String(w.sky).slice(0, 30)} · ${deg(w.min_c)} / ${deg(w.max_c)}`;
+  }
+  document.getElementById('rem-sub').textContent = !Number.isInteger(d.reminders) ? 'Indisponible'
+    : d.reminders ? `${d.reminders} à venir` : "Aucun aujourd'hui";
+}
+
+async function say(text) {
+  const d = parse(await core('say', text));
+  toast(d && typeof d.answer === 'string' ? d.answer.slice(0, 160) : 'JARVIS ne répond pas');
+}
+
 function activate(el) {
   if (el.classList.contains('jarvis') && document.body.classList.contains('offline')) {
     toast('JARVIS est hors ligne : action indisponible');
+  } else if (el.dataset.cmd && linked) {
+    say(el.dataset.cmd);
+  } else if (el.classList.contains('jarvis') && linked) {
+    toast('Pas encore branché');
   } else if (el.dataset.app && window.JarvisTV) {
     // Dans l'APK : le pont Java lance l'appli (liste blanche côté Java). Sur PC : simple message.
     if (!window.JarvisTV.launch(el.dataset.app)) toast('Application absente de la TV');
@@ -200,7 +248,13 @@ function tick() {
 
 tick();
 setInterval(tick, 10000);
-setOffline(new URLSearchParams(location.search).has('horsligne'));
+setOffline(linked || new URLSearchParams(location.search).has('horsligne')); // dans l'APK : hors ligne tant que le Core n'a pas répondu
+if (linked) {
+  document.getElementById('wx-temp').textContent = '—'; // la météo fictive de la maquette ne reste pas affichée
+  document.getElementById('wx-sub').textContent = '';
+  refresh();
+  setInterval(refresh, 60000);
+}
 focusAt(pos);
 prefs((store) => {
   const req = store.get('apps');

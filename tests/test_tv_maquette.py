@@ -18,6 +18,20 @@ class TvMaquetteTest(unittest.TestCase):
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_liaison_au_core_verrouillee(self):
+        # La page ne choisit ni l'URL ni l'en-tête : deux routes fixes, https vers *.ts.net, clé chiffrée, aucune redirection.
+        link = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/CoreLink.java").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r'"(/api/[a-z]+)"', link), ["/api/tv", "/api/voice"])
+        self.assertIn('host.endsWith(".ts.net")', link)
+        self.assertIn('"https".equals(u.getScheme())', link)
+        self.assertIn("setInstanceFollowRedirects(false)", link)
+        self.assertIn("AndroidKeyStore", link)
+        self.assertIn("f.delete()", link)  # le fichier de configuration ne survit pas à l'import
+        self.assertNotRegex(link, r"Log\.|printStackTrace|System\.out")  # ni clé ni réponse dans les logs
+        js = (TV_DIR / "tv.js").read_text(encoding="utf-8")
+        self.assertRegex(js, r"textContent")
+        self.assertNotRegex(js, r"JarvisTV\.core\([^)]*\bhttp")  # la page ne passe jamais d'adresse
+
     def test_appui_long_sans_keydown_repete(self):
         # La WebView de la TV ne livre pas les keydown répétés : l'appui long passe par un minuteur.
         js = (TV_DIR / "tv.js").read_text(encoding="utf-8")
@@ -40,7 +54,7 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertTrue(tiles)
         self.assertEqual(tiles, allowed)
         bridge = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/MainActivity.java").read_text(encoding="utf-8")
-        self.assertEqual(bridge.count("@JavascriptInterface"), 1, "un seul point d'entrée JS")
+        self.assertEqual(re.findall(r"@JavascriptInterface\s+public \w+ (\w+)\(", bridge), ["core", "launch"], "deux points d'entrée JS, pas un de plus")
         manifest = (ROOT / "android-tv/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertEqual(re.findall(r'<uses-permission android:name="([^"]+)"', manifest), ["android.permission.INTERNET"])
 

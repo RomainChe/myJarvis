@@ -236,19 +236,20 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         with counters:
             reads_logged[(device, tool)] = _now()
 
-    def authenticate(request: Request, voice_route: bool = False) -> tuple[int, str] | JSONResponse:
+    def authenticate(request: Request, allow: tuple[str, ...] = ()) -> tuple[int, str] | JSONResponse:
+        """`allow` : portées limitées admises sur cette route (une clé « full » passe toujours)."""
         header = request.headers.get("authorization")
         if header is None:  # une page web ne peut pas poser cet en-tête (pas de CORS) : ni compté, ni journalisé,
             return reply(401, "non autorisé")  # sinon elle bloquerait les appareils légitimes (constat 2)
         scheme, _, token = header.partition(" ")
         found = devices.check_scoped(token) if scheme == "Bearer" and 0 < len(token) <= 200 else None
-        if found is not None and found[2] != "full" and not voice_route:  # clé de portée limitée : refusée partout sauf /api/voice
+        if found is not None and found[2] != "full" and found[2] not in allow:  # clé de portée limitée : refusée hors de ses routes
             with counters:
                 log_it = _now() - quota_logged.get(found[0], -QUOTA_WINDOW_S) >= QUOTA_WINDOW_S
                 if log_it:
                     quota_logged[found[0]] = _now()
             if log_it:  # une ligne par minute : une clé voix détournée ne gonfle pas le journal
-                audit.log(f"pwa:{found[0]}", "scope", {}, None, "refusé", f"clé de portée {found[2]} hors /api/voice")
+                audit.log(f"pwa:{found[0]}", "scope", {}, None, "refusé", f"clé de portée {found[2]} hors de ses routes")
             return reply(403, "portée insuffisante")
         if found is not None:  # un token valide n'est jamais bloqué par le compteur d'échecs
             found = found[:2]
@@ -382,7 +383,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
     @app.post("/api/voice")
     def voice_say(body: VoiceIn, request: Request):
         """Texte reconnu par un client voix -> réponse à lire. Plafond N0/N1 (cf. Voice.handle) ; le texte est une donnée."""
-        auth = authenticate(request, voice_route=True)
+        auth = authenticate(request, allow=("voice", "tv"))
         if isinstance(auth, JSONResponse):
             return auth
         if voice_over_quota(auth[0]):
@@ -558,6 +559,22 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         return dashboard.snapshot()
+
+    @app.get("/api/tv")
+    def tv_state(request: Request):
+        """Écran d'accueil de la TV (partagée avec des invités) : météo et nombre de rappels, rien d'autre (N0)."""
+        auth = authenticate(request, allow=("tv",))
+        if isinstance(auth, JSONResponse):
+            return auth
+        snap = dashboard.snapshot()
+        weather = snap["weather"] or {}
+        try:
+            due = len(reminders.pending())
+        except RuntimeError:
+            due = None
+        log_read(auth[0], "tv_read", "écran TV lu")
+        return {"location": snap["location"], "reminders": due,
+                "weather": {k: weather.get(k) for k in ("temp_c", "sky", "min_c", "max_c")} if weather else None}
 
     @app.get("/api/minipc")
     def minipc_state(request: Request):

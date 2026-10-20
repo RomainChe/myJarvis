@@ -161,18 +161,20 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         for row in devices.list():
             print(" | ".join("" if v is None else str(v) for v in row))
         return 0
-    if sub == "add" and len(argv) in (2, 4) and (len(argv) == 2 or argv[2] == "--voice") or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
+    if sub == "add" and len(argv) in (2, 4) and (len(argv) == 2 or argv[2] in ("--voice", "--tv")) or sub == "revoke" and len(argv) == 3 and (argv[2].isdigit() or argv[2] == "all"):
         if not sys.stdin.isatty():  # action d'un humain devant le PC, comme une confirmation N3
             print("Refusé : cette commande exige un terminal interactif.")
             return 1
-        if sub == "add" and len(argv) == 4:  # appareil de portée voix : la clé n'ouvre que /api/voice (micro du salon)
+        if sub == "add" and len(argv) == 4:  # appareil de portée limitée : voix (/api/voice, micro du salon) ou tv (écran de la TV)
+            scope = argv[2][2:]
             try:
-                dev_id, token = devices.add_scoped(argv[3], "voice")
+                dev_id, token = devices.add_scoped(argv[3], scope)
             except ValueError as e:
                 print(e)
                 return 2
-            audit.log("cli", "device_add", {"scope": "voice", "id": dev_id}, 3, "confirmé", "appareil de portée voix créé")
-            print(f"Appareil {dev_id} (portée voix). Clé, affichée une seule fois, à coller dans Home Assistant : {token}")
+            audit.log("cli", "device_add", {"scope": scope, "id": dev_id}, 3, "confirmé", f"appareil de portée {scope} créé")
+            where = "à coller dans Home Assistant" if scope == "voice" else "à donner à l'appli de la TV (android-tv/README.md)"
+            print(f"Appareil {dev_id} (portée {scope}). Clé, affichée une seule fois, {where} : {token}")
             return 0
         if sub == "add":
             code = devices.new_code()

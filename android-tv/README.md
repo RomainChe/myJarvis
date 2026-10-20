@@ -5,7 +5,7 @@ Roadmap : Phase 7, piste 6, étape (b).
 
 ## Ce que fait l'appli
 - Sert `tv/` depuis ses assets (`https://appassets.androidplatform.net/assets/…`) ; toute autre requête répond 404, aucune navigation.
-- Pont JS unique `JarvisTV.launch(clé)` : la page passe une clé, `Apps.java` la traduit (liste blanche) en intention. Clé inconnue ou appli absente : `false`.
+- Pont JS à deux entrées : `JarvisTV.launch(clé)` (la page passe une clé, `Apps.java` la traduit en intention, liste blanche ; clé inconnue ou appli absente : `false`) et `JarvisTV.core(id, route, texte)` (liaison au Core, voir plus bas).
 - Retour (télécommande) : transmis à la page (retour sur la première appli), l'accueil ne se ferme jamais.
 - La page plante ou ne charge pas : ouverture de l'accueil Google TV.
 - Déclarée écran d'accueil candidat (`HOME`) et visible dans la liste des applis (`LEANBACK_LAUNCHER`). Le launcher Google TV n'est ni désactivé ni désinstallé à cette étape.
@@ -17,6 +17,19 @@ Les deux sites s'ouvrent dans une WebView de l'APK (seule permission : `INTERNET
 - OpenFlix : se connecter par e-mail et mot de passe (la connexion Google est refusée dans une WebView).
 - Session : la connexion au site (cookies, stockage local) reste dans la WebView de l'appli, non sauvegardée (`allowBackup=false`). La pub OpenFlix reste en https et ne reçoit aucune saisie de ta part ; ne tape jamais de mot de passe dans la fenêtre de pub.
 - Retour : ferme la pub, sinon page précédente, sinon retour à l'accueil JARVIS.
+
+## Liaison au Core (étape c)
+La page affiche la météo et les rappels du Core et lance les scènes, sans connaître ni l'adresse ni la clé : `CoreLink.java` fait l'appel (deux routes fixes : `GET /api/tv`, `POST /api/voice`), en https vers un nom `*.ts.net`, sans redirection. Sans configuration ou Core injoignable : « JARVIS hors ligne », tuiles JARVIS grisées, apps et réglages intacts.
+La clé est de **portée `tv`** : le Core la refuse partout sauf ces deux routes, et `/api/voice` plafonne déjà à N0/N1. Les N2/N3 se confirment sur le téléphone.
+
+Prérequis : la TV doit joindre le Core, donc **Tailscale installé sur la TV** (Play Store), connecté au réseau privé. Dans l'ACL Tailscale, ne lui laisser que le Core (port 443).
+
+Enrôler la TV (une fois ; à refaire tous les 90 jours, durée de vie de la clé) :
+1. PC : `python -m jarvis device add --tv tv-salon` (terminal interactif). La clé s'affiche une seule fois.
+2. Écrire `core.json` dans un dossier temporaire hors du dépôt : `{"url": "https://<mini-pc>.<réseau>.ts.net", "key": "<clé>"}` (pas de slash final, pas de port).
+3. `adb push core.json /sdcard/Android/data/fr.jarvis.tv/files/core.json` puis relancer l'appli JARVIS. L'appli importe le fichier, le chiffre avec le Keystore Android et **le supprime** ; supprimer aussi la copie du PC.
+4. Une configuration invalide (adresse non `*.ts.net`, clé mal formée) est ignorée sans message.
+Révoquer : `python -m jarvis device revoke <id>` ; `adb shell pm clear fr.jarvis.tv` efface la clé de la TV.
 
 ## Compiler (PC)
 Prérequis : JDK 17 (`JAVA_HOME`) et SDK Android (`ANDROID_HOME`, plateforme 34). Logos : `python scripts/tv_logos.py` avant le build (sinon les tuiles affichent les noms).
