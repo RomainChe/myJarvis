@@ -29,7 +29,11 @@ body {
 .greet { margin: 0 0 .4rem; font-size: 1.1rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .now { margin: 0; display: flex; align-items: center; gap: 1.5rem; }
 .clock { font-size: 4.5rem; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
-.date { padding-left: 1.5rem; border-left: 2px solid var(--glass-line); font-size: 1.3rem; letter-spacing: .14em; text-transform: uppercase; }
+.date, .weather { padding-left: 1.5rem; border-left: 2px solid var(--glass-line); font-size: 1.3rem; }
+.date { letter-spacing: .14em; text-transform: uppercase; }
+.weather { display: flex; align-items: center; gap: .6rem; font-size: 1.6rem; font-weight: 600; }
+.weather .ico { width: 2.2rem; height: 2.2rem; }
+.weather .sub { margin-left: .4rem; }
 
 .pills { align-items: center; gap: 1rem; }
 .status { margin-right: .5rem; font-size: 1.15rem; color: var(--muted); }
@@ -53,6 +57,11 @@ body {
 }
 .big { font-size: 1.9rem; }
 .sub { font-size: 1.15rem; font-weight: 400; color: var(--muted); }
+/* Icônes : trait de la couleur de la tuile (attribut stroke), sombre quand la tuile est blanche. */
+.ico { flex: none; width: 2.6rem; height: 2.6rem; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tile:has(.ico) { position: relative; }
+.tile .ico { position: absolute; top: 1.25rem; right: 1.25rem; }
+.tile:focus-visible .ico { stroke: currentColor; }
 
 .app { width: 18.5rem; height: 10rem; justify-content: center; align-items: center; background: var(--app-bg); color: var(--focus-text); border: 0; filter: brightness(.78); }
 .app:focus-visible { filter: none; }
