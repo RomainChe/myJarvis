@@ -25,9 +25,9 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_liaison_au_core_verrouillee(self):
-        # La page ne choisit ni l'URL ni l'en-tête : deux routes fixes, https vers *.ts.net, clé chiffrée, aucune redirection.
+        # La page ne choisit ni l'URL ni l'en-tête : routes fixes (la page n'en voit que deux), https vers *.ts.net, clé chiffrée, aucune redirection.
         link = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/CoreLink.java").read_text(encoding="utf-8")
-        self.assertEqual(re.findall(r'"(/api/[a-z]+)"', link), ["/api/tv", "/api/voice"])
+        self.assertEqual(re.findall(r'"(/api/[a-z]+)"', link), ["/api/token", "/api/tv", "/api/voice"])  # /api/token : renouvellement de la clé, jamais offert à la page
         self.assertIn('host.endsWith(".ts.net")', link)
         self.assertIn('"https".equals(u.getScheme())', link)
         self.assertIn("setInstanceFollowRedirects(false)", link)
