@@ -1,10 +1,12 @@
-/* Interface TV : sombre, lisible à 3 m, base 1920×1080 (1rem = 16 px). Couleurs reprises de jarvis/web/app.css. */
+/* Interface TV façon launcher : fond sombre, halo à la couleur de l'élément sélectionné, focus = tuile blanche.
+   Lisible à 3 m, base 1920×1080 (1rem = 16 px). */
+@property --glow { syntax: "<color>"; inherits: true; initial-value: #38CFEF; }
 :root {
-  --bg: #05080C; --surface: #0E161E; --raised: #1C2834;
-  --text: #E3EEF6; --muted: #8FA0B3; --accent: #38CFEF; --on-accent: #03141A;
-  --success: #4ADE80; --danger: #FF7A85;
+  --bg: #07070B; --glass: rgb(255 255 255 / .08); --glass-line: rgb(255 255 255 / .18);
+  --text: #F4F6FA; --muted: rgb(244 246 250 / .62); --focus-bg: #F4F6FA; --focus-text: #0B0D12;
+  --app-bg: #E6E9EF;
   --font: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
-  --tile-w: 17rem; --tile-h: 8.5rem; --gap: 1.5rem;
+  --gap: 1.5rem;
   --ease: cubic-bezier(.2, 0, 0, 1);
 }
 html { font-size: calc(100vw / 120); }
@@ -13,56 +15,74 @@ body {
   margin: 0; min-height: 100vh; overflow: hidden;
   /* Zone sûre : les TV rognent les bords (overscan). */
   padding: 3rem 5rem 0;
-  background: radial-gradient(ellipse at 20% 0%, rgb(56 207 239 / .08), transparent 60%), var(--bg);
-  color: var(--text); font-family: var(--font);
+  background: var(--bg); color: var(--text); font-family: var(--font);
+  transition: --glow 600ms var(--ease);
+}
+.halo {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 60% at 45% 30%, color-mix(in srgb, var(--glow) 75%, transparent), transparent 70%),
+    linear-gradient(to bottom, transparent 40%, var(--bg) 95%);
 }
 
-.top { display: flex; align-items: center; gap: 2.5rem; font-size: 1.5rem; margin-bottom: 1.5rem; }
-.brand { font-weight: 700; letter-spacing: .15em; color: var(--accent); }
-.chip { margin-left: .75rem; padding: .2rem .7rem; border-radius: 99px; font-size: .9rem; letter-spacing: .05em; color: var(--muted); background: var(--surface); }
-.status { flex: 1; color: var(--muted); }
-.status::before { content: ""; display: inline-block; width: .7rem; height: .7rem; margin-right: .6rem; border-radius: 50%; background: var(--success); }
-.offline .status::before { background: var(--danger); }
-.clock { font-size: 2.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.top { display: flex; align-items: flex-start; justify-content: space-between; }
+.greet { margin: 0 0 .4rem; font-size: 1.1rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.now { margin: 0; display: flex; align-items: center; gap: 1.5rem; }
+.clock { font-size: 4.5rem; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.date { padding-left: 1.5rem; border-left: 2px solid var(--glass-line); font-size: 1.3rem; letter-spacing: .14em; text-transform: uppercase; }
+
+.pills { align-items: center; gap: 1rem; }
+.status { margin-right: .5rem; font-size: 1.15rem; color: var(--muted); }
+.status::before { content: ""; display: inline-block; width: .65rem; height: .65rem; margin-right: .55rem; border-radius: 50%; background: #4ADE80; }
+.offline .status::before { background: #FF7A85; }
+
+.hero { margin: 2.5rem 0 .5rem; font-size: 3.5rem; font-weight: 600; letter-spacing: -.01em; min-height: 4.2rem; }
 
 /* Marges négatives + padding : la tuile agrandie et son halo ne sont pas rognés par les overflow. */
-#rows { height: calc(100vh - 11rem); overflow: hidden; margin: 0 -1.5rem; padding: 0 1.5rem; }
-.row { margin-bottom: 1rem; }
-.row h2 { margin: 0 0 .25rem; font-size: 1.6rem; font-weight: 600; color: var(--muted); }
+#rows { height: calc(100vh - 21rem); overflow: hidden; margin: 0 -1.5rem; padding: 0 1.5rem; }
+.row { margin-bottom: .75rem; }
+.row h2 { margin: 0 0 -.5rem; font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .tiles { display: flex; gap: var(--gap); overflow: hidden; padding: 1.25rem; margin: 0 -1.25rem; }
 
 .tile {
-  flex: none; width: var(--tile-w); height: var(--tile-h); padding: 1.25rem;
+  flex: none; width: 17rem; height: 8.5rem; padding: 1.25rem;
   display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: .3rem;
-  border: 2px solid transparent; border-radius: 1rem; background: var(--surface);
+  border: 1px solid var(--glass-line); border-radius: 1.1rem; background: var(--glass);
   color: var(--text); font: inherit; font-size: 1.6rem; font-weight: 600; text-align: left;
-  transition: transform 180ms var(--ease), box-shadow 180ms var(--ease), background 180ms var(--ease);
+  transition: transform 180ms var(--ease), background 180ms var(--ease), color 180ms var(--ease), box-shadow 180ms var(--ease);
 }
-.tile.app { justify-content: center; align-items: center; text-align: center; font-size: 1.9rem; }
 .big { font-size: 1.9rem; }
 .sub { font-size: 1.15rem; font-weight: 400; color: var(--muted); }
-.fallback { border-color: var(--raised); }
 
-/* Focus : la seule chose qu'on doit voir de loin. */
+.app { width: 18.5rem; height: 10rem; justify-content: center; align-items: center; background: var(--app-bg); color: var(--focus-text); border: 0; filter: brightness(.78); }
+.app:focus-visible { filter: none; }
+.app img { max-width: 72%; max-height: 46%; object-fit: contain; }
+
+.pill { width: auto; height: auto; padding: .7rem 1.5rem; border-radius: 99px; font-size: 1.2rem; font-weight: 500; }
+
+/* Focus : la tuile devient blanche et grossit, c'est la seule chose à voir de loin. */
 .tile:focus { outline: none; }
 .tile:focus-visible {
-  transform: scale(1.08); background: var(--raised); border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgb(56 207 239 / .35), 0 12px 36px rgb(0 0 0 / .55);
+  transform: scale(1.07); background: var(--focus-bg); color: var(--focus-text); border-color: transparent;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / .9), 0 16px 40px rgb(0 0 0 / .55);
 }
+.pill:focus-visible { transform: scale(1.05); }
+.tile:focus-visible .sub { color: rgb(11 13 18 / .65); }
 
 .offline .jarvis { opacity: .4; }
+.offline .jarvis:focus-visible { opacity: .75; }
 .offline .jarvis .sub { display: none; }
-.offline .jarvis::after { content: "Hors ligne"; font-size: 1.15rem; font-weight: 400; color: var(--muted); }
+.offline .jarvis::after { content: "Hors ligne"; font-size: 1.15rem; font-weight: 400; }
 
 .hint { position: fixed; left: 5rem; bottom: 1.5rem; margin: 0; font-size: 1.1rem; color: var(--muted); }
 .toast {
   position: fixed; right: 5rem; bottom: 3rem; padding: 1rem 1.75rem; border-radius: 1rem;
-  background: var(--accent); color: var(--on-accent); font-size: 1.5rem; font-weight: 600;
+  background: var(--focus-bg); color: var(--focus-text); font-size: 1.5rem; font-weight: 600;
   opacity: 0; transform: translateY(1rem); transition: opacity 200ms var(--ease), transform 200ms var(--ease);
 }
 .toast.show { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile, .toast { transition: none; }
+  body, .tile, .toast { transition: none; }
   .tile:focus-visible { transform: none; }
 }

@@ -18,7 +18,7 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_garde_fous(self):
-        for p in sorted(TV_DIR.iterdir()):
+        for p in sorted(TV_DIR.glob("*.*")):  # tv/logos/ (local, hors Git) n'est pas du code
             text = p.read_text(encoding="utf-8")
             rules = {**FORBIDDEN_ANYWHERE, **(FORBIDDEN_JS if p.suffix == ".js" else {})}
             for name, rx in rules.items():

@@ -1,11 +1,30 @@
 'use strict';
 // Maquette : données fictives, aucun appel au Core. « H » ou ?horsligne simule le Core injoignable.
 
-const rowEls = [...document.querySelectorAll('.row .tiles')];
+// Rangée 0 : pastilles du haut ; l'accueil s'ouvre sur la première appli.
+const rowEls = [...document.querySelectorAll('.tiles')];
 const tiles = rowEls.map((row) => [...row.querySelectorAll('.tile')]);
+const HOME = { r: 1, c: 0 };
 const last = {};
-let pos = { r: 0, c: 0 };
+let pos = HOME;
 let toastTimer;
+
+// Logo absent (tv/logos/ n'est pas dans Git) : la tuile affiche le nom. Une image peut avoir échoué avant ce script.
+function logoToText(img) {
+  const span = document.createElement('span');
+  span.className = 'big';
+  span.textContent = img.alt;
+  img.replaceWith(span);
+}
+document.querySelectorAll('.tile img').forEach((img) => {
+  if (img.complete && !img.naturalWidth) logoToText(img);
+  else img.addEventListener('error', () => logoToText(img));
+});
+
+function tileName(el) {
+  const img = el.querySelector('img');
+  return img ? img.alt : (el.querySelector('.big') || el).textContent;
+}
 
 function centers() {
   return tiles.map((row) => row.map((t) => { const b = t.getBoundingClientRect(); return b.left + b.width / 2; }));
@@ -21,7 +40,7 @@ function focusAt(p) {
   reveal(row, 'scrollLeft', 'clientWidth', el.offsetLeft - row.offsetLeft, el.offsetWidth, 32);
   const main = document.getElementById('rows');
   const sec = row.parentElement;
-  reveal(main, 'scrollTop', 'clientHeight', sec.offsetTop - main.offsetTop, sec.offsetHeight, 0);
+  if (main.contains(sec)) reveal(main, 'scrollTop', 'clientHeight', sec.offsetTop - main.offsetTop, sec.offsetHeight, 0);
 }
 
 function reveal(box, scroll, size, start, len, pad) {
@@ -59,9 +78,9 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     activate(tiles[pos.r][pos.c]);
   } else if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
-    // Retour : remonte en haut à gauche ; l'accueil ne se ferme jamais.
+    // Retour : revient sur la première appli ; l'accueil ne se ferme jamais.
     e.preventDefault();
-    focusAt({ r: 0, c: 0 });
+    focusAt(HOME);
   } else if (e.key === 'h' || e.key === 'H') {
     setOffline(!document.body.classList.contains('offline'));
   }
@@ -69,12 +88,27 @@ document.addEventListener('keydown', (e) => {
 
 // La souris et le Tab ne doivent pas désynchroniser la position mémorisée.
 tiles.forEach((row, r) => row.forEach((t, c) => {
-  t.addEventListener('focus', () => { pos = { r, c }; last[r] = c; });
+  t.addEventListener('focus', () => {
+    pos = { r, c };
+    last[r] = c;
+    document.getElementById('hero').textContent = tileName(t);
+    document.body.style.setProperty('--glow', t.dataset.color);
+  });
   t.addEventListener('click', () => activate(t));
 }));
 
+function greeting(h) {
+  if (h >= 5 && h < 12) return 'Bonjour';
+  if (h >= 12 && h < 18) return 'Bon après-midi';
+  if (h >= 18 && h < 23) return 'Bonsoir';
+  return 'Bonne nuit';
+}
+
 function tick() {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('date').textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('greet').textContent = greeting(now.getHours());
 }
 
 tick();

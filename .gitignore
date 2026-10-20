@@ -20,6 +20,9 @@ node_modules/
 models/*
 !models/MANIFEST.json
 
+# Logos des applis de la maquette TV (marques déposées) : python scripts/tv_logos.py
+tv/logos/
+
 # Cache du CLI Playwright
 .playwright-cli/
 
