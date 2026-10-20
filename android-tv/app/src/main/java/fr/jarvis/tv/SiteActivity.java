@@ -69,6 +69,7 @@ public class SiteActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
+        if (siteHost.endsWith("openflix.pro")) web.setInitialScale(85); // la TV donne 960 px CSS : la barre d'OpenFlix y passe à la ligne
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
