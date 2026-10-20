@@ -24,7 +24,8 @@ enceintes, caméras, etc.). JARVIS doit être :
 - Box / routeur : Bbox Wi-Fi 7 XT (Bouygues)
 - Appareils connus : TV Continental Edison Google TV + barre de son Samsung HW-S50B ; 2 clims réversibles Mitsubishi
   MSZ-HR25VFK2 (salon, chambre) = chauffage
-- Matériel disponible pour un serveur domestique : aucun, tout tourne sur le PC
+- Serveur domestique : mini-PC Debian allumé 24 h/24 (Core + Home Assistant, docs/ARCHITECTURE.md §3.4) ;
+  le PC garde l'agent PC, Ollama (GPU), la voix et `claude_code`
 - Langue de l'assistant : français. Nom d'appel : « Jarvis ».
 - Budget mensuel API IA : 0 € → LLM 100 % local (Ollama), aucune API payante.
 - Architecture et roadmap : voir docs/ARCHITECTURE.md et docs/ROADMAP.md.

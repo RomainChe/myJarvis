@@ -36,3 +36,9 @@ Déjà codées : minuteurs et rappels, mémoire (sans écran PWA), briefing du m
 3. **Présence** : appli compagnon HA Android → « je pars » proposé, jamais exécuté seul si > N1. Localisation = nouvelle donnée personnelle.
 4. **Pilotage de lol-clipper à la voix** : « fais un best-of de la semaine » en N1 vers `compile` / `edit`.
 5. **Synthèse** : comparer Kokoro (`ff_siwis`) à Piper (dépôt GitHub archivé depuis octobre 2025, à vérifier).
+6. **Interface TV (launcher JARVIS)** (demandé le 2026-10-20) : remplacer l'accueil Google TV par une interface JARVIS pilotée à la télécommande, avec **retour possible à tout moment vers l'accueil d'origine**.
+   - Forme : APK Android TV (WebView, interface **embarquée dans l'APK**, pas chargée depuis le Core) ; tout se fait au D-pad (focus visible, grosses tuiles, Retour ne bloque jamais).
+   - Sans Core (mini-PC injoignable) : apps, sources et réglages marchent, tuiles JARVIS grisées. Sans PC : seul le LLM manque.
+   - Repli : le launcher Google TV n'est jamais désinstallé. Tuile « Accueil d'origine » ; bascule auto vers lui si l'interface plante au démarrage ; si on l'a désactivé par ADB, `pm enable` le rétablit (procédure dans le guide).
+   - Étapes : (a) maquette navigable aux flèches, essayée au clavier sur PC ; (b) APK minimal (tuiles d'apps par intents, se déclare HOME) ; (c) liaison au Core (enrôlement comme un appareil, pas d'IP ni de clé dans l'APK) ; (d) remplacement de la touche Home (désactivation ADB ou service d'accessibilité, à comparer) + repli.
+   - Sécurité : la TV est partagée (invités) → appareil limité à N0/N1, les N2/N3 se confirment sur le téléphone. À décider : SDK Android/Gradle à installer (nouvelle dépendance), activation d'ADB sur la TV (aujourd'hui pilotée par Android TV Remote via HA).
