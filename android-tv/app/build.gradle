@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'fr.jarvis.tv'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'fr.jarvis.tv'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '0.1'
+    }
+
+    // L'interface est celle de la maquette (tv/ à la racine du dépôt), embarquée telle quelle : une seule source.
+    sourceSets {
+        main {
+            assets.srcDirs = ['../../tv']
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}

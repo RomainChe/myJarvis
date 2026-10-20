@@ -1,4 +1,5 @@
 """Maquette de l'interface TV (tv/) : navigation D-pad (via Node) et mêmes garde-fous que la PWA."""
+import re
 import shutil
 import subprocess
 import unittest
@@ -23,6 +24,18 @@ class TvMaquetteTest(unittest.TestCase):
             rules = {**FORBIDDEN_ANYWHERE, **(FORBIDDEN_JS if p.suffix == ".js" else {})}
             for name, rx in rules.items():
                 self.assertIsNone(rx.search(text), f"{p.name} : {name}")
+
+    def test_applis_dans_la_liste_blanche_de_l_apk(self):
+        # Chaque tuile qui lance une appli doit avoir sa clé côté Java (Apps.java), et rien d'autre n'y est exposé.
+        html = (TV_DIR / "index.html").read_text(encoding="utf-8")
+        java = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
+        tiles = set(re.findall(r'data-app="([a-z]+)"', html))
+        allowed = set(re.findall(r'PACKAGES\.put\("([a-z]+)"', java)) | set(re.findall(r'case "([a-z]+)":', java))
+        self.assertTrue(tiles)
+        self.assertEqual(tiles, allowed)
+        bridge = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/MainActivity.java").read_text(encoding="utf-8")
+        self.assertEqual(bridge.count("@JavascriptInterface"), 1, "un seul point d'entrée JS")
+        self.assertNotIn("android.permission", (ROOT / "android-tv/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"))
 
     def test_scripts_charges(self):
         html = (TV_DIR / "index.html").read_text(encoding="utf-8")

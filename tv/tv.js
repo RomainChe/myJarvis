@@ -64,6 +64,9 @@ function setOffline(off) {
 function activate(el) {
   if (el.classList.contains('jarvis') && document.body.classList.contains('offline')) {
     toast('JARVIS est hors ligne : action indisponible');
+  } else if (el.dataset.app && window.JarvisTV) {
+    // Dans l'APK : le pont Java lance l'appli (liste blanche côté Java). Sur PC : simple message.
+    if (!window.JarvisTV.launch(el.dataset.app)) toast('Application absente de la TV');
   } else {
     toast(el.dataset.say);
   }
