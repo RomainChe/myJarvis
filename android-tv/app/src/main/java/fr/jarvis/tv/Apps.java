@@ -26,7 +26,7 @@ final class Apps {
         PACKAGES.put("playstore", "com.android.vending");
     }
 
-    /** Sites ouverts dans le navigateur de la TV : URL fixes côté Java, la page ne fournit jamais d'adresse. */
+    /** Sites ouverts dans SiteActivity (WebView de l'APK) : URL fixes côté Java, la page ne fournit jamais d'adresse. */
     private static final Map<String, String> SITES = new HashMap<>();
     static {
         SITES.put("openflix", "https://openflix.pro/");
@@ -53,8 +53,7 @@ final class Apps {
             default:
                 if (SITES.containsKey(key)) {
                     Uri url = Uri.parse(SITES.get(key));
-                    // Notre WebView : Bowd avale les popups pub (sa règle l'autorise), OpenFlix affiche la pub 3 s.
-                    i = new Intent(ctx, SiteActivity.class).setData(url).putExtra(SiteActivity.EXTRA_AD_SECONDS, key.equals("openflix") ? 3 : 0);
+                    i = new Intent(ctx, SiteActivity.class).setData(url).putExtra(SiteActivity.EXTRA_AD_SECONDS, 0);
                     break;
                 }
                 String pkg = PACKAGES.get(key);
