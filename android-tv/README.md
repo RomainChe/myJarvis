@@ -14,10 +14,14 @@ Roadmap : Phase 7, piste 6, étape (b).
 ## Tuiles Bowd et OpenFlix : WebView dédiée (`SiteActivity`)
 Les deux sites s'ouvrent dans une WebView de l'APK (seule permission : `INTERNET`, déclarée pour toute l'APK mais utilisée uniquement par `SiteActivity` ; la WebView de l'accueil n'a pas de réseau, ses requêtes hors assets sont refusées). Sans pont JS, non exportée, navigation principale limitée au domaine du site. Ajouter un site : une ligne `SITES.put("clé", "https://…")` dans `Apps.java` et une tuile `data-app="clé"` dans `tv/index.html`.
 - **Bowd** : sa règle autorise de fermer la pub aussitôt. Les popups de la régie sont avalées à l'ouverture ; le compteur « Voir une publicité (n/2) » avance quand même. Le bouton « Passer la pub » est cliqué dès que le site le rend actif (après son compte à rebours).
-- **OpenFlix** : le site exige de rester 3 s sur la pub. Elle s'affiche en vrai, plein écran, avec un compte à rebours, puis se ferme seule ; Retour l'abandonne (il faudra recommencer). Rien n'est caché ni raccourci. La vérification Cloudflare reste à cocher à la télécommande.
+- **OpenFlix** : le site exige de rester 3 s sur la pub. Elle s'affiche en vrai, plein écran, avec un compte à rebours, puis se ferme seule ; Retour l'abandonne (il faudra recommencer). Rien n'est caché ni raccourci. La vérification Cloudflare se coche au pointeur (ouvert seul sur cette page).
 - OpenFlix : se connecter par e-mail et mot de passe (la connexion Google est refusée dans une WebView).
 - Session : la connexion au site (cookies, stockage local) reste dans la WebView de l'appli, non sauvegardée (`allowBackup=false`). La pub OpenFlix reste en https et ne reçoit aucune saisie de ta part ; ne tape jamais de mot de passe dans la fenêtre de pub.
 - Retour : ferme la pub, sinon page précédente, sinon retour à l'accueil JARVIS.
+- **Télécommande et téléphone** (appli Google TV du téléphone : mêmes touches, et son clavier pour les champs) :
+  - par défaut, les flèches passent d'un élément cliquable au plus proche (cadre bleu), OK le clique ; OK sur un champ y entre (clavier), Entrée valide. Rien dans la direction : la page défile. Script `app/src/main/assets/sitenav.js`, injecté à chaque page.
+  - **appui long sur OK** : pointeur (pastille blanche). Flèches = souris (accélère si maintenue), OK = toucher, pointeur au bord = défilement, Retour ou nouvel appui long = fin. Sert pour les lecteurs vidéo (en iframe, hors de portée du script) et la case Cloudflare, sur laquelle le pointeur s'ouvre seul.
+  - lecteur plein écran et pub OpenFlix : touches transmises telles quelles.
 
 ## Liaison au Core (étape c)
 La page affiche la météo et les rappels du Core et lance les scènes, sans connaître ni l'adresse ni la clé : `CoreLink.java` fait l'appel (deux routes fixes : `GET /api/tv`, `POST /api/voice`), en https vers un nom `*.ts.net`, sans redirection. Sans configuration ou Core injoignable : « JARVIS hors ligne », tuiles JARVIS grisées, apps et réglages intacts.
