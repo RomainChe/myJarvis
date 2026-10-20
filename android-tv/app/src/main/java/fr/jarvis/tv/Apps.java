@@ -51,7 +51,9 @@ final class Apps {
                 break;
             default:
                 if (SITES.containsKey(key)) {
-                    i = new Intent(Intent.ACTION_VIEW, Uri.parse(SITES.get(key)));
+                    Uri url = Uri.parse(SITES.get(key));
+                    // Notre WebView : Bowd avale les popups pub (sa règle l'autorise), OpenFlix affiche la pub 3 s.
+                    i = new Intent(ctx, SiteActivity.class).setData(url).putExtra(SiteActivity.EXTRA_AD_SECONDS, key.equals("openflix") ? 3 : 0);
                     break;
                 }
                 String pkg = PACKAGES.get(key);

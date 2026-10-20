@@ -35,7 +35,21 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertEqual(tiles, allowed)
         bridge = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/MainActivity.java").read_text(encoding="utf-8")
         self.assertEqual(bridge.count("@JavascriptInterface"), 1, "un seul point d'entrée JS")
-        self.assertNotIn("android.permission", (ROOT / "android-tv/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"))
+        manifest = (ROOT / "android-tv/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r'<uses-permission android:name="([^"]+)"', manifest), ["android.permission.INTERNET"])
+
+    def test_webview_bowd_sans_pont_et_non_exportee(self):
+        # SiteActivity a le réseau : aucun pont JS, non exportée, navigation limitée à bowdtv.com, popups avalées.
+        base = ROOT / "android-tv/app/src/main"
+        site = (base / "java/fr/jarvis/tv/SiteActivity.java").read_text(encoding="utf-8")
+        manifest = (base / "AndroidManifest.xml").read_text(encoding="utf-8")
+        self.assertNotIn("JavascriptInterface", site)
+        self.assertRegex(manifest, r'android:name="\.SiteActivity"[^>]*android:exported="false"')
+        self.assertIn('host.endsWith("." + siteHost)', site)
+        self.assertIn("onCreateWindow", site)
+        self.assertIn("Passer la pub", site)
+        apps = (base / "java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
+        self.assertIn('key.equals("openflix") ? 3 : 0', apps)  # OpenFlix : pub visible 3 s, jamais avalée
 
     def test_scripts_charges(self):
         html = (TV_DIR / "index.html").read_text(encoding="utf-8")
