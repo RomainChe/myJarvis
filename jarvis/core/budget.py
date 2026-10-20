@@ -97,6 +97,16 @@ def classify(t: dict, plan_days: frozenset | set = frozenset()) -> tuple[str, di
     return "conso", mk("🎲", "Loisirs divers (déduits)", out, "Loisirs")
 
 
+def investments(txs: list[dict]) -> list[dict]:
+    """Épargne Trade Republic → compte où elle est investie : le plan PEA (60–80 €, hors PLANS) va au PEA, le reste
+    (plans, saveback, arrondis) au compte-titres. Le Livret LDDS (Crédit Mutuel) n'est pas un placement en bourse."""
+    txs = [t for t in txs if t.get("date") and t.get("bank") == TR]
+    days = savings_days(txs)
+    return [{"date": r["date"], "amount": r["amount"],
+             "account": "PEA" if r["name"] == "Épargne programmée" and r["amount"] not in PLANS else "Compte-titres"}
+            for k, r in (classify(t, days) for t in txs) if k == "saving"]
+
+
 def _merge(rows: list[dict], name: str, note) -> dict:
     """Plusieurs lignes d'un même nom → une seule (crédit, péages, dons, épargne programmée...)."""
     rows = sorted(rows, key=lambda r: r["date"])

@@ -631,7 +631,9 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         log_read(auth[0], "bank_read", "comptes bancaires, Ledger et portefeuille lus")
         binance.refresh_if_stale()  # historique Binance relu en tâche de fond au plus une fois par jour
-        return {"bank": bank_view(), "crypto": binance.enrich(crypto_view()), "portfolio": portfolio_view()}
+        bank = bank_view()
+        invest = bank.pop("invest", None) if bank else None  # épargne Trade Republic : ajoutée au compte-titres / PEA
+        return {"bank": bank, "crypto": binance.enrich(crypto_view()), "portfolio": portfolio_view(savings=invest)}
 
     bienetre_core.on_run = lambda ok: audit.log("serve", "bienetre_run", {}, 0, "auto", "ok" if ok else "échec")
 
@@ -677,6 +679,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             try:
                 log_read(device, "bank_read", "comptes bancaires lus")
                 if bank := bank_view():
+                    bank.pop("invest", None)  # réservé au portefeuille de l'onglet Finances
                     return {"b": bank}
             except Exception:  # rapport hebdo en repli
                 pass

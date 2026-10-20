@@ -46,6 +46,13 @@ class BankBase(unittest.TestCase):
 
 
 class StoreTest(BankBase):
+    def test_epargne_portefeuille_seulement_si_lecture_recente(self):
+        now = datetime.now(timezone.utc)
+        self.assertTrue(banking._recent((now - timedelta(days=2)).isoformat()))
+        self.assertFalse(banking._recent((now - timedelta(days=31)).isoformat()))
+        self.assertFalse(banking._recent(None))
+        self.assertFalse(banking._recent("pas une date"))
+
     def test_configuration_chiffree_et_cle_dans_le_coffre(self):
         self.configured()
         raw = banking.STORE.read_bytes()
