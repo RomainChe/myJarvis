@@ -33,6 +33,15 @@ public class SiteActivity extends Activity {
             + "for(const e of document.querySelectorAll('div,button')){"
             + "if(e.children.length===0&&/^Passer la pub/.test(e.textContent.trim())){e.click();return;}}},500);})();";
 
+    // Bandeau « Application Android disponible pour cet appareil » : inutile ici (l'appli officielle n'aurait pas la fermeture auto
+    // des pubs). On masque le plus haut ancêtre pleine largeur et peu haut, jamais la page entière.
+    private static final String HIDE_BANNER_JS = "(()=>{if(window.__jarvisBanner)return;window.__jarvisBanner=setInterval(()=>{"
+            + "for(const e of document.querySelectorAll('div,span')){"
+            + "if(e.children.length===0&&/^Application Android disponible/.test(e.textContent.trim())){"
+            + "let n=e;while(n.parentElement&&n.parentElement!==document.body){const p=n.parentElement,r=p.getBoundingClientRect();"
+            + "if(r.width<innerWidth*0.95||r.height>innerHeight*0.3)break;n=p;}"
+            + "n.style.display='none';}}},500);})();";
+
     private FrameLayout root;
     private WebView web;
     private View fullscreen;
@@ -68,7 +77,10 @@ public class SiteActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (adSeconds == 0) view.evaluateJavascript(SKIP_JS, null);
+                if (adSeconds == 0) {
+                    view.evaluateJavascript(SKIP_JS, null);
+                    view.evaluateJavascript(HIDE_BANNER_JS, null);
+                }
             }
         });
         web.setWebChromeClient(new WebChromeClient() {

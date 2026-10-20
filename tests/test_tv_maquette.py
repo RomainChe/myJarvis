@@ -57,6 +57,7 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertNotIn("addJavascriptInterface", site)
         self.assertIn("onCreateWindow", site)
         self.assertIn("Passer la pub", site)
+        self.assertIn("Application Android disponible", site)
         apps = (base / "java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
 
     def test_scripts_charges(self):
