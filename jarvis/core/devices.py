@@ -17,7 +17,7 @@ CODE_TTL_S = 120
 MAX_FAILS = 5  # échecs d'enrôlement avant de brûler tous les codes en attente
 LOCKOUT_S = 300
 NAME_MAX = 40
-SCOPES = ("full", "voice", "tv")  # « voice » : n'ouvre que POST /api/voice (micro du salon) ; « tv » : /api/voice et GET /api/tv (TV partagée, N0/N1)
+SCOPES = ("full", "voice", "tv")  # « voice » : n'ouvre que POST /api/voice (micro du salon) ; « tv » : /api/voice, GET /api/tv et POST /api/token (TV partagée, N0/N1)
 TOKEN_TTL_S = 90 * 86400
 
 SCHEMA = """

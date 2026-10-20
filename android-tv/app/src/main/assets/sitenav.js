@@ -2,6 +2,7 @@
 // Navigation télécommande dans les sites ouverts par SiteActivity (Bowd, OpenFlix), injectée par SiteActivity.
 // Les flèches passent à l'élément cliquable voisin (jamais de défilement libre), OK clique, et le focus reste
 // dans la couche du dessus (popup, lecteur) : l'arrière-plan n'est plus atteignable. Testée par tests/tv_sitenav.test.js.
+// En secours, appui long sur OK = pointeur (SiteActivity).
 
 const SiteNav = {
   /** Index du rectangle {x, y, w, h} le plus proche de from dans la direction dir, ou -1. */

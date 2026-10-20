@@ -50,6 +50,14 @@ class TvRouteTest(ServerBase):
             status, answer, _ = self.call(method, path, body, token=self.token)
             self.assertEqual((status, answer), (403, {"detail": "portée insuffisante"}), path)
 
+    def test_cle_tv_se_renouvelle_et_l_ancienne_cesse_apres_usage_de_la_nouvelle(self):
+        status, body, _ = self.call("POST", "/api/token", {}, token=self.token)
+        self.assertEqual(status, 200)
+        new = body["token"]
+        self.assertEqual(self.call("GET", "/api/tv", token=new)[0], 200)
+        self.assertEqual(self.call("GET", "/api/tv", token=self.token)[0], 401)
+        self.assertEqual(self.devices.check_scoped(new)[2], "tv")  # la portée survit au renouvellement
+
     def test_cle_voix_et_inconnue_refusees_sur_api_tv(self):
         voice = self.devices.add_scoped("voix-salon", "voice")[1]
         self.assertEqual(self.call("GET", "/api/tv", token=voice)[0], 403)

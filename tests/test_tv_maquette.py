@@ -18,10 +18,16 @@ class TvMaquetteTest(unittest.TestCase):
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    @unittest.skipUnless(shutil.which("node"), "Node absent : touches du lecteur TV non testées")
+    def test_touches_lecteur_plein_ecran(self):
+        r = subprocess.run(["node", "--test", str(ROOT / "tests" / "tv_lecteur.test.js")],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_liaison_au_core_verrouillee(self):
-        # La page ne choisit ni l'URL ni l'en-tête : deux routes fixes, https vers *.ts.net, clé chiffrée, aucune redirection.
+        # La page ne choisit ni l'URL ni l'en-tête : routes fixes (la page n'en voit que deux), https vers *.ts.net, clé chiffrée, aucune redirection.
         link = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/CoreLink.java").read_text(encoding="utf-8")
-        self.assertEqual(re.findall(r'"(/api/[a-z]+)"', link), ["/api/tv", "/api/voice"])
+        self.assertEqual(re.findall(r'"(/api/[a-z]+)"', link), ["/api/token", "/api/tv", "/api/voice"])  # /api/token : renouvellement de la clé, jamais offert à la page
         self.assertIn('host.endsWith(".ts.net")', link)
         self.assertIn('"https".equals(u.getScheme())', link)
         self.assertIn("setInstanceFollowRedirects(false)", link)
@@ -55,7 +61,9 @@ class TvMaquetteTest(unittest.TestCase):
         html = (TV_DIR / "index.html").read_text(encoding="utf-8")
         java = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
         tiles = set(re.findall(r'data-app="([a-z]+)"', html))
-        allowed = set(re.findall(r'(?:PACKAGES|SITES)\.put\("([a-z]+)"', java)) | set(re.findall(r'case "([a-z]+)":', java))
+        hosts = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/SiteHosts.java").read_text(encoding="utf-8")
+        allowed = (set(re.findall(r'PACKAGES\.put\("([a-z]+)"', java)) | set(re.findall(r'case "([a-z]+)":', java))
+                   | set(re.findall(r'HOSTS\.put\("([a-z]+)"', hosts)))
         self.assertTrue(tiles)
         self.assertEqual(tiles, allowed)
         bridge = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/MainActivity.java").read_text(encoding="utf-8")
@@ -71,21 +79,28 @@ class TvMaquetteTest(unittest.TestCase):
         manifest = (base / "AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertNotIn("JavascriptInterface", site)
         self.assertRegex(manifest, r'android:name="\.SiteActivity"[^>]*android:exported="false"')
-        self.assertIn('host.endsWith("." + siteHost)', site)
+        hosts = (base / "java/fr/jarvis/tv/SiteHosts.java").read_text(encoding="utf-8")
+        self.assertIn("SiteHosts.allowed(data.getHost())", site)
+        self.assertIn("SiteHosts.within(siteHost, host)", site)
+        self.assertIn('HOSTS.containsValue(host.toLowerCase(Locale.ROOT))', hosts)
+        self.assertIn('endsWith("." + site)', hosts)
         self.assertIn('android:usesCleartextTraffic="false"', manifest)
         self.assertIn('"https".equals(data.getScheme())', site)
         self.assertNotIn("addJavascriptInterface", site)
         self.assertIn("onCreateWindow", site)
         self.assertIn("Passer la pub", site)
         self.assertIn("Application Android disponible", site)
-        # Navigation télécommande : script du dépôt injecté à chaque page, sans zoom, tap borné à la vue, Retour jamais bloqué.
-        self.assertIn('getAssets().open("site/sitenav.js")', site)
-        self.assertIn("view.evaluateJavascript(navJs, null)", site)
+        # Télécommande : script injecté sans pont (évalué dans la page, il ne peut rien appeler côté Java).
+        self.assertIn('getAssets().open("sitenav.js")', site)
+        nav = (base / "assets/sitenav.js").read_text(encoding="utf-8")
+        self.assertTrue(nav.startswith("'use strict';"))
+        self.assertNotIn("innerHTML", nav)
+        # Retour confié à la page mais jamais bloqué, tap borné à la vue, zoom coupé (revue Sécurité C1/C2).
         self.assertIn("setSupportZoom(false)", site)
         self.assertIn("fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1", site)
-        self.assertIn("jsBackAt < 800) nativeBack()", site)
-        self.assertLess(site.index("jsBackAt = SystemClock.uptimeMillis()"), site.index("__jarvisNav.back()"))  # page figée : 2e Retour natif
         self.assertIn("if (json == null ||", site)
+        self.assertIn("jsBackAt < 800) nativeBack()", site)
+        self.assertLess(site.index("jsBackAt = SystemClock.uptimeMillis()"), site.index("__jarvisNav.back()"))
         apps = (base / "java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
 
     def test_scripts_charges(self):

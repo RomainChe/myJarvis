@@ -2,7 +2,7 @@
 // Lancé par tests/test_tv_maquette.py (node --test).
 const test = require('node:test');
 const assert = require('node:assert');
-const SiteNav = require('../tv/site/sitenav.js');
+const SiteNav = require('../android-tv/app/src/main/assets/sitenav.js');
 
 const R = (x, y, w = 100, h = 50) => ({ x, y, w, h });
 // Barre de menu, puis une rangée de cartes, puis une rangée décalée.
