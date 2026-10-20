@@ -44,7 +44,12 @@ public class SiteActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         adSeconds = getIntent().getIntExtra(EXTRA_AD_SECONDS, 0);
-        siteHost = getIntent().getData().getHost();
+        android.net.Uri data = getIntent().getData();
+        if (data == null || !"https".equals(data.getScheme())) { // l'activité n'est lancée que par Apps, mais on ne charge jamais autre chose que du https
+            finish();
+            return;
+        }
+        siteHost = data.getHost();
         root = new FrameLayout(this);
         web = new WebView(this);
         WebSettings s = web.getSettings();
@@ -78,9 +83,7 @@ public class SiteActivity extends Activity {
                 popup.setWebViewClient(new WebViewClient() {
                     @Override
                     public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
-                        String scheme = r.getUrl().getScheme();
-                        boolean isHttp = "http".equals(scheme) || "https".equals(scheme);
-                        return adSeconds == 0 || !isHttp; // jamais d'intent:// ni d'appli externe lancée par une pub
+                        return adSeconds == 0 || !"https".equals(r.getUrl().getScheme()); // la pub reste en https : ni http, ni intent://, ni appli externe
                     }
 
                     @Override
@@ -164,7 +167,7 @@ public class SiteActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        web.destroy();
+        if (web != null) web.destroy(); // null si onCreate a refusé l'adresse
         super.onDestroy();
     }
 }

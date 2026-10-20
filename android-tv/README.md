@@ -11,10 +11,11 @@ Roadmap : Phase 7, piste 6, étape (b).
 - Déclarée écran d'accueil candidat (`HOME`) et visible dans la liste des applis (`LEANBACK_LAUNCHER`). Le launcher Google TV n'est ni désactivé ni désinstallé à cette étape.
 
 ## Tuiles Bowd et OpenFlix : WebView dédiée (`SiteActivity`)
-Les deux sites s'ouvrent dans une WebView de l'APK (seule permission : `INTERNET`, uniquement pour elle ; l'accueil reste coupé du réseau). Sans pont JS, non exportée, navigation principale limitée au domaine du site. Ajouter un site : une ligne `SITES.put("clé", "https://…")` dans `Apps.java` et une tuile `data-app="clé"` dans `tv/index.html`.
+Les deux sites s'ouvrent dans une WebView de l'APK (seule permission : `INTERNET`, déclarée pour toute l'APK mais utilisée uniquement par `SiteActivity` ; la WebView de l'accueil n'a pas de réseau, ses requêtes hors assets sont refusées). Sans pont JS, non exportée, navigation principale limitée au domaine du site. Ajouter un site : une ligne `SITES.put("clé", "https://…")` dans `Apps.java` et une tuile `data-app="clé"` dans `tv/index.html`.
 - **Bowd** : sa règle autorise de fermer la pub aussitôt. Les popups de la régie sont avalées à l'ouverture ; le compteur « Voir une publicité (n/2) » avance quand même. Le bouton « Passer la pub » est cliqué dès que le site le rend actif (après son compte à rebours).
 - **OpenFlix** : le site exige de rester 3 s sur la pub. Elle s'affiche en vrai, plein écran, avec un compte à rebours, puis se ferme seule ; Retour l'abandonne (il faudra recommencer). Rien n'est caché ni raccourci. La vérification Cloudflare reste à cocher à la télécommande.
 - OpenFlix : se connecter par e-mail et mot de passe (la connexion Google est refusée dans une WebView).
+- Session : la connexion au site (cookies, stockage local) reste dans la WebView de l'appli, non sauvegardée (`allowBackup=false`). La pub OpenFlix reste en https et ne reçoit aucune saisie de ta part ; ne tape jamais de mot de passe dans la fenêtre de pub.
 - Retour : ferme la pub, sinon page précédente, sinon retour à l'accueil JARVIS.
 
 ## Compiler (PC)
