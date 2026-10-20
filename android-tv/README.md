@@ -10,6 +10,12 @@ Roadmap : Phase 7, piste 6, étape (b).
 - La page plante ou ne charge pas : ouverture de l'accueil Google TV.
 - Déclarée écran d'accueil candidat (`HOME`) et visible dans la liste des applis (`LEANBACK_LAUNCHER`). Le launcher Google TV n'est ni désactivé ni désinstallé à cette étape.
 
+## Tuiles OpenFlix et Bowd (sites web)
+Ce ne sont pas des applis Android : `Apps.java` ouvre leur adresse fixe dans le navigateur de la TV (`openflix.pro`, `bowdtv.com`).
+- À installer une fois sur la TV, depuis le Play Store : un navigateur adapté à la télécommande (par exemple **TV Bro** ou **Puffin TV**). Google TV n'en fournit pas par défaut.
+- Sans navigateur, la tuile affiche « Application absente de la TV ». Aucun autre téléchargement.
+- Ajouter un site : une ligne `SITES.put("clé", "https://…")` dans `Apps.java` et une tuile `data-app="clé"` dans `tv/index.html`.
+
 ## Compiler (PC)
 Prérequis : JDK 17 (`JAVA_HOME`) et SDK Android (`ANDROID_HOME`, plateforme 34). Logos : `python scripts/tv_logos.py` avant le build (sinon les tuiles affichent les noms).
 ```
