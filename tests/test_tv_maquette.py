@@ -27,9 +27,14 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertIn("setInstanceFollowRedirects(false)", link)
         self.assertIn("AndroidKeyStore", link)
         self.assertIn("f.delete()", link)  # le fichier de configuration ne survit pas à l'import
+        self.assertLess(link.index("f.length() > 2048"), link.index("f.delete()"))  # ...même trop gros (return dans le try)
+        self.assertIn('setRequestProperty("Origin", cfg.getString("url"))', link)  # sans Origin, le Core refuse tout POST
+        self.assertNotIn('"/".equals(u.getPath())', link)  # « / » final : l'URL deviendrait https://hôte//api/…
         self.assertNotRegex(link, r"Log\.|printStackTrace|System\.out")  # ni clé ni réponse dans les logs
         js = (TV_DIR / "tv.js").read_text(encoding="utf-8")
         self.assertRegex(js, r"textContent")
+        self.assertIn("r.status === 401", js)  # clé expirée : on arrête de relancer le Core chaque minute
+        self.assertIn("clearInterval(refreshTimer)", js)
         self.assertNotRegex(js, r"JarvisTV\.core\([^)]*\bhttp")  # la page ne passe jamais d'adresse
 
     def test_appui_long_sans_keydown_repete(self):

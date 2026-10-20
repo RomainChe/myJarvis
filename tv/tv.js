@@ -93,8 +93,18 @@ function parse(r) {
 
 const deg = (v) => (Number.isFinite(v) ? `${Math.round(v)}°` : '?');
 
+let refreshTimer;
+let saying = false; // une commande à la fois : un invité qui martèle une tuile n'empile pas les appels
+
 async function refresh() {
-  const d = parse(await core('tv'));
+  const r = await core('tv');
+  if (r.status === 401 || r.status === 403) { // clé expirée (90 jours) ou révoquée : inutile de réessayer chaque minute
+    clearInterval(refreshTimer);
+    setOffline(true);
+    document.getElementById('status').textContent = 'JARVIS hors ligne · clé TV à renouveler';
+    return;
+  }
+  const d = parse(r);
   setOffline(!d);
   if (!d) return;
   const w = d.weather;
@@ -107,8 +117,14 @@ async function refresh() {
 }
 
 async function say(text) {
-  const d = parse(await core('say', text));
-  toast(d && typeof d.answer === 'string' ? d.answer.slice(0, 160) : 'JARVIS ne répond pas');
+  if (saying) return;
+  saying = true;
+  try {
+    const d = parse(await core('say', text));
+    toast(d && typeof d.answer === 'string' ? d.answer.slice(0, 160) : 'JARVIS ne répond pas');
+  } finally {
+    saying = false;
+  }
 }
 
 function activate(el) {
@@ -253,7 +269,7 @@ if (linked) {
   document.getElementById('wx-temp').textContent = '—'; // la météo fictive de la maquette ne reste pas affichée
   document.getElementById('wx-sub').textContent = '';
   refresh();
-  setInterval(refresh, 60000);
+  refreshTimer = setInterval(refresh, 60000);
 }
 focusAt(pos);
 prefs((store) => {

@@ -58,8 +58,9 @@ final class CoreLink {
     void importConfig() {
         File dir = ctx.getExternalFilesDir(null);
         File f = dir == null ? null : new File(dir, FILE);
-        if (f == null || !f.isFile() || f.length() > 2048) return;
+        if (f == null || !f.isFile()) return;
         try {
+            if (f.length() > 2048) return; // trop gros : ignoré, mais supprimé par le finally comme les autres
             JSONObject c = new JSONObject(new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8));
             String url = c.getString("url"), key = c.getString("key");
             if (!validUrl(url) || !KEY.matcher(key).matches()) return;
@@ -83,7 +84,7 @@ final class CoreLink {
         Uri u = Uri.parse(url);
         String host = u.getHost();
         return "https".equals(u.getScheme()) && host != null && host.endsWith(".ts.net") && u.getUserInfo() == null
-                && u.getPort() == -1 && (u.getPath() == null || u.getPath().isEmpty() || "/".equals(u.getPath()))
+                && u.getPort() == -1 && (u.getPath() == null || u.getPath().isEmpty()) // pas même « / » : l'URL est concaténée à /api/…
                 && u.getQuery() == null && u.getFragment() == null;
     }
 
@@ -115,6 +116,7 @@ final class CoreLink {
                 c.setDoOutput(true);
                 c.setRequestMethod("POST");
                 c.setRequestProperty("Content-Type", "application/json");
+                c.setRequestProperty("Origin", cfg.getString("url")); // le Core refuse tout POST sans l'Origin de son nom (anti-CSRF)
                 try (OutputStream o = c.getOutputStream()) {
                     o.write(payload.getBytes(StandardCharsets.UTF_8));
                 }

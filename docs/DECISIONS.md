@@ -1,5 +1,13 @@
 # Décisions et risques acceptés
 
+## 2026-10-20 — Interface TV, étape (c) : liaison au Core, clé de portée `tv` (revue Sécurité : feu vert sous conditions)
+- **Choix** : la TV (partagée avec des invités) joint le Core par Tailscale (HTTPS `*.ts.net`), pas par un port ouvert sur le réseau local. Clé de portée `tv` : `GET /api/tv` (météo, nombre de rappels) et `POST /api/voice` (plafond N0/N1 du Core), 403 ailleurs. Le pont Java appelle le Core ; la page ne voit ni l'adresse ni la clé, la clé est chiffrée par le Keystore.
+- **Corrigé** : (1) l'APK envoie l'`Origin` du Core (le Core refuse tout POST sans, contrôle non assoupli) ; (2) `/api/tv` ne renvoie plus la ville ; (3) `validUrl` refuse « / » final ; (4) un `core.json` trop gros est supprimé aussi ; (5) un 401/403 arrête le rafraîchissement (pas de relance chaque minute qui gonflerait les échecs d'authentification) et l'écran dit « clé TV à renouveler » ; (6) une seule commande à la fois depuis la page.
+- **Expiration (acceptée)** : la clé `tv` ne se renouvelle pas et expire 90 jours après sa création, comme la clé voix (B2 du 2026-10-19). Fenêtre dure voulue pour un appareil partagé : refaire `device add --tv <nom>` puis l'enrôlement ADB tous les 90 jours (README android-tv).
+- **Risque accepté (nom `*.ts.net` non épinglé)** : `validUrl` accepte tout nom `*.ts.net` ; un `core.json` erroné enverrait la clé à un autre hôte Tailscale. Le fichier vient du propriétaire par ADB ; atténuations : clé révocable (`device revoke`), portée N0/N1. À durcir si un tiers peut un jour écrire ce fichier.
+- **Risque accepté (build debug)** : l'APK installée est `debuggable` ; qui a l'ADB de la TV peut lire l'espace de l'appli (`run-as`) et donc la clé. D'où : débogage USB/réseau de la TV désactivé après l'installation (README). Une APK release signée le supprimerait.
+- **À faire par le propriétaire** : ACL Tailscale limitant la TV au seul Core (443) avant l'enrôlement réel.
+
 ## 2026-10-19 — Phase 5 étapes 1 et 9 : token volé, rotation D6 (revue Sécurité : feu vert sous conditions)
 - **Choix** : durée du token renouvelée par rotation (`/api/token`), pas par simple usage ; le token précédent reste valable jusqu'au premier usage du nouveau ; clé d'accès pour les N2 forts (`STRONG_N2`) et Finances ; « révoquer tout ».
 - **M1 (moyenne, non durci)** : un voleur qui présente l'ancien token après le renouvellement légitime peut le faire tourner à son tour ; le propriétaire est alors éjecté (message « token volé ? »), ce qui sert de détection. Durcissement possible : refuser la rotation avec le token précédent.

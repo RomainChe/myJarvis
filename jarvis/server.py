@@ -562,7 +562,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
     @app.get("/api/tv")
     def tv_state(request: Request):
-        """Écran d'accueil de la TV (partagée avec des invités) : météo et nombre de rappels, rien d'autre (N0)."""
+        """Écran d'accueil de la TV (partagée avec des invités) : météo et nombre de rappels, rien d'autre (N0, pas de ville)."""
         auth = authenticate(request, allow=("tv",))
         if isinstance(auth, JSONResponse):
             return auth
@@ -573,7 +573,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         except RuntimeError:
             due = None
         log_read(auth[0], "tv_read", "écran TV lu")
-        return {"location": snap["location"], "reminders": due,
+        return {"reminders": due,
                 "weather": {k: weather.get(k) for k in ("temp_c", "sky", "min_c", "max_c")} if weather else None}
 
     @app.get("/api/minipc")

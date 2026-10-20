@@ -26,8 +26,8 @@ class TvRouteTest(ServerBase):
     def test_cle_tv_lit_l_ecran_sans_rien_d_autre(self):
         status, body, _ = self.call("GET", "/api/tv", token=self.token)
         self.assertEqual(status, 200)
-        self.assertEqual(body, {"location": "Lille", "reminders": 1,
-                                "weather": {"temp_c": 14.0, "sky": "Dégagé", "min_c": 9.0, "max_c": 17.0}})  # ni système, ni vent, ni texte des rappels
+        self.assertEqual(body, {"reminders": 1, "weather": {"temp_c": 14.0, "sky": "Dégagé", "min_c": 9.0, "max_c": 17.0}})
+        self.assertNotIn("Lille", str(body))  # ni ville, ni système, ni vent, ni texte des rappels : la TV est vue par des invités
 
     def test_meteo_absente_donne_none(self):
         with mock.patch.object(server.Dashboard, "snapshot", return_value={"location": None, "weather": None}):
@@ -37,6 +37,12 @@ class TvRouteTest(ServerBase):
         with mock.patch.object(voice_mod, "execute", return_value="ok"):
             status, body, _ = self.call("POST", "/api/voice", {"text": "allume la télé", "client": "tv"}, token=self.token)
         self.assertEqual((status, body), (200, {"answer": "ok"}))
+
+    def test_post_voice_exige_l_origine_du_core(self):
+        # Revue Sécurité : l'APK doit envoyer Origin (CoreLink) ; le Core ne l'assouplit pas, même pour une clé tv valide.
+        with mock.patch.object(voice_mod, "execute", return_value="ok"):
+            status, body, _ = self.call("POST", "/api/voice", {"text": "allume la télé"}, token=self.token, Origin="https://autre.ts.net")
+        self.assertEqual((status, body), (403, {"detail": "origine refusée"}))
 
     def test_cle_tv_refusee_partout_ailleurs(self):
         for method, path, body in (("GET", "/api/ping", None), ("GET", "/api/dashboard", None), ("GET", "/api/audit", None),
