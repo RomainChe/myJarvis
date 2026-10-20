@@ -84,11 +84,11 @@ public class SiteActivity extends Activity {
         super.onCreate(state);
         adSeconds = getIntent().getIntExtra(EXTRA_AD_SECONDS, 0);
         android.net.Uri data = getIntent().getData();
-        if (data == null || !"https".equals(data.getScheme())) { // l'activité n'est lancée que par Apps, mais on ne charge jamais autre chose que du https
+        if (data == null || !"https".equals(data.getScheme()) || !SiteHosts.allowed(data.getHost())) { // seul Apps la lance, mais on ne charge que du https vers un hôte de la liste blanche
             finish();
             return;
         }
-        siteHost = data.getHost();
+        siteHost = data.getHost().toLowerCase(java.util.Locale.ROOT);
         try (InputStream in = getAssets().open("sitenav.js")) {
             navJs = new Scanner(in, "UTF-8").useDelimiter("\\A").next(); // readAllBytes : Android 13+ seulement
         } catch (IOException e) {
@@ -104,7 +104,7 @@ public class SiteActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
-        if (siteHost.endsWith("openflix.pro")) web.setInitialScale(85); // la TV donne 960 px CSS : la barre d'OpenFlix y passe à la ligne
+        if (siteHost.equals("openflix.pro")) web.setInitialScale(85); // la TV donne 960 px CSS : la barre d'OpenFlix y passe à la ligne
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
@@ -298,7 +298,7 @@ public class SiteActivity extends Activity {
     }
 
     private boolean isSiteHost(String host) {
-        return host != null && (host.equals(siteHost) || host.endsWith("." + siteHost));
+        return SiteHosts.within(siteHost, host);
     }
 
     /** Action du lecteur pour une touche, ou null si la touche reste au site. */
