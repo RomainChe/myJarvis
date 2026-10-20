@@ -61,7 +61,8 @@ class TvMaquetteTest(unittest.TestCase):
         bridge = (ROOT / "android-tv/app/src/main/java/fr/jarvis/tv/MainActivity.java").read_text(encoding="utf-8")
         self.assertEqual(re.findall(r"@JavascriptInterface\s+public \w+ (\w+)\(", bridge), ["core", "launch"], "deux points d'entrée JS, pas un de plus")
         manifest = (ROOT / "android-tv/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
-        self.assertEqual(re.findall(r'<uses-permission android:name="([^"]+)"', manifest), ["android.permission.INTERNET"])
+        self.assertEqual(re.findall(r'<uses-permission android:name="([^"]+)"', manifest), ["android.permission.INTERNET", "android.permission.RECEIVE_BOOT_COMPLETED",
+                                                                                            "android.permission.SYSTEM_ALERT_WINDOW"])
 
     def test_webview_bowd_sans_pont_et_non_exportee(self):
         # SiteActivity a le réseau : aucun pont JS, non exportée, navigation limitée à bowdtv.com, popups avalées.

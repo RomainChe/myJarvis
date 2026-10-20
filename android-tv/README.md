@@ -9,6 +9,7 @@ Roadmap : Phase 7, piste 6, étape (b).
 - Retour (télécommande) : transmis à la page (retour sur la première appli), l'accueil ne se ferme jamais.
 - La page plante ou ne charge pas : ouverture de l'accueil Google TV.
 - Déclarée écran d'accueil candidat (`HOME`) et visible dans la liste des applis (`LEANBACK_LAUNCHER`). Le launcher Google TV n'est ni désactivé ni désinstallé à cette étape.
+- Démarrage de la TV : `BootReceiver` ouvre l'accueil JARVIS (environ 1 min après l'allumage), si l'autorisation de superposition a été accordée par adb (voir « Installer », étape 5). Seulement au vrai démarrage : une sortie de veille garde l'écran affiché avant la veille.
 
 ## Tuiles Bowd et OpenFlix : WebView dédiée (`SiteActivity`)
 Les deux sites s'ouvrent dans une WebView de l'APK (seule permission : `INTERNET`, déclarée pour toute l'APK mais utilisée uniquement par `SiteActivity` ; la WebView de l'accueil n'a pas de réseau, ses requêtes hors assets sont refusées). Sans pont JS, non exportée, navigation principale limitée au domaine du site. Ajouter un site : une ligne `SITES.put("clé", "https://…")` dans `Apps.java` et une tuile `data-app="clé"` dans `tv/index.html`.
@@ -46,7 +47,8 @@ APK : `app/build/outputs/apk/debug/app-debug.apk`.
 2. PC : `adb connect <ip-de-la-tv>:5555`, accepter l'invite sur la TV.
 3. `adb install -r app/build/outputs/apk/debug/app-debug.apk`
 4. L'appli JARVIS apparaît dans la liste des applis ; la touche Accueil reste au launcher Google TV (étape d).
-5. **Désactiver le débogage réseau ensuite** et *Révoquer les autorisations de débogage* : la TV est partagée, un invité pourrait accepter une connexion ADB venue du réseau local.
+5. Ouverture au démarrage (une fois) : `adb shell "appops set fr.jarvis.tv SYSTEM_ALERT_WINDOW allow && appops write-settings"`. Sans `write-settings`, un `adb reboot` juste après perd l'autorisation. Android 10+ n'autorise une appli à s'ouvrir en arrière-plan que si elle a cette autorisation ; JARVIS n'affiche aucune superposition. Annuler : même commande avec `default`.
+6. **Désactiver le débogage réseau ensuite** et *Révoquer les autorisations de débogage* : la TV est partagée, un invité pourrait accepter une connexion ADB venue du réseau local.
 
 ## Revenir en arrière
 - Dans l'appli : pastille « Accueil Google TV ».
