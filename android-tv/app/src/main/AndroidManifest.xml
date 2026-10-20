@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Seule permission : INTERNET, pour SiteActivity (Bowd). L'accueil, lui, reste coupé du réseau (MainActivity). -->
+<!-- INTERNET : pour SiteActivity (Bowd) ; l'accueil, lui, reste coupé du réseau (MainActivity).
+     RECEIVE_BOOT_COMPLETED + SYSTEM_ALERT_WINDOW : ouvrir l'accueil au démarrage (BootReceiver).
+     SYSTEM_ALERT_WINDOW n'est accordée que par adb (appops) ; l'appli n'affiche aucune superposition. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -53,5 +57,14 @@
             android:name=".SiteActivity"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode"
             android:exported="false" />
+
+        <!-- Non exportée : BOOT_COMPLETED est envoyé par le système, aucune autre appli ne peut la déclencher. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
