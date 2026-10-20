@@ -25,6 +25,17 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
+def quiet_resume(case):
+    """Coupe les lectures réelles de /api/resume (réseau, fichiers du PC) ; un test les surcharge par un patch imbriqué."""
+    for target, value in (("social_snapshot", {}), ("with_youtube", {"youtube": None}), ("social_from_pc", {"youtube": None}),
+                          ("veille_snapshot", {"issues": []}), ("voyages_snapshot", {"deal": None}),
+                          ("conso_core.snapshot", {"periods": {}}), ("minipc.status", {"problems": []}),
+                          ("bank_view", None), ("finance_snapshot", {"latest": None})):
+        patch = mock.patch(f"jarvis.server.{target}", return_value=value)
+        patch.start()
+        case.addCleanup(patch.stop)
+
+
 class ServerBase(unittest.TestCase):
     mic = None  # remplacé par les tests du bouton micro
     stt = None  # remplacé par les tests du bouton « parler »
@@ -349,6 +360,37 @@ class TailscaleHostTest(ServerBase):
     def test_autres_noms_refuses(self):
         for host in ("autre.tail1234.ts.net", f"{TS}:443", f"{TS}.evil.example", "evil.example", TS.upper(), "ts.net"):
             self.assertEqual(self.call("GET", "/api/ping", token=self.token, Host=host)[0], 400, host)
+
+
+class ResumeTest(ServerBase):
+    def setUp(self):
+        super().setUp()
+        quiet_resume(self)
+
+    def test_un_bloc_en_echec_n_empeche_pas_les_autres(self):
+        self.assertEqual(self.call("GET", "/api/resume")[0], 401)
+        _, token = self.enroll()
+        with mock.patch("jarvis.server.veille_snapshot", side_effect=OSError("disque")):
+            status, body, _ = self.call("GET", "/api/resume", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(set(body), {"social", "voyages", "conso", "minipc", "finance"})
+        self.assertEqual((body["minipc"], body["finance"]), ({"problems": []}, {"f": None}))
+
+    def test_cle_de_portee_limitee_refusee(self):  # le solde bancaire ne sort jamais vers une clé TV ou voix
+        for name, scope in (("tv-salon", "tv"), ("voix-salon", "voice")):
+            token = self.devices.add_scoped(name, scope)[1]
+            self.assertEqual(self.call("GET", "/api/resume", token=token)[0], 403, scope)
+
+    def test_solde_bancaire_sinon_rapport_hebdo(self):
+        _, token = self.enroll()
+        with mock.patch("jarvis.server.bank_view", return_value={"total": 10}),                 mock.patch("jarvis.server.finance_snapshot") as weekly:
+            self.assertEqual(self.call("GET", "/api/resume", token=token)[1]["finance"], {"b": {"total": 10}})
+            weekly.assert_not_called()
+        with mock.patch("jarvis.server.bank_view", side_effect=OSError("base")):
+            self.assertEqual(self.call("GET", "/api/resume", token=token)[1]["finance"], {"f": None})
+        log = str(self.call("GET", "/api/audit?limit=20", token=token)[1])
+        for tool in ("bank_read", "finance_read", "veille_read"):
+            self.assertIn(tool, log)
 
 
 class TsHostEnvTest(unittest.TestCase):

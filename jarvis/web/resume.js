@@ -1,6 +1,6 @@
 'use strict';
 // ---- Résumé du dashboard (bureau ≥ 1200 px seulement) : réseaux, finances, 3 articles de la veille, mini-PC ----------------
-// Chargé une fois à l'ouverture du dashboard, sans minuteur. Finances affichées d'emblée (choix du propriétaire, 2026-10-19,
+// Chargé une fois à l'ouverture du dashboard (un seul appel `/api/resume`), sans minuteur. Finances affichées d'emblée (choix du propriétaire, 2026-10-19,
 // à la place du masquage de la revue Sécurité constat 1). Vidé dès qu'on quitte la vue.
 const wide = matchMedia('(min-width: 1200px)');
 let digestRun = 0;
@@ -12,17 +12,13 @@ function clearDigest() {
   for (const id of ['dg-veille', 'dg-mp-gauges', 'dg-mp-list', 'dg-conso-bars']) $(id).replaceChildren();
   $('dg-voyage').hidden = $('dg-minipc').hidden = $('dg-conso').hidden = true;
 }
-// Solde des comptes, sinon reste à vivre du dernier rapport hebdo
-async function digestFinance() {
-  try { const b = (await getData('/api/finance/bank')).bank; if (b) return { b }; } catch { /* rapport hebdo en repli */ }
-  return { f: (await getData('/api/finance')).latest };
-}
 async function loadDigest() {
   clearDigest();
   if (!token || !wide.matches) return;
   const run = digestRun;
-  const [so, ve, vo, co, mp, fi] = await Promise.allSettled([getData('/api/social'), getData('/api/veille'), getData('/api/voyages'),
-    getData('/api/conso'), getData('/api/minipc'), digestFinance()]);
+  const d = await getData('/api/resume').catch(() => ({})); // un seul appel ; un bloc absent est en échec côté Core
+  const [so, ve, vo, co, mp, fi] = ['social', 'veille', 'voyages', 'conso', 'minipc', 'finance']
+    .map((k) => (k in d ? { status: 'fulfilled', value: d[k] } : { status: 'rejected' }));
   if (run !== digestRun || views.chat.hidden) return;
   const yt = so.value?.youtube;
   if (yt && !yt.error) {

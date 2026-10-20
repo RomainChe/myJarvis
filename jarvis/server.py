@@ -9,6 +9,7 @@ import re
 import threading
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Literal
 
@@ -576,21 +577,15 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         return {"reminders": due,
                 "weather": {k: weather.get(k) for k in ("temp_c", "sky", "min_c", "max_c")} if weather else None}
 
-    @app.get("/api/minipc")
-    def minipc_state(request: Request):
-        auth = authenticate(request)
-        if isinstance(auth, JSONResponse):
-            return auth
-        return minipc.status(audit, port)
+    def social_body():
+        return with_youtube(social_snapshot(), youtube) if HAS_PC_TOOLS else social_from_pc()
 
     @app.get("/api/social")
     def social_state(request: Request):
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
-        if HAS_PC_TOOLS:
-            return with_youtube(social_snapshot(), youtube)
-        return social_from_pc()
+        return social_body()
 
     voyages_core.on_fetch = lambda ok: audit.log("pwa:voyages", "voyages_sync", {}, 0, "auto", "ok" if ok else "échec")
 
@@ -629,16 +624,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         audit.log(f"pwa:{auth[0]}", "conso_tarif", {}, 1, "auto", "prix du kWh modifié")  # le montant reste hors journal
         return {"price_kwh": conso_core.load_price()}
 
-    @app.get("/api/finance")
-    def finance_state(request: Request):
-        auth = authenticate(request)
-        if isinstance(auth, JSONResponse):
-            return auth
-        log_read(auth[0], "finance_read", "rapports financiers lus")
-        return finance_snapshot()
-
     @app.get("/api/finance/bank")
-    def bank_state(request: Request):  # route à part : le résumé du dashboard n'appelle que /api/finance, sans données bancaires
+    def bank_state(request: Request):  # écran Finances ; le dashboard lit le solde par /api/resume
         auth = authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
@@ -673,6 +660,40 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         log_read(auth[0], "veille_read", "veille IA lue")
         return veille_snapshot()
+
+    @app.get("/api/resume")
+    def resume_state(request: Request):
+        """Résumé du dashboard en un appel : les lectures tournent en parallèle, un bloc en échec est absent de la réponse."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        device = auth[0]
+
+        def veille():
+            log_read(device, "veille_read", "veille IA lue")
+            return veille_snapshot()
+
+        def finance():  # solde des comptes, sinon reste à vivre du dernier rapport hebdo
+            try:
+                log_read(device, "bank_read", "comptes bancaires lus")
+                if bank := bank_view():
+                    return {"b": bank}
+            except Exception:  # rapport hebdo en repli
+                pass
+            log_read(device, "finance_read", "rapports financiers lus")
+            return {"f": finance_snapshot()["latest"]}
+
+        blocks = {"social": social_body, "veille": veille, "voyages": voyages_snapshot, "conso": conso_core.snapshot,
+                  "minipc": lambda: minipc.status(audit, port), "finance": finance}
+        with ThreadPoolExecutor(len(blocks)) as pool:
+            futures = {name: pool.submit(read) for name, read in blocks.items()}
+        out = {}
+        for name, future in futures.items():
+            try:
+                out[name] = future.result()
+            except Exception:  # la PWA affiche ce bloc « Indisponible »
+                pass
+        return out
 
     @app.get("/api/memory")
     def memory_state(request: Request):

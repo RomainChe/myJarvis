@@ -17,7 +17,7 @@ from jarvis.core.devices import Devices
 from jarvis.core.tools import REGISTRY, Level, tool
 from jarvis.core.webauthn import Passkeys, b64u, cbor, UP, UV, AT
 from test_chat import ChatBase, no_strong, wait_for
-from test_server import ServerBase, free_port
+from test_server import ServerBase, free_port, quiet_resume
 
 RP = "pc-test.tail1234.ts.net"
 ORIGIN = f"https://{RP}"
@@ -447,10 +447,11 @@ class FinanceOpenTest(WebAuthnServerBase):
         self.addCleanup(patch.stop)
 
     def test_lisible_sans_cle_et_journalise(self):
-        for path in ("/api/finance", "/api/finance/bank"):
+        quiet_resume(self)
+        for path in ("/api/resume", "/api/finance/bank"):
             self.assertEqual(self.call("GET", path)[0], 200, path)
         self.assertIn("bank_read", str(self.audit.last(5)))
-        self.assertEqual(self.call("GET", "/api/finance", token="faux")[0], 401)  # appareil non appairé : rien
+        self.assertEqual(self.call("GET", "/api/resume", token="faux")[0], 401)  # appareil non appairé : rien
         self.assertEqual(self.call("POST", "/api/passkey/challenge", {"action": "finance"})[0], 422)  # action retirée
 
 

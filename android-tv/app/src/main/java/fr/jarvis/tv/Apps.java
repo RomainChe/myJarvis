@@ -27,13 +27,6 @@ final class Apps {
         PACKAGES.put("playstore", "com.android.vending");
     }
 
-    /** Sites ouverts dans SiteActivity (WebView de l'APK) : URL fixes côté Java, la page ne fournit jamais d'adresse. */
-    private static final Map<String, String> SITES = new HashMap<>();
-    static {
-        SITES.put("openflix", "https://openflix.pro/");
-        SITES.put("bowd", "https://bowdtv.com/");
-    }
-
     private Apps() {}
 
     /** Intention pour la clé, ou null si la clé est inconnue ou l'appli absente de la TV. */
@@ -52,8 +45,8 @@ final class Apps {
                 i = stockHome();
                 break;
             default:
-                if (SITES.containsKey(key)) {
-                    Uri url = Uri.parse(SITES.get(key));
+                if (SiteHosts.has(key)) { // URL fixes côté Java (SiteHosts), la page ne fournit jamais d'adresse
+                    Uri url = Uri.parse(SiteHosts.url(key));
                     i = new Intent(ctx, SiteActivity.class).setData(url).putExtra(SiteActivity.EXTRA_AD_SECONDS, 0);
                     break;
                 }
