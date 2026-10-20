@@ -2,14 +2,15 @@
    Lisible à 3 m, base 1920×1080 (1rem = 16 px). */
 @property --glow { syntax: "<color>"; inherits: true; initial-value: #38CFEF; }
 :root {
-  --bg: #07070B; --glass: rgb(255 255 255 / .08); --glass-line: rgb(255 255 255 / .18);
-  --text: #F4F6FA; --muted: rgb(244 246 250 / .62); --focus-bg: #F4F6FA; --focus-text: #0B0D12;
-  --app-bg: #E6E9EF;
+  --bg: #07070B; --glass: rgb(255 255 255 / .07); --glass-line: rgb(255 255 255 / .16);
+  --text: #F4F6FA; --muted: rgb(244 246 250 / .7); --focus-bg: #F4F6FA; --focus-text: #0B0D12;
+  --app-bg: #E6E9EF; --cyan: #38CFEF;
   --font: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
   --gap: 1.5rem;
   --ease: cubic-bezier(.2, 0, 0, 1);
 }
-html { font-size: calc(100vw / 120); }
+/* 16:9 sur une TV ; une fenêtre plus basse réduit tout plutôt que de couper la dernière rangée. */
+html { font-size: min(calc(100vw / 120), calc(100vh / 67.5)); }
 * { box-sizing: border-box; }
 body {
   margin: 0; min-height: 100vh; overflow: hidden;
@@ -25,7 +26,8 @@ body {
     linear-gradient(to bottom, transparent 40%, var(--bg) 95%);
 }
 
-.top { display: flex; align-items: flex-start; justify-content: space-between; }
+/* En-tête : les pastilles s'alignent sur le centre de la ligne de l'horloge. */
+.top { display: flex; align-items: flex-end; justify-content: space-between; }
 .greet { margin: 0 0 .4rem; font-size: 1.1rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .now { margin: 0; display: flex; align-items: center; gap: 1.5rem; }
 .clock { font-size: 4.5rem; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -35,39 +37,75 @@ body {
 .weather .ico { width: 2.2rem; height: 2.2rem; }
 .weather .sub { margin-left: .4rem; }
 
-.pills { align-items: center; gap: 1rem; }
-.status { margin-right: .5rem; font-size: 1.15rem; color: var(--muted); }
-.status::before { content: ""; display: inline-block; width: .65rem; height: .65rem; margin-right: .55rem; border-radius: 50%; background: #4ADE80; }
-.offline .status::before { background: #FF7A85; }
+.pills { align-items: center; gap: 1rem; margin-bottom: -1.1rem; }
+.status {
+  display: flex; align-items: center; height: 3rem; margin-right: .75rem; padding-right: 1.75rem;
+  border-right: 2px solid var(--glass-line); font-size: 1.15rem; color: var(--muted);
+}
+.status::before { content: ""; width: .65rem; height: .65rem; margin-right: .6rem; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 .6rem #4ADE80; }
+.offline .status::before { background: #FF7A85; box-shadow: 0 0 .6rem #FF7A85; }
 
-.hero { margin: 2.5rem 0 .5rem; font-size: 3.5rem; font-weight: 600; letter-spacing: -.01em; min-height: 4.2rem; }
+.hero { margin: 2rem 0 .25rem; font-size: 3.5rem; font-weight: 600; letter-spacing: -.01em; min-height: 4.2rem; }
 
 /* Marges négatives + padding : la tuile agrandie et son halo ne sont pas rognés par les overflow. */
-#rows { height: calc(100vh - 21rem); overflow: hidden; margin: 0 -1.5rem; padding: 0 1.5rem; }
-.row { margin-bottom: .75rem; }
-.row h2 { margin: 0 0 -.5rem; font-size: 1.4rem; font-weight: 600; color: var(--muted); }
+#rows { height: calc(100vh - 20rem); overflow: hidden; margin: 0 -1.5rem; padding: 0 1.5rem; }
+.row { margin-bottom: 1.25rem; }
+.row h2 { margin: 0 0 -.5rem; font-size: 1.4rem; font-weight: 600; letter-spacing: .02em; color: var(--muted); }
 .tiles { display: flex; gap: var(--gap); overflow: hidden; padding: 1.25rem; margin: 0 -1.25rem; }
 
 .tile {
-  flex: none; width: 17rem; height: 8.5rem; padding: 1.25rem;
-  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: .3rem;
-  border: 1px solid var(--glass-line); border-radius: 1.1rem; background: var(--glass);
+  --c: var(--cyan);
+  position: relative; flex: none; width: 17rem; height: 10rem; padding: 1.25rem 1.4rem;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: .2rem;
+  border: 1px solid var(--glass-line); border-radius: 1.25rem; background: var(--glass);
   color: var(--text); font: inherit; font-size: 1.6rem; font-weight: 600; text-align: left;
   transition: transform 180ms var(--ease), background 180ms var(--ease), color 180ms var(--ease), box-shadow 180ms var(--ease);
 }
-.big { font-size: 1.9rem; }
+.big { font-size: 1.9rem; line-height: 1.15; }
 .sub { font-size: 1.15rem; font-weight: 400; color: var(--muted); }
-/* Icônes : trait de la couleur de la tuile (attribut stroke), sombre quand la tuile est blanche. */
-.ico { flex: none; width: 2.6rem; height: 2.6rem; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.tile:has(.ico) { position: relative; }
-.tile .ico { position: absolute; top: 1.25rem; right: 1.25rem; }
-.tile:focus-visible .ico { stroke: currentColor; }
+.ico { flex: none; width: 2.6rem; height: 2.6rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Tuiles Maison et JARVIS : reflet et pastille d'icône à la couleur de la tuile (--c, posée par tv.js). */
+.jarvis {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--c) 14%, transparent), rgb(255 255 255 / .04) 65%);
+  border-color: color-mix(in srgb, var(--c) 22%, var(--glass-line));
+}
+.badge {
+  position: absolute; top: 1.25rem; left: 1.4rem;
+  display: grid; place-items: center; width: 3.1rem; height: 3.1rem; border-radius: .9rem;
+  background: color-mix(in srgb, var(--c) 20%, transparent); transition: background 180ms var(--ease);
+}
+.badge .ico { width: 1.8rem; height: 1.8rem; stroke: color-mix(in srgb, var(--c) 70%, #fff); }
+/* Appareil en marche : reflet plus franc et voyant lumineux en haut à droite. */
+.jarvis.on {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--c) 32%, transparent), color-mix(in srgb, var(--c) 6%, transparent) 70%);
+  border-color: color-mix(in srgb, var(--c) 50%, transparent);
+}
+.jarvis.on::before {
+  content: ""; position: absolute; top: 1.6rem; right: 1.6rem; width: .7rem; height: .7rem; border-radius: 50%;
+  background: var(--c); box-shadow: 0 0 .8rem var(--c);
+}
+
+/* Demander : tuile large avec l'orbe de JARVIS. */
+.ask { width: 28rem; padding-left: 9.5rem; justify-content: center; }
+.ask .sub { font-style: italic; }
+.orb {
+  position: absolute; top: 50%; left: 1.75rem; width: 6rem; height: 6rem; margin-top: -3rem; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #E9FBFF, var(--cyan) 38%, #0E6E8A 78%);
+  box-shadow: 0 0 1.5rem rgb(56 207 239 / .55), inset 0 0 1rem rgb(255 255 255 / .35);
+  animation: pulse 3.2s ease-in-out infinite;
+}
+@keyframes pulse { 50% { box-shadow: 0 0 2.75rem rgb(56 207 239 / .85), inset 0 0 1rem rgb(255 255 255 / .35); } }
 
 .app { width: 18.5rem; height: 10rem; justify-content: center; align-items: center; background: var(--app-bg); color: var(--focus-text); border: 0; filter: brightness(.78); }
 .app:focus-visible { filter: none; }
 .app img { max-width: 72%; max-height: 46%; object-fit: contain; }
 
-.pill { width: auto; height: auto; padding: .7rem 1.5rem; border-radius: 99px; font-size: 1.2rem; font-weight: 500; }
+.pill {
+  width: auto; height: 3rem; padding: 0 1.4rem; flex-direction: row; align-items: center; gap: .6rem;
+  border-radius: 99px; font-size: 1.2rem; font-weight: 500;
+}
+.pill .ico { width: 1.5rem; height: 1.5rem; }
 
 /* Focus : la tuile devient blanche et grossit, c'est la seule chose à voir de loin. */
 .tile:focus { outline: none; }
@@ -76,12 +114,15 @@ body {
   box-shadow: 0 0 0 3px rgb(255 255 255 / .9), 0 16px 40px rgb(0 0 0 / .55);
 }
 .pill:focus-visible { transform: scale(1.05); }
-.tile:focus-visible .sub { color: rgb(11 13 18 / .65); }
+.tile:focus-visible .sub { color: rgb(11 13 18 / .7); }
+.tile:focus-visible .badge { background: var(--c); }
+.tile:focus-visible .badge .ico { stroke: var(--focus-text); }
 
-.offline .jarvis { opacity: .4; }
-.offline .jarvis:focus-visible { opacity: .75; }
-.offline .jarvis .sub { display: none; }
+.offline .jarvis { opacity: .55; }
+.offline .jarvis:focus-visible { opacity: .8; }
+.offline .jarvis .sub, .offline .jarvis.on::before { display: none; }
 .offline .jarvis::after { content: "Hors ligne"; font-size: 1.15rem; font-weight: 400; }
+.offline .orb { filter: grayscale(1); animation: none; }
 
 .hint { position: fixed; left: 5rem; bottom: 1.5rem; margin: 0; font-size: 1.1rem; color: var(--muted); }
 .toast {
@@ -94,4 +135,5 @@ body {
 @media (prefers-reduced-motion: reduce) {
   body, .tile, .toast { transition: none; }
   .tile:focus-visible { transform: none; }
+  .orb { animation: none; }
 }

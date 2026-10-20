@@ -91,6 +91,7 @@ document.addEventListener('keydown', (e) => {
 
 // La souris et le Tab ne doivent pas désynchroniser la position mémorisée.
 tiles.forEach((row, r) => row.forEach((t, c) => {
+  t.style.setProperty('--c', t.dataset.color); // teinte de la tuile (pastille d'icône, reflet)
   t.addEventListener('focus', () => {
     pos = { r, c };
     last[r] = c;

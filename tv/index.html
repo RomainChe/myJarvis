@@ -21,9 +21,9 @@
   </div>
   <div class="tiles pills" aria-label="Raccourcis">
     <span class="status" id="status" role="status"></span>
-    <button class="tile pill" data-color="#38CFEF" data-app="inputs" data-say="Source : HDMI 1">Sources</button>
-    <button class="tile pill" data-color="#38CFEF" data-app="settings" data-say="Ouvrirait les réglages de la TV">Réglages</button>
-    <button class="tile pill" data-color="#4285F4" data-app="googletv" data-say="Ouvrirait l'accueil Google TV">Accueil Google TV</button>
+    <button class="tile pill" data-color="#38CFEF" data-app="inputs" data-say="Source : HDMI 1"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Sources</button>
+    <button class="tile pill" data-color="#38CFEF" data-app="settings" data-say="Ouvrirait les réglages de la TV"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>Réglages</button>
+    <button class="tile pill" data-color="#4285F4" data-app="googletv" data-say="Ouvrirait l'accueil Google TV"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Accueil Google TV</button>
   </div>
 </header>
 
@@ -46,20 +46,20 @@
   <section class="row" aria-labelledby="t-maison">
     <h2 id="t-maison">Maison</h2>
     <div class="tiles">
-      <button class="tile jarvis" data-color="#F59E0B" data-say="Lumières du salon : éteintes"><svg class="ico" viewBox="0 0 24 24" stroke="#F59E0B" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg><span class="big">Salon</span><span class="sub">Lumières allumées</span></button>
-      <button class="tile jarvis" data-color="#FF7A45" data-say="Clim salon réglée à 22 °C"><svg class="ico" viewBox="0 0 24 24" stroke="#FF7A45" aria-hidden="true"><path d="M12 22c4 0 7-2.7 7-7 0-4-3-6.5-4-9-1 2-2 3-3.5 3.5C11 7 11 4 9.5 2 8.5 6 5 8.5 5 15c0 4.3 3 7 7 7z"/></svg><span class="big">21 °C</span><span class="sub">Clim salon · chauffe</span></button>
-      <button class="tile jarvis" data-color="#38CFEF" data-say="Clim chambre allumée"><svg class="ico" viewBox="0 0 24 24" stroke="#38CFEF" aria-hidden="true"><path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg><span class="big">19 °C</span><span class="sub">Clim chambre · éteinte</span></button>
-      <button class="tile jarvis" data-color="#A78BFA" data-say="Scène Cinéma lancée"><svg class="ico" viewBox="0 0 24 24" stroke="#A78BFA" aria-hidden="true"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 9 19.5 4.5l.8 2.9M8 7.6l2.4 2M13.5 6.1l2.4 2"/></svg><span class="big">Cinéma</span><span class="sub">Scène</span></button>
-      <button class="tile jarvis" data-color="#6366F1" data-say="Scène Bonne nuit lancée"><svg class="ico" viewBox="0 0 24 24" stroke="#818CF8" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><span class="big">Bonne nuit</span><span class="sub">Scène</span></button>
+      <button class="tile jarvis on" data-color="#F59E0B" data-say="Lumières du salon : éteintes"><span class="badge" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg></span><span class="big">Salon</span><span class="sub">Lumières allumées</span></button>
+      <button class="tile jarvis on" data-color="#FF7A45" data-say="Clim salon réglée à 22 °C"><span class="badge" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.7 7-7 0-4-3-6.5-4-9-1 2-2 3-3.5 3.5C11 7 11 4 9.5 2 8.5 6 5 8.5 5 15c0 4.3 3 7 7 7z"/></svg></span><span class="big">21 °C</span><span class="sub">Clim salon · chauffe</span></button>
+      <button class="tile jarvis" data-color="#38CFEF" data-say="Clim chambre allumée"><span class="badge" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span><span class="big">19 °C</span><span class="sub">Clim chambre · éteinte</span></button>
+      <button class="tile jarvis" data-color="#A78BFA" data-say="Scène Cinéma lancée"><span class="badge" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 9 19.5 4.5l.8 2.9M8 7.6l2.4 2M13.5 6.1l2.4 2"/></svg></span><span class="big">Cinéma</span><span class="sub">Scène</span></button>
+      <button class="tile jarvis" data-color="#6366F1" data-say="Scène Bonne nuit lancée"><span class="badge" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span><span class="big">Bonne nuit</span><span class="sub">Scène</span></button>
     </div>
   </section>
 
   <section class="row" aria-labelledby="t-jarvis">
     <h2 id="t-jarvis">JARVIS</h2>
     <div class="tiles">
-      <button class="tile jarvis" data-color="#38CFEF" data-say="JARVIS écoute…"><span class="big">Demander</span><span class="sub">Parler à JARVIS</span></button>
-      <button class="tile jarvis" data-color="#38CFEF" data-say="Aucun rappel aujourd'hui"><span class="big">Rappels</span><span class="sub">Aucun aujourd'hui</span></button>
-      <button class="tile jarvis" data-color="#38CFEF" data-say="Lecture du briefing du matin"><span class="big">Briefing</span><span class="sub">Météo, agenda</span></button>
+      <button class="tile jarvis ask" data-color="#38CFEF" data-say="JARVIS écoute…"><span class="orb" aria-hidden="true"></span><span class="big">Demander</span><span class="sub">« Jarvis, lance Cinéma »</span></button>
+      <button class="tile jarvis" data-color="#38CFEF" data-say="Aucun rappel aujourd'hui"><span class="badge" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></span><span class="big">Rappels</span><span class="sub">Aucun aujourd'hui</span></button>
+      <button class="tile jarvis" data-color="#38CFEF" data-say="Lecture du briefing du matin"><span class="badge" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2zM18 9h2v9a2 2 0 0 1-2 2M8 9h6M8 13h6M8 17h3"/></svg></span><span class="big">Briefing</span><span class="sub">Météo, agenda</span></button>
     </div>
   </section>
 </main>
