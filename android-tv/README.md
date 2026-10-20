@@ -25,13 +25,13 @@ La clé est de **portée `tv`** : le Core la refuse partout sauf ces deux routes
 
 Prérequis : la TV doit joindre le Core, donc **Tailscale installé sur la TV** (Play Store), connecté au réseau privé. Dans l'ACL Tailscale, ne lui laisser que le Core (port 443).
 
-Enrôler la TV (une fois ; à refaire tous les 90 jours, durée de vie de la clé) :
+Enrôler la TV (une fois : l'appli renouvelle sa clé toute seule, au plus tous les 7 jours, dès qu'elle joint le Core) :
 1. PC : `python -m jarvis device add --tv tv-salon` (terminal interactif). La clé s'affiche une seule fois.
 2. Écrire `core.json` dans un dossier temporaire hors du dépôt : `{"url": "https://<mini-pc>.<réseau>.ts.net", "key": "<clé>"}` (pas de slash final, pas de port).
 3. `adb push core.json /sdcard/Android/data/fr.jarvis.tv/files/core.json` puis relancer l'appli JARVIS. L'appli importe le fichier, le chiffre avec le Keystore Android et **le supprime** ; supprimer aussi la copie du PC.
 4. Une configuration invalide (adresse non `*.ts.net`, avec un « / » final ou un port, clé mal formée, fichier de plus de 2 Ko) est ignorée sans message, et le fichier est supprimé quand même. Sur Android 10 ou moins, le fichier est lisible par d'autres applis entre le `adb push` et le relancement : relancer tout de suite.
 5. **Débogage USB/réseau de la TV à désactiver ensuite** : l'APK est une build debug, quiconque a l'ADB de la TV peut lire l'espace de l'appli (donc la clé chiffrée, par `run-as`).
-6. Expiration : au bout de 90 jours le Core répond 401, l'écran affiche « clé TV à renouveler » et cesse de rappeler le Core ; refaire les étapes 1 à 3.
+6. Expiration : la clé vit 90 jours après son dernier renouvellement ; si la TV reste éteinte ou hors du réseau plus longtemps, le Core répond 401, l'écran affiche « clé TV à renouveler » et cesse de rappeler le Core ; refaire les étapes 1 à 3.
 Révoquer : `python -m jarvis device revoke <id>` ; `adb shell pm clear fr.jarvis.tv` efface la clé de la TV.
 
 ## Compiler (PC)
