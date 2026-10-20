@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+<title>JARVIS TV</title>
+<link rel="stylesheet" href="tv.css">
+<script defer src="nav.js"></script>
+<script defer src="tv.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">JARVIS <span class="chip">Maquette</span></div>
+  <div class="status" id="status" role="status"></div>
+  <div class="meteo">12 °C · Nuageux</div>
+  <time class="clock" id="clock"></time>
+</header>
+
+<main id="rows">
+  <section class="row" aria-labelledby="t-apps">
+    <h2 id="t-apps">Applications</h2>
+    <div class="tiles">
+      <button class="tile app" data-say="Ouvrirait Netflix">Netflix</button>
+      <button class="tile app" data-say="Ouvrirait YouTube">YouTube</button>
+      <button class="tile app" data-say="Ouvrirait Prime Video">Prime Video</button>
+      <button class="tile app" data-say="Ouvrirait Disney+">Disney+</button>
+      <button class="tile app" data-say="Ouvrirait la TV en direct">TV en direct</button>
+      <button class="tile app" data-say="Ouvrirait Spotify">Spotify</button>
+      <button class="tile app" data-say="Ouvrirait Plex">Plex</button>
+      <button class="tile app" data-say="Ouvrirait le Play Store">Play Store</button>
+    </div>
+  </section>
+
+  <section class="row" aria-labelledby="t-maison">
+    <h2 id="t-maison">Maison</h2>
+    <div class="tiles">
+      <button class="tile jarvis" data-say="Lumières du salon : éteintes"><span class="big">Salon</span><span class="sub">Lumières allumées</span></button>
+      <button class="tile jarvis" data-say="Clim salon réglée à 22 °C"><span class="big">21 °C</span><span class="sub">Clim salon · chauffe</span></button>
+      <button class="tile jarvis" data-say="Clim chambre allumée"><span class="big">19 °C</span><span class="sub">Clim chambre · éteinte</span></button>
+      <button class="tile jarvis" data-say="Scène Cinéma lancée"><span class="big">Cinéma</span><span class="sub">Scène</span></button>
+      <button class="tile jarvis" data-say="Scène Bonne nuit lancée"><span class="big">Bonne nuit</span><span class="sub">Scène</span></button>
+    </div>
+  </section>
+
+  <section class="row" aria-labelledby="t-jarvis">
+    <h2 id="t-jarvis">JARVIS</h2>
+    <div class="tiles">
+      <button class="tile jarvis" data-say="JARVIS écoute…"><span class="big">Demander</span><span class="sub">Parler à JARVIS</span></button>
+      <button class="tile jarvis" data-say="Aucun rappel aujourd'hui"><span class="big">Rappels</span><span class="sub">Aucun aujourd'hui</span></button>
+      <button class="tile jarvis" data-say="Lecture du briefing du matin"><span class="big">Briefing</span><span class="sub">Météo, agenda</span></button>
+    </div>
+  </section>
+
+  <section class="row" aria-labelledby="t-systeme">
+    <h2 id="t-systeme">Système</h2>
+    <div class="tiles">
+      <button class="tile" data-say="Source : HDMI 1"><span class="big">Sources</span><span class="sub">HDMI, antenne</span></button>
+      <button class="tile" data-say="Ouvrirait les réglages de la TV"><span class="big">Réglages</span><span class="sub">TV</span></button>
+      <button class="tile fallback" data-say="Ouvrirait l'accueil Google TV"><span class="big">Google TV</span><span class="sub">Accueil d'origine</span></button>
+    </div>
+  </section>
+</main>
+
+<p class="hint">Flèches : se déplacer · Entrée : valider · Échap : retour · H : simuler JARVIS hors ligne</p>
+<div class="toast" id="toast" aria-live="polite"></div>
+</body>
+</html>
