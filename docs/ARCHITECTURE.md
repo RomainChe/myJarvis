@@ -49,7 +49,7 @@ flowchart LR
 ### 3.1 Jarvis Core : Python 3.12 + FastAPI
 Python est déjà installé, et tout l'écosystème utile est en Python : Ollama, faster-whisper, Piper, le client Home Assistant et les API Windows (pywin32, pycaw).
 
-**Écart par rapport au prompt maître, à valider :** le Core et l'Agent PC forment **un seul processus** au départ, découpé en modules (`jarvis/core`, `jarvis/tools/pc`). Pourquoi :
+**Depuis le 2026-10-13 (§3.4, docs/MIGRATION_CORE_MINIPC.md) :** le Core tourne sur le mini-PC Debian ; l'agent PC est un processus séparé sur le PC, relié par `jarvis/core/agentlink.py` (messages signés HMAC, clé `agent_key`). Le Core garde la garde de permissions, les confirmations et le journal ; l'agent n'exécute que les outils du catalogue. Historique de la décision initiale : le Core et l'Agent PC formaient **un seul processus** au départ, découpé en modules (`jarvis/core`, `jarvis/tools/pc`). Pourquoi :
 - le serveur est le PC lui-même, donc une API locale de plus ajouterait un saut réseau sans gain de sécurité ;
 - sous Windows, un service « droits élevés » tourne en session 0 et **ne peut pas** toucher au bureau de l'utilisateur (applis, volume, presse-papiers, captures). Le process doit donc tourner dans la session utilisateur, avec les droits normaux. Les rares actions admin (installer un logiciel) passent par l'invite UAC, qui sert aussi de confirmation N2.
 
@@ -108,14 +108,14 @@ L'icône de la zone de notification Windows et le raccourci clavier global sont 
 ## 4. Sécurité : le modèle de permissions appliqué dans le code
 
 1. **La garde est du code, pas du prompt.** Le LLM *propose* un appel d'outil ; `permissions.py` décide. Aucune phrase du LLM ne peut contourner un niveau.
-2. N0/N1 : exécution automatique. N2 : confirmation explicite du propriétaire sur un canal authentifié (PWA, CLI, voix). N3 : confirmation + WebAuthn (biométrie) ou PIN.
+2. N0/N1 : exécution automatique. N2 : confirmation explicite du propriétaire sur un canal authentifié (PWA, CLI, voix). N3 : confirmation + clé d'accès WebAuthn (biométrie) de l'appareil.
 3. **Contenu externe = donnée.** Les résultats d'outils (pages web, fichiers, noms d'appareils HA) sont injectés dans le contexte entre balises `<data>`, marqués non fiables. Toute action N2/N3 proposée dans un tour où du contenu externe a été lu exige une confirmation, quel que soit le réglage.
 4. Les niveaux sont réglables par outil, mais **baisser un niveau est lui-même une action N3**.
-   - N3 = clé d'accès WebAuthn (`jarvis/core/webauthn.py`) : ES256, attestation « none », vérification utilisateur obligatoire, défi de 60 s à usage unique lié à (appareil, action). RP ID = nom Tailscale du PC ; sans lui (127.0.0.1), N3 reste refusé.
-   - Enregistrer une clé exige une fenêtre de 120 s ouverte depuis le PC (`python -m jarvis passkey add <id>`). Risque accepté : un voleur du token de CET appareil qui agit pendant la fenêtre pourrait enregistrer sa clé ; la CLI demande d'ouvrir la fenêtre pour l'appareil en main seulement.
+   - N3 = clé d'accès WebAuthn (`jarvis/core/webauthn.py`) : ES256, attestation « none », vérification utilisateur obligatoire, défi de 60 s à usage unique lié à (appareil, action). RP ID = nom Tailscale de la machine du Core (`TS_HOST`, le mini-PC) ; sans lui (127.0.0.1), N3 reste refusé.
+   - Enregistrer une clé exige une fenêtre de 120 s ouverte depuis la machine du Core (`python -m jarvis passkey add <id>`). Risque accepté : un voleur du token de CET appareil qui agit pendant la fenêtre pourrait enregistrer sa clé ; la CLI demande d'ouvrir la fenêtre pour l'appareil en main seulement.
    - Clés synchronisées (compteur à 0) : pas de détection de clonage, conforme à la spec ; un compteur non nul qui ne progresse pas est refusé.
-5. Authentification : un token par appareil (stocké dans le keyring côté PC, enrôlement par QR code), révocable, en plus de l'identité Tailscale.
-6. Secrets : keyring Windows (`keyring`), `.env` pour la config non secrète, `.env.example` versionné. Rien de sensible dans ce dépôt **public**.
+5. Authentification : un token par appareil (seul son SHA-256 est stocké en base, `jarvis/core/devices.py` ; enrôlement par QR code, portées `full`, `voice`, `tv`), révocable, en plus de l'identité Tailscale.
+6. Secrets : `jarvis/core/secrets.py`, keyring sur le PC, identifiants systemd chiffrés (`LoadCredentialEncrypted=`, `deploy/creds.sh`) sur le mini-PC ; `.env` pour la config non secrète, `.env.example` versionné. Rien de sensible dans ce dépôt **public**.
 7. Pas de shell arbitraire en N1/N2 : `run_script` n'exécute que les scripts d'un dossier en liste blanche (N2) ; une commande libre est N3.
 
 ### Avis de l'Expert Sécurité

@@ -28,7 +28,7 @@ Maximum 3 idées par passage ; zéro si rien ne vaut la peine.
 
 ## Format (ajouter en haut de la section « À trier », numéro suivant le plus grand existant)
 ```
-### #N — Titre court  ·  2026-10-19  ·  priorité haute|moyenne|basse  ·  effort S|M|L
+### #N — Titre court  ·  AAAA-MM-JJ (date du jour)  ·  priorité haute|moyenne|basse  ·  effort S|M|L
 - Constat : ce que tu as vu (fichier:ligne).
 - Proposition : ce qu'on ajouterait, et le gain pour le propriétaire.
 - Plan : 2 à 5 étapes (fichiers à toucher, tests, niveau de permission si nouvel outil).

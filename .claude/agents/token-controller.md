@@ -3,7 +3,7 @@ name: token-controller
 description: >-
   Contrôleur de tokens et de ressources de JARVIS (IA 100 % locale). Utiliser pour
   toute fonction qui appelle le modèle Ollama : taille du contexte, longueur des prompts,
-  latence, occupation VRAM, cache.
+  latence, occupation VRAM, cache. Pas les tokens des sessions Claude (agent global token-guard).
 ---
 
 # RÔLE : CONTRÔLEUR DE TOKENS ET DE RESSOURCES

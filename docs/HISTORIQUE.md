@@ -68,6 +68,23 @@ Ancien contenu de la section « État actuel » de docs/ROADMAP.md (archivé le 
 - Décisions propriétaire en attente : destination des sauvegardes, reste de DOMOTIQUE_PLAN §7, choix parmi les pistes de la Phase 7 (proposées le 2026-10-12).
 - Droits : commit, push et merge dans `main` autorisés sans confirmation (hooks de blocage retirés le 2026-10-07) ; `rebase` et `reset` autorisés en local, push forcé interdit.
 
+## Archive du 2026-10-20 : « État actuel » avant compactage (verbatim)
+
+- **Phase en cours : 5 (durcissement)**, plan et décisions D1–D13 : docs/SECURITY_REVIEW_PHASE_5.md. Phases 6 et 7 avancent en parallèle.
+- **Mini-PC** (docs/MIGRATION_CORE_MINIPC.md, « Reste à faire ») : lots 0 à 5 faits. Le 2026-10-25 au plus tôt (une semaine sans retour arrière) : supprimer VM Hyper-V et tâches Windows désactivées. Reste : revue Sécurité de `pc_off_plug`, test à blanc de la prise Tapo (INSTALL_SERVEUR_HA §10.3), tuile Mini-PC à essayer.
+- **Voix** : PC (4b) et salon (4c) déployés ; reste latence PC ~5 s, Voice PE à recevoir puis `hey_jarvis` et comptage des faux réveils. `jarvis_fr` : essai `JARVIS_WAKE_WORD=jarvis_fr` + `JARVIS_WAKE_THRESHOLD=0.7`, puis revue Sécurité.
+- **Bouton « parler » PWA** : dictée du navigateur (SpeechRecognition, audio via Google, accepté le 2026-10-19, cache v59) ; repli `/api/stt` (feu vert Sécurité) si absente. Reste l'essai sur le téléphone (HTTPS Tailscale) et 375/1280 px. Sur le mini-PC `/api/stt` répond 503 (pas de Whisper) : relayer vers le PC si voulu.
+- **Finances** : relance des banques en échec à 13 h et 19 h faite ; compte d’une banque en échec marqué « non actualisé » dans l’onglet. Reste : vérifier `journalctl --user -u jarvis-banque` le 2026-10-20. Épargne Trade Republic ajoutée au compte-titres / PEA (2026-10-20) : reste `python -m jarvis portfolio base <cto> <pea>` sur le mini-PC.
+- **Consommation** : reste l'essai 375/1280 px ; règles « talon nocturne » / « PC allumé la nuit » en attente de décision.
+- **Refonte UI v2** (2026-10-19, cache v58) : tous les onglets refaits, puis Dashboard/Finances retouchés (détail : docs/HISTORIQUE.md). Reste l'œil du propriétaire sur des données réelles (PC et téléphone).
+- **Phase 5 étapes 1 et 9** (token volé, `feat/phase5-token-vole`, fusionnée le 2026-10-19) : D2/D6, clé d'accès pour les N2 forts (D3, Finances, retirée le 2026-10-19 par le propriétaire), token 90 j renouvelé, « révoquer tout ». Reste revue Sécurité de la fusion et essai sur le téléphone.
+- **Interface TV** (`tv/`, APK `android-tv/`, 2026-10-20) : refonte visuelle, Twitch ajouté, ordre des applis réorganisable (Entrée maintenue, IndexedDB). Essayée sur la vraie TV le 2026-10-20 (APK installé, Twitch ok, appui long corrigé par minuteur, logos Twitch/Bowd/OpenFlix). Étape (c) faite, fusionnée et essayée en vrai (clé de portée `tv`, pont Java `CoreLink`, revue Sécurité feu vert, docs/DECISIONS.md 2026-10-20) : TV « en ligne », météo réelle ; lumières/clims marquées « pas encore en place ». Ouverture de JARVIS au démarrage de la TV (`BootReceiver` + appops SYSTEM_ALERT_WINDOW, essayée et validée le 2026-10-20) ; la touche Accueil reste au launcher Google. Reste : essai d'une scène (Cinéma/Bonne nuit, effet réel), puis (d). Débogage USB de la TV à désactiver et clé `tv` n°9 à révoquer. Clé `tv` renouvelée automatiquement (idée #18, POST /api/token, tous les 7 j). Bowd/OpenFlix à la télécommande (2026-10-20) : `sitenav.js` (popup qui prend le focus, Retour, lecteur, anneau, zoom coupé ; essayé sous Playwright, revue Sécurité feu vert) + pointeur à l'appui long OK ; non installé sur la TV ; reste essai réel (lecteur OpenFlix derrière Cloudflare, non atteignable en automatisé). Lecteur plein écran : OK, ←/→ ±10 s et touches média pilotent la vidéo (idée #19, revue Sécurité feu vert), reste l'essai réel.
+- **Essais réels en attente** : rappels/briefing (voix + push), outil Claude Code, `voyage_recherche` (envoie un e-mail).
+- **À faire par le propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md (sauvegardes hors mini-PC, `secret set mail_sig_key`, tests C5/F6/G2) ; droits TikTok ; Swile et Ledger à brancher.
+- **Décisions en attente** : destination des sauvegardes, consignes des clims (reportées), texte du rappel dans le push, choix des pistes Phase 7.
+- **Droits** : commit, push et merge dans `main` sans confirmation ; push forcé interdit (`main` protégée sur GitHub). Un worktree par session parallèle ; ménage : agent garde-branches « HYGIÈNE ».
+- **CI** : dépendances installées ; reste 4 erreurs sur le runner (chemin temporaire court `RUNNER~1` refusé par `system.py` : contrôle du dossier utilisateur), décision du propriétaire.
+
 ## Archive du 2026-10-19 : ROADMAP avant compactage (verbatim)
 
 ### Ancien « État actuel »
