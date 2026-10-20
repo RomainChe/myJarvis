@@ -56,7 +56,7 @@ public class SiteActivity extends Activity {
     private String siteHost;
     private int adSeconds;
     private String navJs = ""; // navigation télécommande (tv/site/sitenav.js), injectée à chaque page
-    private long jsBackAt; // dernier Retour pris par la page : un 2e Retour rapproché revient toujours en arrière
+    private long jsBackAt; // dernier Retour confié à la page : un 2e Retour rapproché revient toujours en arrière
 
     @Override
     protected void onCreate(Bundle state) {
@@ -201,6 +201,7 @@ public class SiteActivity extends Activity {
     }
 
     private void tap(String json) { // "[fx,fy]" en fraction de la WebView, ou "null"
+        if (json == null || adLayer != null || fullscreen != null) return; // une pub a pu s'ouvrir entre la touche et la réponse
         String[] p = json.replaceAll("[\\[\\] ]", "").split(",");
         if (p.length != 2) return;
         float fx, fy;
@@ -225,11 +226,13 @@ public class SiteActivity extends Activity {
     public void onBackPressed() {
         if (adLayer != null) closeAd();
         else if (fullscreen != null) web.getWebChromeClient().onHideCustomView();
-        else if (SystemClock.uptimeMillis() - jsBackAt < 800) nativeBack(); // la page ne peut pas bloquer Retour
-        else web.evaluateJavascript("window.__jarvisNav ? __jarvisNav.back() : false", v -> {
-            if ("true".equals(v)) jsBackAt = SystemClock.uptimeMillis(); // popup fermée ou sortie des contrôles
-            else nativeBack();
-        });
+        else if (SystemClock.uptimeMillis() - jsBackAt < 800) nativeBack(); // la page ne peut pas bloquer Retour, même figée
+        else {
+            jsBackAt = SystemClock.uptimeMillis();
+            web.evaluateJavascript("window.__jarvisNav ? __jarvisNav.back() : false", v -> {
+                if (!"true".equals(v)) nativeBack(); // sinon : popup fermée ou sortie des contrôles
+            });
+        }
     }
 
     private void nativeBack() {

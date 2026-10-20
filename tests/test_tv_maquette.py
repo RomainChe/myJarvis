@@ -84,6 +84,8 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertIn("setSupportZoom(false)", site)
         self.assertIn("fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1", site)
         self.assertIn("jsBackAt < 800) nativeBack()", site)
+        self.assertLess(site.index("jsBackAt = SystemClock.uptimeMillis()"), site.index("__jarvisNav.back()"))  # page figée : 2e Retour natif
+        self.assertIn("if (json == null ||", site)
         apps = (base / "java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
 
     def test_scripts_charges(self):
