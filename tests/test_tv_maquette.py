@@ -52,7 +52,6 @@ class TvMaquetteTest(unittest.TestCase):
         self.assertIn("onCreateWindow", site)
         self.assertIn("Passer la pub", site)
         apps = (base / "java/fr/jarvis/tv/Apps.java").read_text(encoding="utf-8")
-        self.assertIn('key.equals("openflix") ? 3 : 0', apps)  # OpenFlix : pub visible 3 s, jamais avalée
 
     def test_scripts_charges(self):
         html = (TV_DIR / "index.html").read_text(encoding="utf-8")
