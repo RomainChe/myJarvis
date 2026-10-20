@@ -98,7 +98,7 @@ body {
 @keyframes pulse { 50% { box-shadow: 0 0 2.75rem rgb(56 207 239 / .85), inset 0 0 1rem rgb(255 255 255 / .35); } }
 
 .app { width: 18.5rem; height: 10rem; justify-content: center; align-items: center; background: var(--app-bg); color: var(--focus-text); border: 0; filter: brightness(.78); }
-.app:focus-visible { filter: none; }
+.app:focus { filter: none; }
 .app img { max-width: 72%; max-height: 46%; object-fit: contain; }
 
 /* Déplacement d'une appli : la tuile se soulève, flèches de part et d'autre, les autres s'effacent. */
@@ -114,19 +114,20 @@ body {
 }
 .pill .ico { width: 1.5rem; height: 1.5rem; }
 
-/* Focus : la tuile devient blanche et grossit, c'est la seule chose à voir de loin. */
-.tile:focus { outline: none; }
-.tile:focus-visible {
+/* Focus : la tuile devient blanche et grossit, c'est la seule chose à voir de loin.
+   :focus et non :focus-visible, que Chrome n'applique pas après un clic de souris. */
+.tile:focus {
+  outline: none;
   transform: scale(1.07); background: var(--focus-bg); color: var(--focus-text); border-color: transparent;
   box-shadow: 0 0 0 3px rgb(255 255 255 / .9), 0 16px 40px rgb(0 0 0 / .55);
 }
-.pill:focus-visible { transform: scale(1.05); }
-.tile:focus-visible .sub { color: rgb(11 13 18 / .7); }
-.tile:focus-visible .badge { background: var(--c); }
-.tile:focus-visible .badge .ico { stroke: var(--focus-text); }
+.pill:focus { transform: scale(1.05); }
+.tile:focus .sub { color: rgb(11 13 18 / .7); }
+.tile:focus .badge { background: var(--c); }
+.tile:focus .badge .ico { stroke: var(--focus-text); }
 
 .offline .jarvis { opacity: .55; }
-.offline .jarvis:focus-visible { opacity: .8; }
+.offline .jarvis:focus { opacity: .8; }
 .offline .jarvis .sub, .offline .jarvis.on::before { display: none; }
 .offline .jarvis::after { content: "Hors ligne"; font-size: 1.15rem; font-weight: 400; }
 .offline .orb { filter: grayscale(1); animation: none; }
@@ -141,6 +142,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   body, .tile, .toast { transition: none; }
-  .tile:focus-visible { transform: none; }
+  .tile:focus { transform: none; }
   .orb { animation: none; }
 }
