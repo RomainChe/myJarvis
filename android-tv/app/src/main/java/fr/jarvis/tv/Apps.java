@@ -22,6 +22,7 @@ final class Apps {
         PACKAGES.put("disneyplus", "com.disney.disneyplus");
         PACKAGES.put("spotify", "com.spotify.tv.android");
         PACKAGES.put("plex", "com.plexapp.android");
+        PACKAGES.put("smarttube", "com.teamsmart.videomanager.tv");
         PACKAGES.put("twitch", "tv.twitch.android.app");
         PACKAGES.put("playstore", "com.android.vending");
     }
