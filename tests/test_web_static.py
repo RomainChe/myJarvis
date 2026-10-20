@@ -105,7 +105,7 @@ class WebStaticTest(unittest.TestCase):
         html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
         js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
         order = re.findall(r'class="tab" type="button" data-view="(\w+)"', html)
-        self.assertEqual(order, ["chat", "finance", "social", "conso", "voyages", "veille", "bienetre", "devices", "audit", "settings"])
+        self.assertEqual(order, ["chat", "finance", "social", "conso", "voyages", "veille", "bienetre", "drivers", "devices", "audit", "settings"])
         more = html[html.index('id="more"'):html.index("</nav>")]
         self.assertEqual(re.findall(r'data-view="(\w+)"', more), order[4:])  # téléphone : 4 onglets + « Plus »
         self.assertIn('id="tab-more"', html[:html.index('id="more"')])

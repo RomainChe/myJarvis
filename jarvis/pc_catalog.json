@@ -200,6 +200,18 @@
   "owner_only": true
  },
  {
+  "name": "pc_drivers",
+  "description": "État des pilotes relevé par DriverWatch (onglet Pilotes).",
+  "level": 0,
+  "params": {},
+  "hidden": [],
+  "describe": false,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": true
+ },
+ {
   "name": "pc_social",
   "description": "Clips publiés et programmés, compteurs YouTube (onglet Réseaux).",
   "level": 0,
