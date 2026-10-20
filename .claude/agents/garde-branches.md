@@ -1,6 +1,7 @@
 ---
 name: garde-branches
-description: Contrôle l'isolation des sessions Claude parallèles (worktrees, contamination,
+description: >-
+  Contrôle l'isolation des sessions Claude parallèles (worktrees, contamination,
   chevauchement, conflits), puis, sur un « GO INTÉGRATION » du manager, merge dans main, push et
   supprime les branches fusionnées. Sur « HYGIÈNE », synchronise local et GitHub : branches en
   retard remises à jour, conflits traités, branches fusionnées supprimées, rien de bloqué.
