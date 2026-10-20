@@ -21,6 +21,7 @@ LOGOS = {
     "spotify": "Spotify_logo_with_text.svg",
     "plex": "Plex_logo_2022.svg",
     "playstore": "Google_Play_2022_logo.svg",
+    "twitch": "Twitch_logo.svg",
 }
 
 

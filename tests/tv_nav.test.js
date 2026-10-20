@@ -22,6 +22,14 @@ test('une rangée déjà visitée reprend sa colonne', () => {
   assert.deepStrictEqual(TvNav.next(rows, { r: 2, c: 0 }, 'up', { 1: 9 }), { r: 1, c: 1 });
 });
 
+test('ordre des applis : enregistré d\'abord, nouvelles à la fin, clés inconnues ou en double ignorées', () => {
+  const keys = ['youtube', 'bowd', 'twitch', 'netflix'];
+  assert.deepStrictEqual(TvNav.order(keys, ['netflix', 'youtube']), ['netflix', 'youtube', 'bowd', 'twitch']);
+  assert.deepStrictEqual(TvNav.order(keys, ['supprimee', 'twitch', 'twitch']), ['twitch', 'youtube', 'bowd', 'netflix']);
+  assert.deepStrictEqual(TvNav.order(keys, undefined), keys);
+  assert.deepStrictEqual(TvNav.order(keys, 'pas un tableau'), keys);
+});
+
 test('les bords et les touches inconnues ne bougent pas le focus', () => {
   assert.deepStrictEqual(TvNav.next(rows, { r: 0, c: 2 }, 'up', {}), { r: 0, c: 2 });
   assert.deepStrictEqual(TvNav.next(rows, { r: 2, c: 2 }, 'down', {}), { r: 2, c: 2 });

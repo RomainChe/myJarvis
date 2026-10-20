@@ -19,6 +19,12 @@ const TvNav = {
     rows[t].forEach((tx, i) => { if (Math.abs(tx - x) < Math.abs(rows[t][best] - x)) best = i; });
     return { r: t, c: best };
   },
+
+  // Ordre des applis : l'ordre enregistré (clés encore présentes, sans doublon), puis les nouvelles dans l'ordre par défaut.
+  order(keys, saved) {
+    const kept = (Array.isArray(saved) ? saved : []).filter((k, i, a) => keys.includes(k) && a.indexOf(k) === i);
+    return kept.concat(keys.filter((k) => !kept.includes(k)));
+  },
 };
 
 if (typeof module === 'object') module.exports = TvNav;

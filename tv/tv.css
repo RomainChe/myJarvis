@@ -101,6 +101,13 @@ body {
 .app:focus-visible { filter: none; }
 .app img { max-width: 72%; max-height: 46%; object-fit: contain; }
 
+/* Déplacement d'une appli : la tuile se soulève, flèches de part et d'autre, les autres s'effacent. */
+.app.moving { position: relative; transform: translateY(-.75rem) scale(1.07); box-shadow: 0 0 0 4px var(--c), 0 24px 48px rgb(0 0 0 / .6); }
+.app.moving::before, .app.moving::after { position: absolute; top: 50%; translate: 0 -50%; font-size: 3rem; font-weight: 300; color: var(--text); }
+.app.moving::before { content: "‹"; left: -1.4rem; }
+.app.moving::after { content: "›"; right: -1.4rem; }
+.reordering .app:not(.moving) { opacity: .45; }
+
 .pill {
   width: auto; height: 3rem; padding: 0 1.4rem; flex-direction: row; align-items: center; gap: .6rem;
   border-radius: 99px; font-size: 1.2rem; font-weight: 500;

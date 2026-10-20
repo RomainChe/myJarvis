@@ -4,10 +4,14 @@
 // Rangée 0 : pastilles du haut ; l'accueil s'ouvre sur la première appli.
 const rowEls = [...document.querySelectorAll('.tiles')];
 const tiles = rowEls.map((row) => [...row.querySelectorAll('.tile')]);
-const HOME = { r: 1, c: 0 };
+const APPS = 1;
+const HOME = { r: APPS, c: 0 };
 const last = {};
 let pos = HOME;
 let toastTimer;
+let moving = null; // tuile appli en cours de déplacement
+let pressed = false; // Entrée enfoncée sur cette page : un relâchement orphelin ne lance rien
+let held = false; // Entrée maintenue : l'appui long a ouvert le déplacement, le relâchement ne lance rien
 
 // Logo absent (tv/logos/ n'est pas dans Git) : la tuile affiche le nom. Une image peut avoir échoué avant ce script.
 function logoToText(img) {
@@ -72,14 +76,73 @@ function activate(el) {
   }
 }
 
+// Ordre des applis mémorisé dans IndexedDB (seul stockage permis, voir tests/test_web_static.py).
+// Stockage indisponible : l'ordre par défaut de index.html reste affiché.
+function prefs(fn) {
+  try {
+    const req = indexedDB.open('jarvis-tv', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('prefs');
+    req.onsuccess = () => fn(req.result.transaction('prefs', 'readwrite').objectStore('prefs'));
+  } catch (e) {
+    // pas de stockage : rien à faire
+  }
+}
+
+function refreshApps() {
+  tiles[APPS] = [...rowEls[APPS].querySelectorAll('.tile')];
+}
+
+function applyOrder(saved) {
+  const byKey = new Map(tiles[APPS].map((t) => [t.dataset.app, t]));
+  TvNav.order([...byKey.keys()], saved).forEach((k) => rowEls[APPS].append(byKey.get(k)));
+  refreshApps();
+  if (pos.r === APPS) focusAt(pos);
+}
+
+function startMoving(el) {
+  moving = el;
+  el.classList.add('moving');
+  document.body.classList.add('reordering');
+  toast('Gauche / droite : déplacer · Entrée : valider');
+}
+
+function stopMoving() {
+  moving.classList.remove('moving');
+  document.body.classList.remove('reordering');
+  moving = null;
+  const order = tiles[APPS].map((t) => t.dataset.app);
+  prefs((store) => store.put(order, 'apps'));
+  toast('Ordre des applis enregistré');
+}
+
+function moveApp(d) {
+  const i = tiles[APPS].indexOf(moving);
+  const j = i + d;
+  if (j < 0 || j >= tiles[APPS].length) return;
+  if (d < 0) tiles[APPS][j].before(moving);
+  else tiles[APPS][j].after(moving);
+  refreshApps();
+  focusAt({ r: APPS, c: j });
+}
+
 document.addEventListener('keydown', (e) => {
   const dir = TvNav.KEYS[e.key];
-  if (dir) {
+  if (moving) {
+    // Mode déplacement : seules gauche/droite bougent l'appli ; Retour valide, Entrée valide au relâchement.
+    e.preventDefault();
+    if (dir === 'left' || dir === 'right') moveApp(dir === 'left' ? -1 : 1);
+    else if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') stopMoving();
+  } else if (dir) {
     e.preventDefault();
     focusAt(TvNav.next(centers(), pos, dir, last));
   } else if (e.key === 'Enter') {
+    // Appui simple : action au relâchement (keyup). Appui long sur une appli : déplacement.
     e.preventDefault();
-    activate(tiles[pos.r][pos.c]);
+    if (!e.repeat) pressed = true;
+    else if (!held && pos.r === APPS) {
+      held = true;
+      startMoving(tiles[pos.r][pos.c]);
+    }
   } else if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') {
     // Retour : revient sur la première appli ; l'accueil ne se ferme jamais.
     e.preventDefault();
@@ -89,10 +152,21 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+document.addEventListener('keyup', (e) => {
+  if (e.key !== 'Enter' || !pressed) return;
+  e.preventDefault();
+  pressed = false;
+  if (held) held = false;
+  else if (moving) stopMoving();
+  else activate(tiles[pos.r][pos.c]);
+});
+
 // La souris et le Tab ne doivent pas désynchroniser la position mémorisée.
-tiles.forEach((row, r) => row.forEach((t, c) => {
+// La colonne est relue au focus : les applis peuvent avoir changé de place.
+tiles.forEach((row, r) => row.forEach((t) => {
   t.style.setProperty('--c', t.dataset.color); // teinte de la tuile (pastille d'icône, reflet)
   t.addEventListener('focus', () => {
+    const c = tiles[r].indexOf(t);
     pos = { r, c };
     last[r] = c;
     document.getElementById('hero').textContent = tileName(t);
@@ -119,3 +193,7 @@ tick();
 setInterval(tick, 10000);
 setOffline(new URLSearchParams(location.search).has('horsligne'));
 focusAt(pos);
+prefs((store) => {
+  const req = store.get('apps');
+  req.onsuccess = () => { if (req.result) applyOrder(req.result); };
+});
