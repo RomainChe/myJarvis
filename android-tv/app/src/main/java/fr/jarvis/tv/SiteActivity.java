@@ -36,11 +36,11 @@ public class SiteActivity extends Activity {
     // Bandeau « Application Android disponible pour cet appareil » : inutile ici (l'appli officielle n'aurait pas la fermeture auto
     // des pubs). On masque le plus haut ancêtre pleine largeur et peu haut, jamais la page entière.
     private static final String HIDE_BANNER_JS = "(()=>{if(window.__jarvisBanner)return;window.__jarvisBanner=setInterval(()=>{"
-            + "for(const e of document.querySelectorAll('div,span')){"
-            + "if(e.children.length===0&&/^Application Android disponible/.test(e.textContent.trim())){"
-            + "let n=e;while(n.parentElement&&n.parentElement!==document.body){const p=n.parentElement,r=p.getBoundingClientRect();"
-            + "if(r.width<innerWidth*0.95||r.height>innerHeight*0.3)break;n=p;}"
-            + "n.style.display='none';}}},500);})();";
+            + "const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let t;"
+            + "while((t=w.nextNode())){if(!/Application Android disponible/.test(t.nodeValue))continue;"
+            + "let n=t.parentElement;while(n.parentElement&&n.parentElement!==document.body){const p=n.parentElement,r=p.getBoundingClientRect();"
+            + "if(r.width<innerWidth*0.9||r.height>innerHeight*0.3)break;n=p;}"
+            + "n.style.display='none';}},500);})();";
 
     private FrameLayout root;
     private WebView web;
