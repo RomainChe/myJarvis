@@ -133,7 +133,7 @@ function activate(el) {
   } else if (el.dataset.cmd && linked) {
     say(el.dataset.cmd);
   } else if (el.classList.contains('jarvis') && linked) {
-    toast('Pas encore branché');
+    toast('Pas encore en place');
   } else if (el.dataset.app && window.JarvisTV) {
     // Dans l'APK : le pont Java lance l'appli (liste blanche côté Java). Sur PC : simple message.
     if (!window.JarvisTV.launch(el.dataset.app)) toast('Application absente de la TV');
@@ -266,6 +266,12 @@ tick();
 setInterval(tick, 10000);
 setOffline(linked || new URLSearchParams(location.search).has('horsligne')); // dans l'APK : hors ligne tant que le Core n'a pas répondu
 if (linked) {
+  // Lumières et clims : pas de lecture d'état côté Core pour l'instant, la maquette ne doit pas inventer d'état.
+  document.querySelectorAll('[data-todo]').forEach((el) => {
+    el.classList.remove('on');
+    el.querySelector('.big').textContent = el.dataset.todo;
+    el.querySelector('.sub').textContent = 'Pas encore en place';
+  });
   document.getElementById('wx-temp').textContent = '—'; // la météo fictive de la maquette ne reste pas affichée
   document.getElementById('wx-sub').textContent = '';
   refresh();
