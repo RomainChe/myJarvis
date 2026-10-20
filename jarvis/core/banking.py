@@ -320,6 +320,14 @@ def _outflows(accounts: list) -> list[dict]:
     return out
 
 
+def _recent(at: str | None, days: int = 30) -> bool:
+    """Lecture bancaire de moins de `days` jours : sinon l'épargne lue est incomplète (portfolio n'avance pas sa base)."""
+    try:
+        return datetime.now(timezone.utc) - datetime.fromisoformat(at) < timedelta(days=days)
+    except (TypeError, ValueError):
+        return False
+
+
 def view(limit: int = 30) -> dict | None:
     """Pour l'onglet Finances : soldes par compte (`stale` : dernière lecture de sa banque en échec, solde d'un cache
     précédent), `limit` dernières opérations et jours de consentement restants, sans uid ni session.
@@ -342,4 +350,4 @@ def view(limit: int = 30) -> dict | None:
     flat = [dict(t, bank=a["bank"]) for a in accounts if a["currency"] == "EUR" for t in a["transactions"]]
     return {"fetched_at": data.get("fetched_at"), "consent": consent, "total": total, "week_spent": spent, "cycle": budget.report(flat),
             "accounts": [{**{k: a[k] for k in ("bank", "name", "currency", "balance")}, "stale": a["bank"] in failed} for a in accounts],
-            "transactions": sorted(txs, key=lambda t: t["date"], reverse=True)[:limit]}
+            "transactions": sorted(txs, key=lambda t: t["date"], reverse=True)[:limit], "invest": budget.investments(flat) if _recent(data.get("fetched_at")) else None}

@@ -2,7 +2,7 @@
 import unittest
 from datetime import date
 
-from jarvis.core.budget import CM, TR, classify, report
+from jarvis.core.budget import CM, TR, classify, investments, report
 
 
 def tx(bank, day, amount, label=""):
@@ -65,6 +65,12 @@ class BudgetTest(unittest.TestCase):
         prog = next(x for x in self.r["saving"]["items"] if x["name"] == "Épargne programmée")
         self.assertEqual(prog["amount"], 92.0)
         self.assertEqual(self.r["saving"]["rate"], round(self.r["saving"]["total"] / 2500 * 100))
+
+    def test_epargne_vers_pea_et_compte_titres_sans_livret(self):
+        tot = {}
+        for r in investments(CYCLE):
+            tot[r["account"]] = round(tot.get(r["account"], 0) + r["amount"], 2)
+        self.assertEqual(tot, {"PEA": 67.0, "Compte-titres": 28.79})  # plans 10 + 15, arrondis 0,42 + 3,37 ; LDDS 150 € à part
 
     def test_epargne_datee_du_vendredi(self):
         """Trade Republic comptabilise parfois les plans du mercredi un autre jour : le lot de plans identifie le jour."""

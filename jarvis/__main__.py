@@ -13,6 +13,7 @@
     python -m jarvis bank key <app_id> <fichier.pem> <redirect_url> | link "<banque>" [pays] | status | fetch [daily]
                                                        (Enable Banking, lecture seule ; terminal interactif)
     python -m jarvis portfolio import <export.csv>     (copie l'export de transactions Trade Republic dans ~/.jarvis/, lecture seule)
+    python -m jarvis portfolio base <cto> <pea>        (valeurs du jour lues dans l'appli ; l'épargne Trade Republic s'y ajoute ensuite)
     python -m jarvis binance fetch [catégorie ...]      (historique Binance en lecture seule -> ~/.jarvis/binance-history.json ; clé dans .env)
     python -m jarvis device add [--voice <nom>] | list | revoke <id|all>   (terminal interactif)
     python -m jarvis passkey add <id appareil>         (ouvre 120 s pour enregistrer une clé d'accès, terminal interactif)
@@ -534,6 +535,19 @@ def main(argv: list[str]) -> int:
             return 1
         audit.log("cli", "portfolio_import", {}, 2, "auto", f"{n} ligne(s)")
         print(f"{n} ligne(s) importée(s).")
+        return 0
+    if argv[:2] == ["portfolio", "base"] and len(argv) == 4:
+        from jarvis.core import banking, portfolio
+        try:
+            values = {"Compte-titres": float(argv[2].replace(",", ".")), "PEA": float(argv[3].replace(",", "."))}
+            bank = banking.view() or {}
+            portfolio.set_base(values, savings=bank.get("invest"))
+        except (OSError, ValueError) as e:
+            audit.log("cli", "portfolio_base", {}, 2, "auto", "échec")
+            print(f"Base impossible : {e if isinstance(e, ValueError) else type(e).__name__}")
+            return 1
+        audit.log("cli", "portfolio_base", {}, 2, "auto", "ok")
+        print("Base enregistrée : l'épargne Trade Republic à partir de demain s'y ajoute.")
         return 0
     if argv[:2] == ["binance", "fetch"]:
         from jarvis.core import binance
