@@ -20,7 +20,7 @@ async function loadBienetre() {
     const strip = el('div', 'strip');
     strip.append(stat('Problèmes', String(d.counts['problème']), prev ? `Aujourd'hui${prev}` : undefined, '', d.counts['problème'] ? 'alarm' : 'hero'),
       stat('À surveiller', String(d.counts['à surveiller'])), stat('Tout va bien', String(d.counts.OK), `${d.counts['non mesuré']} non mesuré(s)`));
-    const note = d.running ? 'Nouvelle mesure en cours…' : d.error ? `Mesure du jour : ${d.error}.` : `Bilan du ${when}, renouvelé chaque jour.`;
+    const note = d.running ? 'Nouvelle mesure en cours…' : d.error ? `Mesure du jour : ${d.error}${d.error_at ? ` depuis ${new Date(d.error_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}.` : `Bilan du ${when}, renouvelé chaque jour.`;
     const row = (i) => {
       const k = i.statut === 'problème' ? 'bad' : i.statut === 'à surveiller' ? 'warn' : 'none';
       const li = el('li', `be-item be-card-${k}`);

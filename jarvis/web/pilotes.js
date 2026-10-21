@@ -117,5 +117,6 @@ $('drivers-go').addEventListener('click', async () => {
   } finally {
     setBusy(false);
     go.disabled = false;
+    loadDrivers(); // le PC relance une vérification à la fin de la mise à jour : on relit (toutes les 30 s tant qu'elle dure)
   }
 });

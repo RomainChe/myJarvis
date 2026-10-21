@@ -27,7 +27,7 @@ def project(files: dict) -> Path:
 
 class BienetreTest(unittest.TestCase):
     def setUp(self):
-        bienetre._state.update(tried=0.0, error=None, running=False)
+        bienetre._state.update(tried=0.0, error=None, error_at=None, running=False)
 
     def test_dernier_bilan_trie_et_compare_a_la_veille(self):
         root = project({
@@ -89,6 +89,19 @@ class BienetreTest(unittest.TestCase):
                                   start=lambda f: f(), now=time.time())
         self.assertEqual(bienetre._state["error"], "le bilan n'a pas pu être lancé")
         self.assertFalse(bienetre._state["running"])
+
+    def test_heure_du_premier_echec_gardee_puis_effacee_au_succes(self):
+        root = project({})
+        def go(runner, now):
+            bienetre.refresh_if_stale(root, at=datetime(2026, 10, 13, 19), runner=runner, start=lambda f: f(), now=now)
+        go(lambda r: False, 10000.0)
+        first = bienetre._state["error_at"]
+        self.assertTrue(first)
+        bienetre._state["error_at"] = "2026-10-12T18:00"
+        go(lambda r: False, 20000.0)
+        self.assertEqual(bienetre._state["error_at"], "2026-10-12T18:00")
+        go(lambda r: True, 30000.0)
+        self.assertIsNone(bienetre._state["error_at"])
 
     def test_dossier_sans_projet_jamais_relance(self):
         self.assertFalse(bienetre.refresh_if_stale(Path(tempfile.mkdtemp()), runner=lambda r: True, start=lambda f: f()))

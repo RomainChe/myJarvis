@@ -25,7 +25,7 @@ STATUSES = {"problème": 0, "à surveiller": 1, "non mesuré": 2, "OK": 3}
 FIELDS = {"composant": 60, "point": 60, "valeur": 300, "seuil": 200, "conseil": 500}
 ENV_KEYS = ("SystemRoot", "SYSTEMROOT", "windir", "PATH", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA",
             "ProgramData", "ProgramFiles", "ProgramFiles(x86)", "COMSPEC", "PSModulePath", "HOME")
-_state = {"tried": 0.0, "error": None, "running": False}
+_state = {"tried": 0.0, "error": None, "error_at": None, "running": False}
 _lock = threading.Lock()
 on_run = None  # rappel (ok: bool) après chaque relance : branché sur le journal d'audit par le serveur
 
@@ -101,6 +101,13 @@ def run(root: Path) -> bool:
     return r.returncode == 0
 
 
+def _fail(error: str | None) -> None:
+    """Garde le message et l'heure du premier échec d'une série (« en échec depuis »)."""
+    if error is None or not _state["error"]:
+        _state["error_at"] = datetime.now().isoformat(timespec="minutes") if error else None
+    _state["error"] = error
+
+
 def refresh_if_stale(root: Path | None = None, now: float | None = None, at: datetime | None = None, runner=run,
                      start=lambda f: threading.Thread(target=f, daemon=True).start()) -> bool:
     """Relance le bilan en tâche de fond s'il n'y en a aucun depuis le dernier 18 h passé ; au plus un essai par heure."""
@@ -123,9 +130,9 @@ def refresh_if_stale(root: Path | None = None, now: float | None = None, at: dat
         ok = False
         try:
             ok = runner(root)
-            _state["error"] = None if ok else "le bilan a échoué"
+            _fail(None if ok else "le bilan a échoué")
         except Exception:  # noqa: BLE001 (OSError, délai dépassé, ou autre : l'onglet le dit, le serveur continue)
-            _state["error"] = "le bilan n'a pas pu être lancé"
+            _fail("le bilan n'a pas pu être lancé")
         finally:
             _state["running"] = False
             if on_run:
@@ -138,7 +145,7 @@ def snapshot(root: Path | None = None) -> dict:
     root = Path(root) if root else project_dir()
     refresh_if_stale(root)
     files = _files(root)
-    base = {"configured": (root / "bienetre").is_dir(), "running": _state["running"], "error": _state["error"],
+    base = {"configured": (root / "bienetre").is_dir(), "running": _state["running"], "error": _state["error"], "error_at": _state["error_at"],
             "at": None, "items": [], "counts": None, "previous": None}
     for i in range(len(files) - 1, -1, -1):  # le plus récent lisible (un fichier abîmé n'efface pas l'onglet)
         items = _load(files[i][1])
