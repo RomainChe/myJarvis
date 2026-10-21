@@ -598,7 +598,7 @@ details .be-list { margin-top: var(--j-space-3); }
 .drv-hero-txt > p { margin: 0; }
 .drv-hero h2 { font: 500 var(--j-text-2xs)/1.2 var(--j-font-tech); letter-spacing: .14em; text-transform: uppercase; color: var(--j-color-muted); margin: 0 0 var(--j-space-1); }
 .drv-headline { font: 600 var(--j-text-xl)/1.25 var(--j-font); color: var(--j-color-text); }
-.drv-hero #drivers-sub { margin-top: var(--j-space-1); font-size: var(--j-text-sm); }
+.drv-hero #drivers-sub, .drv-hero #bienetre-sub { margin-top: var(--j-space-1); font-size: var(--j-text-sm); }
 .drv-hero-txt > p:has(#drivers-go:not([hidden])) { margin-top: var(--j-space-3); }
 #drivers-go { min-height: 44px; }
 .drv-sec { margin: var(--j-space-2) 0 0; font: 500 var(--j-text-2xs)/1.2 var(--j-font-tech); letter-spacing: .14em; text-transform: uppercase; color: var(--j-color-muted); }
@@ -608,6 +608,7 @@ details .be-list { margin-top: var(--j-space-3); }
 .drv .be-head { align-items: center; gap: var(--j-space-3); }
 .drv .be-title { flex: 1; }
 .drv-badge { color: var(--k); }
+.be-badge { display: inline-flex; align-items: center; gap: var(--j-space-1); } .be-badge .i { width: 14px; height: 14px; }
 .drv-ok .drv-badge { color: var(--j-color-success); }
 .drv-ico { --b: var(--j-color-accent); flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--j-radius-md);
   color: var(--b); background: color-mix(in srgb, var(--b) 14%, transparent); border: 1px solid color-mix(in srgb, var(--b) 35%, transparent); }

@@ -643,6 +643,14 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
 
     bienetre_core.on_run = lambda ok: audit.log("serve", "bienetre_run", {}, 0, "auto", "ok" if ok else "échec")
 
+    def bienetre_alert(n: int) -> None:  # push sans le texte : les noms de composants sont une donnée externe
+        try:
+            for (dev,) in devices.db.execute("SELECT DISTINCT device_id FROM push_subs").fetchall():
+                push.send(dev, {"title": "Jarvis", "body": f"Bien-être : {n} point(s) en problème, ouvre l'onglet."})
+        except Exception:  # noqa: BLE001 (le push est un confort : le bilan reste lisible dans l'onglet)
+            pass
+    bienetre_core.on_alert = bienetre_alert
+
     @app.get("/api/bienetre")
     def bienetre_state(request: Request):
         auth = authenticate(request)

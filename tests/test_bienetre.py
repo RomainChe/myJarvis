@@ -3,7 +3,7 @@ import json
 import tempfile
 import time
 import unittest
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -64,36 +64,63 @@ class BienetreTest(unittest.TestCase):
 
     def test_erreur_inattendue_de_la_relance_signalee(self):
         root = project({})
-        bienetre.refresh_if_stale(root, today=date(2026, 10, 13), runner=lambda r: 1 / 0, start=lambda f: f(), now=time.time())
+        bienetre.refresh_if_stale(root, at=datetime(2026, 10, 13, 19), runner=lambda r: 1 / 0, start=lambda f: f(), now=time.time())
         self.assertEqual(bienetre._state["error"], "le bilan n'a pas pu être lancé")
 
     def test_projet_absent(self):
         s = bienetre.snapshot(Path(tempfile.mkdtemp()) / "nope")
         self.assertEqual((s["configured"], s["items"], s["counts"]), (False, [], None))
 
-    def test_relance_seulement_si_pas_de_bilan_du_jour_et_une_fois_par_heure(self):
-        root = project({"2026-10-12_080000.json": [c("OK")]})
+    def test_relance_si_pas_de_bilan_depuis_18h_et_une_fois_par_heure(self):
+        root = project({"2026-10-12_190000.json": [c("OK")], "2026-10-13_090000.json": [c("OK")]})
         runs = []
-        go = lambda **k: bienetre.refresh_if_stale(root, today=date(2026, 10, 13), runner=lambda r: runs.append(r) or True,
-                                                  start=lambda f: f(), **k)
-        self.assertTrue(go(now=10000.0))
-        self.assertFalse(go(now=10100.0))  # moins d'une heure
-        self.assertTrue(go(now=10000.0 + bienetre.RETRY_S))
+        go = lambda at, **k: bienetre.refresh_if_stale(root, at=at, runner=lambda r: runs.append(r) or True, start=lambda f: f(), **k)
+        self.assertFalse(go(datetime(2026, 10, 13, 17, 59), now=1.0))  # bilan de 9 h, 18 h pas encore passée
+        self.assertTrue(go(datetime(2026, 10, 13, 18, 5), now=10000.0))
+        self.assertFalse(go(datetime(2026, 10, 13, 18, 30), now=10100.0))  # moins d'une heure
+        self.assertTrue(go(datetime(2026, 10, 14, 8), now=10000.0 + bienetre.RETRY_S))  # PC éteint à 18 h : rattrapé
         self.assertEqual(len(runs), 2)
-        self.assertFalse(bienetre.refresh_if_stale(root, today=date(2026, 10, 12), runner=runs.append, start=lambda f: f(),
-                                                   now=99999.0))  # bilan du jour déjà là
+        (root / "historique" / "2026-10-14_181000.json").write_text("[]", encoding="utf-8")
+        self.assertFalse(go(datetime(2026, 10, 14, 23), now=99999.0))  # bilan de 18 h déjà là
 
     def test_echec_de_la_relance_signale_sans_planter(self):
         root = project({})
-        bienetre.refresh_if_stale(root, today=date(2026, 10, 13), runner=lambda r: (_ for _ in ()).throw(OSError()),
+        bienetre.refresh_if_stale(root, at=datetime(2026, 10, 13, 19), runner=lambda r: (_ for _ in ()).throw(OSError()),
                                   start=lambda f: f(), now=time.time())
         self.assertEqual(bienetre._state["error"], "le bilan n'a pas pu être lancé")
         self.assertFalse(bienetre._state["running"])
 
+    def test_nouveaux_problemes(self):
+        ok, mal, autre = c("OK", "Disque"), c("problème", "Disque"), c("problème", "Température")
+        self.assertEqual(bienetre.nouveaux_problemes([ok], [ok]), [])
+        self.assertEqual(bienetre.nouveaux_problemes([ok, c("OK", "Température")], [mal, c("OK", "Température")]), ["Processeur : Disque"])
+        self.assertEqual(bienetre.nouveaux_problemes([mal], [mal, autre]), ["Processeur : Température"])  # Disque déjà connu
+        self.assertEqual(bienetre.nouveaux_problemes(None, [mal]), [])  # premier bilan : rien à comparer
+
+    def test_alerte_apres_relance_reussie_seulement_si_nouveau_probleme(self):
+        root = project({"2026-10-12_080000.json": [c("OK", "Disque")]})
+        alertes = []
+
+        def go(runner):
+            with mock.patch.object(bienetre, "on_alert", alertes.append):
+                bienetre.refresh_if_stale(root, at=datetime(2026, 10, 20, 19), runner=runner, start=lambda f: f(), now=time.time())
+            bienetre._state["tried"] = 0.0
+
+        def ecrit(statut):
+            def r(_):
+                (root / "historique" / f"2026-10-1{len(list((root / 'historique').iterdir()))}_080000.json").write_text(json.dumps([c(statut, "Disque")]), encoding="utf-8")
+                return True
+            return r
+        go(ecrit("OK"))
+        go(lambda _: False)  # relance échouée : pas d'alerte
+        self.assertEqual(alertes, [])
+        go(ecrit("problème"))
+        self.assertEqual(alertes, [1])
+
     def test_heure_du_premier_echec_gardee_puis_effacee_au_succes(self):
         root = project({})
         def go(runner, now):
-            bienetre.refresh_if_stale(root, today=date(2026, 10, 13), runner=runner, start=lambda f: f(), now=now)
+            bienetre.refresh_if_stale(root, at=datetime(2026, 10, 13, 19), runner=runner, start=lambda f: f(), now=now)
         go(lambda r: False, 10000.0)
         first = bienetre._state["error_at"]
         self.assertTrue(first)
