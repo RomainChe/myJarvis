@@ -148,3 +148,11 @@ Tester au clavier uniquement (aucune souris) dans Chrome, puis sur émulateur An
 5. **Page d'un genre Bowd : le clavier s'ouvre, capte les flèches et décale la page**
    → le site focalise lui-même son champ de recherche à l'ouverture.
    → `focusin` en capture : un champ focalisé par le site (pas par la navigation) est `blur()` ; les flèches s'arrêtent sur un champ sans l'activer, OK l'active.
+
+6. **Anneau de focus en retard, trop voyant, plus grand que la carte** (2026-10-21)
+   → `transition` CSS sur un anneau déjà repositionné à chaque image ; contour fixe (4 px, coins 10 px, halo) autour de toute la carte, titre compris ; zoom 1.05 qui chevauchait la voisine (cartes Bowd à 2 px).
+   → aucune transition ni zoom ; l'anneau suit la partie visible (`visual()` : image arrondie sans le titre) et en reprend `border-radius`.
+
+7. **OpenFlix : après OK la fiche s'ouvre sans focus ; après Retour, focus perdu ou sur une autre carte**
+   → la page met 2 à 5 s à se charger ; au retour, l'URL change avant que l'ancienne page disparaisse (mémoire écrasée) et l'accueil est reconstruit, remonté en haut, rangées déplacées.
+   → `settleSoon()` réessaie toutes les 0,5 s pendant 8 s (après OK et sur `popstate`) ; mémoire en coordonnées du document, par page de l'élément, avec sa signature (`href`, image ou texte) pour retrouver la même carte.

@@ -37,15 +37,17 @@ else if (!window.__jarvisNav) {
     .concat('textarea', '[contenteditable=""]', '[contenteditable=true]').join(',');
   const GROUP = '[role=menu],[role=menubar],[role=listbox],[role=tablist],[role=radiogroup],[role=toolbar],[role=grid]';
   const style = document.createElement('style');
-  style.textContent = '[data-jarvis-focus]{scale:1.05;transition:scale .15s}'
-    + '#jarvis-ring{position:fixed;z-index:2147483647;pointer-events:none;border:4px solid #fff;border-radius:10px;'
-    + 'box-shadow:0 0 0 3px rgba(0,0,0,.7),0 0 28px rgba(255,255,255,.55);transition:all .12s;display:none}';
+  // Pas de transition sur l'anneau : il suit déjà l'élément à chaque image, une transition le mettrait en retard.
+  // Pas de zoom : les cartes de Bowd sont à 2 px l'une de l'autre, le zoom chevauchait la voisine.
+  style.textContent = '[data-jarvis-focus]{outline:none!important}'
+    + '#jarvis-ring{position:fixed;z-index:2147483647;pointer-events:none;box-sizing:border-box;'
+    + 'border:3px solid rgba(255,255,255,.9);box-shadow:0 0 10px rgba(0,0,0,.6);display:none}';
   document.head.appendChild(style);
   // Anneau de focus posé au-dessus de tout : un contour sur l'élément serait masqué par ses enfants (cartes d'OpenFlix).
   const ring = document.createElement('div');
   ring.id = 'jarvis-ring';
   document.body.appendChild(ring);
-  let cur = null, curPage = '', inPage = false, last = null; // last : position du focus à l'image précédente
+  let cur = null, curPage = '', curSig = '', inPage = false, last = null; // last : position du focus à l'image précédente
   const memo = new Map(); // dernière position du focus par page (hors popup), reprise au retour sur la page
 
   const rect = (e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
@@ -59,14 +61,35 @@ else if (!window.__jarvisNav) {
     return e.checkVisibility ? e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : getComputedStyle(e).visibility !== 'hidden';
   };
 
+  // Partie visible d'une carte : son image arrondie sans le titre en dessous (premier descendant presque aussi large
+  // et moins haut), sinon l'élément lui-même. L'anneau en reprend les coins.
+  let vis = null, visOf = null, radius = '';
+  const visual = (e) => {
+    const r = e.getBoundingClientRect();
+    for (const k of e.querySelectorAll('*')) {
+      const b = k.getBoundingClientRect();
+      if (b.width >= r.width * 0.9 && b.height >= r.height * 0.5 && b.height < r.height - 4
+        && (k.tagName === 'IMG' || getComputedStyle(k).borderTopLeftRadius !== '0px')) return k;
+    }
+    return e;
+  };
+
   (function follow() {
     const on = cur && cur.isConnected && shown(cur);
     ring.style.display = on ? 'block' : 'none';
     if (on) {
       const r = rect(cur);
       last = r;
-      if (inPage) memo.set(location.href, r);
-      Object.assign(ring.style, { left: r.x - 4 + 'px', top: r.y - 4 + 'px', width: r.w + 8 + 'px', height: r.h + 8 + 'px' });
+      // Position dans le document (OpenFlix remonte en haut au retour), et seulement pour la page de l'élément :
+      // pendant un retour l'URL change avant que l'ancienne page disparaisse.
+      if (inPage && curPage === location.href) memo.set(location.href, { ...r, y: r.y + scrollY, sig: curSig });
+      if (visOf !== cur || !vis.isConnected) {
+        visOf = cur;
+        vis = visual(cur);
+        radius = `calc(${getComputedStyle(vis).borderTopLeftRadius} + 5px)`;
+      }
+      const v = rect(vis);
+      Object.assign(ring.style, { left: v.x - 5 + 'px', top: v.y - 5 + 'px', width: v.w + 10 + 'px', height: v.h + 10 + 'px', borderRadius: radius });
     }
     requestAnimationFrame(follow);
   })();
@@ -114,6 +137,7 @@ else if (!window.__jarvisNav) {
     if (cur) cur.removeAttribute('data-jarvis-focus');
     cur = e;
     curPage = location.href;
+    curSig = sig(e);
     inPage = layer() === document.body;
     e.setAttribute('data-jarvis-focus', '');
     if (e.matches(EMBED) || e.matches(TEXT)) { // focus() y enverrait les flèches suivantes, hors de notre portée : anneau seulement
@@ -125,13 +149,20 @@ else if (!window.__jarvisNav) {
     e.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
   }
 
-  // Point d'entrée d'une couche : le dernier focus de la page s'il y en a un, sinon son bouton de lecture (fiche d'un film,
-  // comme une appli TV), sinon son premier élément visible.
+  // Signature d'un élément, pour le retrouver dans une page que le site a reconstruite (retour sur l'accueil d'OpenFlix).
+  const sig = (e) => e.getAttribute('href') || e.querySelector('img')?.getAttribute('src') || (e.innerText || '').trim();
+
+  // Point d'entrée d'une couche : le dernier focus de la page s'il y en a un (le même élément, sinon le plus proche de sa
+  // place ; pas encore là et !final : false, on attend), sinon son bouton de lecture (fiche d'un film, comme une appli TV),
+  // sinon son premier élément visible.
   const PLAY = /^(regarder|reprendre|lecture|voir une publicit|ouvrir une pub)/i;
-  function enter(list, scope) {
+  function enter(list, scope, final = true) {
     const m = scope === document.body && memo.get(location.href);
     if (m) {
-      const d = (e) => { const r = rect(e); return Math.hypot(r.x + r.w / 2 - m.x - m.w / 2, r.y + r.h / 2 - m.y - m.h / 2); };
+      const same = m.sig && list.find((e) => sig(e) === m.sig);
+      if (same) return focus(same);
+      if (!final) return false;
+      const d = (e) => { const r = rect(e); return Math.hypot(r.x + r.w / 2 - m.x - m.w / 2, r.y + scrollY + r.h / 2 - m.y - m.h / 2); };
       return focus(list.reduce((a, b) => (d(b) < d(a) ? b : a)));
     }
     const vis = list.filter((e) => { const r = e.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth; });
@@ -152,11 +183,24 @@ else if (!window.__jarvisNav) {
   }
 
   // Après un OK, une popup ou une nouvelle page s'ouvre souvent : le focus y entre seul (sauf dans un lecteur).
-  function settle() {
-    if (playing()) return;
+  // true quand le focus est dans la couche du dessus.
+  function settle(final = true) {
+    if (playing()) return true;
     const l = layer(), list = candidates(l);
-    if (list.length && !list.includes(cur)) enter(list, l);
+    if (!list.length) return false;
+    return list.includes(cur) || enter(list, l, final) !== false;
   }
+  // Changement d'écran : l'ancien n'est masqué (aria-hidden) qu'à la fin de la transition, et OpenFlix charge une page
+  // en 2 à 5 s. On réessaie toutes les 0,5 s, 8 s au plus, jusqu'à ce que le focus soit entré dans le nouvel écran.
+  function settleSoon() {
+    const from = cur;
+    let n = 0;
+    const id = setInterval(() => {
+      n++;
+      if ((settle(n === 16) && cur !== from) || n === 16) clearInterval(id);
+    }, 500);
+  }
+  addEventListener('popstate', settleSoon); // Retour dans l'historique du site : focus repris sur la page précédente
 
   window.__jarvisNav = {
     /** Touche Retour : sort des contrôles du lecteur, ou ferme la popup du dessus par son bouton « Fermer » ;
@@ -227,8 +271,7 @@ else if (!window.__jarvisNav) {
       okAt = Date.now();
       okUrl = location.href;
       list[i].click();
-      setTimeout(settle, 600);
-      setTimeout(settle, 1500); // changement d'écran : l'ancien n'est masqué (aria-hidden) qu'à la fin de la transition
+      settleSoon();
     } else {
       const j = SiteNav.pick(list.map(rect), rect(list[i]), dir);
       if (j >= 0) focus(list[j]);
