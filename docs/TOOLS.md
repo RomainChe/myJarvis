@@ -196,6 +196,18 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : `python -m jarvis run power_cancel`.
 - **Notes** : `System32\shutdown.exe /a` par chemin absolu. Sans intention du routeur. Testé avec des mocks.
 
+## pc_drivers
+
+- **Description** : onglet Pilotes de la PWA : dernière vérification de DriverWatch (`%LOCALAPPDATA%\DriverWatch\status.json`, écrit à chaque `check`).
+- **Niveau** : N0, `owner_only` (jamais proposé au LLM, appelé seulement par `/api/drivers`, lu sur le PC par l'agent).
+- **Paramètres** : aucun.
+- **Retour** : `configured`, `at` (date du relevé), `drivers` (nom, catégorie, versions installée et dernière, retard en jours, statut, source), `checking`.
+- **Exemple** : ouvrir l'onglet Pilotes.
+- **Notes** : le JSON est une DONNÉE : 64 Ko maximum, 60 pilotes, champs tronqués, statut hors liste écarté, affiché en texte seul.
+  Relevé absent ou de plus d'un jour : `python -m driverwatch check` (lecture seule) est relancé en tâche de fond, au plus une fois
+  par heure ; le Core journalise `drivers_check`. Le bouton « Go » de l'onglet (`POST /api/drivers/update`) lance
+  `driverwatch_update_all` par le même chemin qu'une phrase : confirmation N2 dans la PWA, puis UAC sur le PC.
+
 ## driverwatch_accept
 
 - **Description** : accepte la proposition de mise à jour de pilotes que DriverWatch affiche au démarrage du PC (équivaut à Entrée dans sa console).

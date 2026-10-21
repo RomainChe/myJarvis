@@ -51,9 +51,11 @@ from jarvis.core.host import HAS_PC_TOOLS
 PANEL_TIMEOUT_S = 3  # PC éteint : l'encart ne bloque pas
 BIENETRE_OFFLINE = {"configured": True, "offline": True, "running": False, "error": None, "at": None, "items": [],
                     "counts": None, "previous": None}
+DRIVERS_OFFLINE = {"configured": True, "offline": True, "at": None, "drivers": [], "checking": False}
 
 if HAS_PC_TOOLS:
     from jarvis.tools.pc.system import system_status
+    from jarvis.tools.pc.drivers import status as drivers_status
 else:
     def system_status():  # Core du mini-PC : mesures du PC par l'agent ; PC éteint, l'encart système reste vide
         return agentlink.call("run", "system_status", {}, timeout=PANEL_TIMEOUT_S)
@@ -654,6 +656,31 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return snap
         except agentlink.AgentError:
             return BIENETRE_OFFLINE
+
+    @app.get("/api/drivers")
+    def drivers_state(request: Request):
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        log_read(auth[0], "drivers_read", "état des pilotes lu")
+        try:
+            snap = drivers_status() if HAS_PC_TOOLS else agentlink.call("run", "pc_drivers", {}, timeout=PANEL_TIMEOUT_S)
+        except agentlink.AgentError:
+            return DRIVERS_OFFLINE
+        if not isinstance(snap, dict):
+            return DRIVERS_OFFLINE
+        if snap.pop("started", False):
+            audit.log("serve", "drivers_check", {}, 0, "auto", "vérification DriverWatch lancée sur le PC")
+        return snap
+
+    @app.post("/api/drivers/update", status_code=202)
+    def drivers_update(request: Request):
+        """Bouton « Go » de l'onglet Pilotes : même chemin qu'une phrase, donc confirmation N2 dans la PWA."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        job = chat.start(auth[0], "driverwatch_update_all", ("driverwatch_update_all", {}))
+        return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
 
     @app.get("/api/veille")
     def veille_state(request: Request):
