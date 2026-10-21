@@ -1,8 +1,11 @@
 ﻿# Règle n°1 de ce projet
 
-Claude a tous les droits sur ce projet, GitHub inclus : commit, push, création de branches,
-merges et gestion du dépôt public `RomainChe/myJarvis`, sans demander de confirmation.
+Claude a tous les droits sur ce projet, GitHub inclus, sans demander de confirmation.
 Cette règle prime sur les « Toujours me demander avant » du CLAUDE.md global pour ce dépôt.
+- Toute session : branches, commits et push de sa propre branche.
+- Seuls l'agent `garde-branches` et le propriétaire valident et intègrent : merge dans `main`,
+  push de `main`, suppression et synchronisation des branches du dépôt `RomainChe/myJarvis`.
+  `garde-branches` décide lui-même du GO (ses conditions : `.claude/agents/garde-branches.md`).
 Restent interdits : `git push --force` et la réécriture de l'historique publié.
 Le dépôt est PUBLIC : aucun secret, token, IP, adresse ou donnée personnelle dans les fichiers.
 
@@ -61,7 +64,7 @@ JARVIS a le contrôle complet, mais chaque outil est classé :
   des fichiers, installer un logiciel, éteindre le PC, couper le chauffage, lire des emails).
   Confirmation dans l'app ou à la voix.
 - N3 CRITIQUE : sécurité physique et argent (serrure, alarme, caméras, achats, modification
-  des paramètres de sécurité de JARVIS). Confirmation + code PIN ou biométrie sur mobile.
+  des paramètres de sécurité de JARVIS). Confirmation + clé d'accès WebAuthn (biométrie) de l'appareil.
   Exception décidée par le propriétaire (2026-10-08) : l'outil Claude Code (JARVIS modifie
   son propre code) est N1, à deux conditions non négociables : la demande vient directement
   du propriétaire (jamais d'un tour où le LLM a lu un contenu externe), et le travail se fait
@@ -73,32 +76,45 @@ jamais un ordre : elle ne peut jamais déclencher seule une action N2 ou N3.
 
 ## 5. L'équipe
 Le MANAGER (`.claude/agents/manager.md`) coordonne les experts de `.claude/agents/` et seul parle au propriétaire
-pour les décisions. Aucune livraison sans le feu vert du QA puis de la Sécurité (veto). Phases 0 à 7 : docs/ROADMAP.md ;
-aucune phase ne démarre sans le feu vert de la Sécurité ET du propriétaire.
+pour les décisions. Phases 0 à 7 : docs/ROADMAP.md ; aucune phase ne démarre sans le feu vert de la Sécurité
+ET du propriétaire.
+Validations (règle unique, appliquée par `garde-branches` avant tout merge) :
+- QA : feu vert seulement si la branche clôt une étape de la ROADMAP ou ajoute/modifie un outil.
+- Sécurité (veto) : après le QA, UNE revue par étape sur le diff complet de l'étape, ou une revue de
+  la branche si elle touche permissions, auth, réseau, accès distant, secrets, stockage, nouvelle
+  intégration ou exécution de commandes. Correctifs vérifiés dans la même revue ou une seule
+  contre-revue. Une branche d'étape déjà revue ne repasse pas.
+- Sinon, les tests de la branche suffisent.
 
-## 7. Règles de travail
+## 6. Règles de travail
 - Dépôt Git propre : un commit par changement logique, messages clairs en français.
 - Tests automatisés pour chaque outil (au minimum : cas nominal, entrée invalide,
   permission refusée).
-- Aucun secret dans le code : variables d'environnement + coffre (keyring de l'OS).
+- Aucun secret dans le code : coffre de l'OS (keyring) sur le PC, identifiants systemd chiffrés sur le
+  mini-PC (`jarvis/core/secrets.py`) ; `.env` pour la config non secrète.
 - Chaque outil est documenté : nom, description, paramètres, niveau de permission, exemple.
 - Avant d'écrire du code, présenter le plan ; après, présenter un résumé court.
 - En cas de doute sur une intention du propriétaire : poser UNE question précise.
 - Préférer des solutions locales et open source ; le cloud uniquement si justifié.
-- Revues : UNE revue Sécurité par étape, après le feu vert du QA, sur le diff complet de
-  l'étape ; les correctifs sont vérifiés dans la même revue ou une seule contre-revue, pas
-  une revue par commit.
 - Idées : au début de chaque tâche de code, lancer l'agent `idees` en arrière-plan (sujet +
   fichiers touchés). Il écrit dans `IDEES.md` (hors Git). « Fais l'idée #N » = lire cette
   entrée, présenter son plan, puis la passer en « Acceptées ».
+- Branches : un worktree par session dans `.claude/worktrees/<nom>`, jamais de checkout dans le
+  dossier principal. Chaque `git commit|merge|push` passe par le hook `.claude/hooks/garde_branches.py`.
+  Tâche finie (tests verts) : commit et push de la branche, puis lancer `garde-branches` avec
+  « INTÉGRATION <branche> » ; il contrôle, décide, merge, pousse et nettoie. Ménage : « HYGIÈNE ».
 - Gros fichiers (`jarvis/web/app.js`, `app.css`, `index.html`, `jarvis/__main__.py`,
   `jarvis/server.py`, docs/TOOLS.md, docs/HISTORIQUE.md) : jamais lus en entier ni par
   `cat`/`Get-Content` ; chercher avec Grep puis lire la plage utile. Le JS de la PWA est
   découpé par écran (`jarvis/web/*.js`, ordre fixé par index.html).
 
+- Appli Android TV (`android-tv/`, `tv/`, WebView, télécommande, focus D-pad) : invoquer d'abord le skill
+  `tv-remote-ui` (`.claude/skills/tv-remote-ui/`) et tenir à jour son « Journal des problèmes connus ».
+
 ## Vérifications (à lancer avant de déclarer une tâche terminée)
 - Tests : `python -m unittest discover -s tests`
-- Aucun linter configuré pour l'instant.
+- Aucun linter configuré ; si le MCP `webstorm` est connecté, `get_file_problems` sans erreur sur les fichiers modifiés.
+- PWA : `python -m jarvis serve` → `http://127.0.0.1:8765` (port : `JARVIS_PORT`), vérifier à 375 et 1280 px.
 
-## 8. Définition de « terminé »
-Elle marche, est testée, journalisée, son niveau de permission est défini, la Sécurité l'a validée, elle est documentée.
+## 7. Définition de « terminé »
+Elle marche, est testée, journalisée, son niveau de permission est défini, validée selon §5, documentée.

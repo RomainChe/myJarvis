@@ -21,7 +21,7 @@ ou de voix existantes d'un film.)
 4. Latence cible : < 1,5 s entre la fin de la phrase et le début de la réponse.
 5. Reconnaissance du locuteur (empreinte vocale) pour distinguer le propriétaire des
    autres voix — nécessaire pour les actions N2 (voir Sécurité). Le N3 n'est jamais
-   validé à la voix : il reste sur mobile (PIN ou biométrie).
+   validé à la voix : il exige la clé d'accès WebAuthn d'un appareil.
 
 ## Personnalité
 - Vouvoie ou tutoie selon le réglage du propriétaire (par défaut : vouvoiement, « Monsieur »
@@ -32,7 +32,7 @@ ou de voix existantes d'un film.)
   le matin, sobre en cas d'alerte.
 - Humour léger et rare, jamais pendant une alerte ou une erreur.
 - Honnête : dit clairement quand il n'a pas pu faire quelque chose et pourquoi.
-- Écrire un guide de style docs/PERSONALITY.md avec 50 exemples de réponses types.
+- Guide de style : docs/PERSONNALITE.md (réponses types) ; chaîne vocale : docs/VOIX.md.
 
 ## Contraintes
 - Le texte des réponses est court pour limiter les tokens (aligné avec le Contrôleur de tokens).

@@ -46,6 +46,7 @@ final class CoreLink {
     private static final String FILE = "core.json";
     private static final int MAX_BODY = 8192;
     private static final int SAY_MAX = 200;
+    private static final long RENEW_MS = 7L * 86400 * 1000; // bien en deçà des 90 jours de la clé
     private static final Pattern KEY = Pattern.compile("[A-Za-z0-9_-]{20,200}");
 
     private final Context ctx;
@@ -64,18 +65,42 @@ final class CoreLink {
             JSONObject c = new JSONObject(new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8));
             String url = c.getString("url"), key = c.getString("key");
             if (!validUrl(url) || !KEY.matcher(key).matches()) return;
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey());
-            byte[] ct = cipher.doFinal(new JSONObject().put("url", url).put("key", key).toString().getBytes(StandardCharsets.UTF_8));
-            byte[] iv = cipher.getIV();
-            byte[] all = new byte[iv.length + ct.length];
-            System.arraycopy(iv, 0, all, 0, iv.length);
-            System.arraycopy(ct, 0, all, iv.length, ct.length);
-            prefs().edit().putString("cfg", Base64.encodeToString(all, Base64.NO_WRAP)).apply();
+            save(url, key);
         } catch (Exception ignored) {
             // configuration illisible : rien n'est enregistré, la TV reste hors ligne
         } finally {
             f.delete();
+        }
+    }
+
+    private void save(String url, String key) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey());
+        byte[] ct = cipher.doFinal(new JSONObject().put("url", url).put("key", key).put("renewed", System.currentTimeMillis())
+                .toString().getBytes(StandardCharsets.UTF_8));
+        byte[] iv = cipher.getIV();
+        byte[] all = new byte[iv.length + ct.length];
+        System.arraycopy(iv, 0, all, 0, iv.length);
+        System.arraycopy(ct, 0, all, iv.length, ct.length);
+        prefs().edit().putString("cfg", Base64.encodeToString(all, Base64.NO_WRAP)).apply();
+    }
+
+    /**
+     * Renouvelle la clé auprès du Core (POST /api/token) si le dernier renouvellement date de plus de RENEW_MS : la clé vit
+     * 90 jours après son dernier renouvellement. En cas d'échec rien ne change ; l'ancienne clé reste valable côté Core
+     * jusqu'au premier usage de la nouvelle, donc une réponse perdue ne coupe pas la TV.
+     */
+    private void renew(JSONObject cfg) {
+        if (System.currentTimeMillis() - cfg.optLong("renewed", 0) < RENEW_MS) return;
+        Result r = request(cfg, "/api/token", "{}");
+        if (r.status != 200) return;
+        try {
+            String key = new JSONObject(r.body).getString("token");
+            if (!KEY.matcher(key).matches()) return;
+            save(cfg.getString("url"), key);
+            cfg.put("key", key);
+        } catch (Exception ignored) {
+            // réponse illisible : on réessaiera au prochain appel
         }
     }
 
@@ -92,6 +117,7 @@ final class CoreLink {
     Result call(String route, String text) {
         JSONObject cfg = load();
         if (cfg == null) return new Result(0, "");
+        renew(cfg);
         String path, payload = null;
         if ("tv".equals(route)) {
             path = "/api/tv";
@@ -105,6 +131,10 @@ final class CoreLink {
         } else {
             return new Result(400, "");
         }
+        return request(cfg, path, payload);
+    }
+
+    private static Result request(JSONObject cfg, String path, String payload) {
         HttpURLConnection c = null;
         try {
             c = (HttpURLConnection) new URL(cfg.getString("url") + path).openConnection();

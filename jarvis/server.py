@@ -438,8 +438,8 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
                             for r in devices.list()], "current": auth[0]}
 
     @app.post("/api/token")
-    def token_rotate(request: Request):  # D6 : la PWA renouvelle son token à chaque ouverture (90 jours glissants)
-        auth = authenticate(request)
+    def token_rotate(request: Request):  # D6 : la PWA renouvelle son token à chaque ouverture (90 jours glissants) ; la TV (portée « tv ») le sien
+        auth = authenticate(request, allow=("tv",))
         if isinstance(auth, JSONResponse):
             return auth
         token = devices.rotate(auth[0], request.headers["authorization"].partition(" ")[2])
