@@ -427,7 +427,7 @@ def _reminders(audit, mic) -> None:
 
 
 def _bienetre() -> None:
-    """Bilan de santé du PC relancé chaque jour (onglet Bien-être) : un contrôle toutes les 30 min."""
+    """Bilan de santé du PC relancé chaque jour à 18 h (onglet Bien-être) : un contrôle toutes les 30 min."""
     import time
     from jarvis.core import bienetre
     while True:
