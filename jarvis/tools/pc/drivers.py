@@ -25,18 +25,20 @@ def _dir() -> Path:
     return path
 
 
-def _spawn(command: str, *args: str) -> None:
-    subprocess.Popen([sys.executable, "-m", "driverwatch", command, *args], cwd=_dir(), stdin=subprocess.DEVNULL,
+def _spawn(command: str, *args: str) -> subprocess.Popen:
+    return subprocess.Popen([sys.executable, "-m", "driverwatch", command, *args], cwd=_dir(), stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
 
 
 STATUS = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "DriverWatch" / "status.json"
 STALE_S, RETRY_S, CHECK_S = 86400, 3600, 900  # relevé périmé après 1 j ; une relance par heure ; une vérification dure < 15 min
+UPDATE_S = 1800  # attente maximale de la fin d'update-all avant de relire l'état
 MAX_BYTES, MAX_DRIVERS = 64 * 1024, 60
 STATUSES = ("critical", "moderate", "unknown", "ok")  # ordre d'affichage
 FIELDS = {"id": 40, "name": 120, "category": 20, "installed": 40, "installed_date": 10, "latest": 40, "latest_date": 10,
           "source": 20}
 _tried = {"at": 0.0}
+_updating = {"on": False}  # « Go » en cours : le status.json écrit au début d'update-all est déjà périmé à la fin
 _lock = threading.Lock()
 
 
@@ -81,9 +83,25 @@ def status(path: Path | None = None, now: float | None = None, spawn=_spawn) -> 
                 started = True
             except OSError:  # Python introuvable, etc. : pas « en cours », nouvel essai plus tard
                 _tried["at"] = now - CHECK_S
-        checking = _tried["at"] > at and now - _tried["at"] < CHECK_S
+        checking = _updating["on"] or (_tried["at"] > at and now - _tried["at"] < CHECK_S)
     return {"configured": True, "at": found[0].isoformat(timespec="minutes") if found else None,
             "drivers": found[1] if found else [], "checking": checking, "started": started}
+
+
+def _recheck_after(proc, spawn=_spawn) -> None:
+    """Fin de la mise à jour : relit l'état réel (lecture seule) pour que l'onglet Pilotes ne garde pas l'ancien."""
+    started = False
+    try:
+        proc.wait(UPDATE_S)  # UAC jamais validé : on cesse d'attendre, l'onglet ne reste pas « en cours » sans fin
+        spawn("check")
+        started = True
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    finally:
+        with _lock:
+            if started:  # sinon pas de « vérification en cours » fantôme
+                _tried["at"] = time.time()
+            _updating["on"] = False
 
 
 @tool("pc_drivers", "État des pilotes relevé par DriverWatch (onglet Pilotes).", Level.N0, owner_only=True)
@@ -101,7 +119,14 @@ def driverwatch_accept() -> dict:
 @tool("driverwatch_update_all", "Met à jour tous les pilotes en retard avec DriverWatch (point de restauration créé, "
                                 "Windows demandera l'UAC).", Level.N2)
 def driverwatch_update_all() -> dict:
-    _spawn("update-all")
+    return _update("update-all")
+
+
+def _update(*args: str) -> dict:
+    proc = _spawn(*args)
+    with _lock:
+        _updating["on"] = True
+    threading.Thread(target=_recheck_after, args=(proc,), daemon=True).start()
     return {"driverwatch": "mise à jour lancée"}
 
 
@@ -122,5 +147,4 @@ def _describe_one(driver_id: str) -> str:
 @tool("driverwatch_update_one", "Met à jour un seul pilote en retard (id du dernier relevé DriverWatch ; point de "
                                 "restauration créé, Windows demandera l'UAC).", Level.N2, describe=_describe_one, driver_id=str)
 def driverwatch_update_one(driver_id: str) -> dict:
-    _spawn("update", _pending(driver_id)["id"])
-    return {"driverwatch": "mise à jour lancée"}
+    return _update("update", _pending(driver_id)["id"])

@@ -123,6 +123,7 @@ async function runDriverUpdate(url, body, btn) {
   } finally {
     setBusy(false);
     btn.disabled = false;
+    loadDrivers(); // le PC relance une vérification à la fin de la mise à jour : on relit (toutes les 30 s tant qu'elle dure)
   }
 }
 $('drivers-go').addEventListener('click', (e) => runDriverUpdate('/api/drivers/update', {}, e.currentTarget));
