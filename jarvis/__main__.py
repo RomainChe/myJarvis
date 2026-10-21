@@ -455,8 +455,8 @@ def _bienetre() -> None:
     while True:
         try:
             bienetre.refresh_if_stale()
-        except Exception:  # noqa: BLE001 (le serveur ne dépend pas du bilan)
-            pass
+        except Exception as e:  # noqa: BLE001 (le serveur ne dépend pas du bilan)
+            print(f"Bien-être : contrôle du bilan en erreur ({type(e).__name__}).", file=sys.stderr)
         time.sleep(1800)
 
 
