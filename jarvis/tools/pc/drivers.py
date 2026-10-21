@@ -89,14 +89,17 @@ def status(path: Path | None = None, now: float | None = None, spawn=_spawn) -> 
 
 def _recheck_after(proc, spawn=_spawn) -> None:
     """Fin de la mise à jour : relit l'état réel (lecture seule) pour que l'onglet Pilotes ne garde pas l'ancien."""
+    started = False
     try:
         proc.wait(UPDATE_S)  # UAC jamais validé : on cesse d'attendre, l'onglet ne reste pas « en cours » sans fin
         spawn("check")
+        started = True
     except (OSError, subprocess.TimeoutExpired):
         pass
     finally:
         with _lock:
-            _tried["at"] = time.time()
+            if started:  # sinon pas de « vérification en cours » fantôme
+                _tried["at"] = time.time()
             _updating["on"] = False
 
 

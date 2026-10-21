@@ -65,6 +65,11 @@ class DriverwatchTest(DriverwatchBase):
         drivers._recheck_after(proc, spawn)
         self.assertFalse(drivers._updating["on"])
 
+    def test_check_final_en_echec_pas_de_verification_fantome(self):
+        drivers._updating["on"] = True
+        drivers._recheck_after(mock.Mock(), mock.Mock(side_effect=OSError))
+        self.assertEqual((drivers._updating["on"], drivers._tried["at"]), (False, 0.0))
+
     def test_update_all_sans_confirmation(self):
         self.assert_refused_without_confirmation("driverwatch_update_all", {})
         self.popen.assert_not_called()
@@ -112,6 +117,11 @@ class PcDriversTest(DriverwatchBase):
     def test_niveau_n0_reserve_au_proprietaire(self):
         self.assertEqual(REGISTRY["pc_drivers"].level, Level.N0)
         self.assertTrue(REGISTRY["pc_drivers"].owner_only)
+
+    def test_checking_tant_que_go_dure(self):
+        self.write()
+        with mock.patch.dict(drivers._updating, {"on": True}):
+            self.assertTrue(self.snap()["checking"])
 
     def test_releve_valide_trie_et_borne(self):
         self.write()
