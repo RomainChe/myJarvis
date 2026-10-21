@@ -566,8 +566,8 @@ h2.section { margin-top: var(--j-space-5); }
 @media (max-width: 599px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--j-space-2); } .strip > :last-child:nth-child(odd) { grid-column: 1 / -1; } .stat { padding: var(--j-space-3); } .stat .big { font-size: var(--j-text-lg); } }
 
 /* ---- Bien-être ---- */
-#bienetre-list { display: grid; gap: var(--j-space-3); }
-#bienetre-list > .muted { margin-top: calc(-1 * var(--j-space-2)); }
+#bienetre-list, #drivers-list { display: grid; gap: var(--j-space-3); }
+#bienetre-list > .muted, #drivers-list > .muted { margin-top: calc(-1 * var(--j-space-2)); }
 .be-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--j-space-3); }
 .be-item { display: flex; flex-direction: column; gap: var(--j-space-2); min-width: 0; padding: var(--j-space-4); background: var(--j-color-surface); border: 1px solid var(--j-color-border); border-radius: var(--j-radius-md); overflow-wrap: anywhere; }
 .be-card-bad { border-color: color-mix(in srgb, var(--j-color-danger) 45%, transparent); }

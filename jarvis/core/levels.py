@@ -66,6 +66,7 @@ LABELS = {
     "system_status": ("État du PC", "Processeur, mémoire, disque et carte graphique."),
     "pc_bienetre": ("Bilan Bien-être", "Onglet Bien-être : bilan de santé lu sur le PC."),
     "pc_social": ("Clips et YouTube", "Onglet Réseaux : clips et compteurs YouTube lus sur le PC."),
+    "pc_drivers": ("État des pilotes", "Onglet Pilotes : dernière vérification de DriverWatch lue sur le PC."),
     "game_running": ("Jeu en cours ?", "Dit si un jeu tourne sur le PC (mode jeu du LLM)."),
     "list_processes": ("Processus actifs", "Les programmes qui utilisent le plus de mémoire."),
     "search_files": ("Recherche de fichiers", "Cherche des fichiers par leur nom dans le dossier utilisateur."),
