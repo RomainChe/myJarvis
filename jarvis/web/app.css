@@ -586,6 +586,58 @@ details .be-list { margin-top: var(--j-space-3); }
 .be-none { color: var(--j-color-muted); }
 .stat.alarm { border-color: color-mix(in srgb, var(--j-color-danger) 45%, transparent); }
 .stat.alarm .big { color: var(--j-color-danger); }
+/* Pilotes : couleur d'état --k (bordure, badge, barre de retard), couleur de marque --b (tuile d'icône seulement, jamais du texte). */
+.drv-ok { --k: var(--j-color-success); } .drv-avail { --k: var(--j-color-accent); } .drv-warn { --k: var(--j-color-warning); }
+.drv-bad { --k: var(--j-color-danger); } .drv-none { --k: var(--j-color-muted); }
+.drv-hero { display: flex; align-items: center; gap: var(--j-space-5); padding: var(--j-space-5); border: 1px solid color-mix(in srgb, var(--k) 40%, transparent);
+  background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--k) 14%, transparent), transparent 60%), var(--j-color-surface); }
+.drv-hero .gauges { --g: 96px; display: block; flex: none; margin: 0; padding: 0; }
+.drv-hero .gauge .fill { stroke: var(--k); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--k) 70%, transparent)); }
+.drv-hero .gauge .pct { font-size: var(--j-text-lg); }
+.drv-hero-txt { min-width: 0; }
+.drv-hero-txt > p { margin: 0; }
+.drv-hero h2 { font: 500 var(--j-text-2xs)/1.2 var(--j-font-tech); letter-spacing: .14em; text-transform: uppercase; color: var(--j-color-muted); margin: 0 0 var(--j-space-1); }
+.drv-headline { font: 600 var(--j-text-xl)/1.25 var(--j-font); color: var(--j-color-text); }
+.drv-hero #drivers-sub { margin-top: var(--j-space-1); font-size: var(--j-text-sm); }
+.drv-hero-txt > p:has(#drivers-go:not([hidden])) { margin-top: var(--j-space-3); }
+#drivers-go { min-height: 44px; }
+.drv-sec { margin: var(--j-space-2) 0 0; font: 500 var(--j-text-2xs)/1.2 var(--j-font-tech); letter-spacing: .14em; text-transform: uppercase; color: var(--j-color-muted); }
+.drv { position: relative; overflow: hidden; }
+.drv > p { margin: 0; }
+.drv:not(.drv-compact) { border-color: color-mix(in srgb, var(--k) 40%, transparent); box-shadow: inset 3px 0 0 var(--k); }
+.drv .be-head { align-items: center; gap: var(--j-space-3); }
+.drv .be-title { flex: 1; }
+.drv-badge { color: var(--k); }
+.drv-ok .drv-badge { color: var(--j-color-success); }
+.drv-ico { --b: var(--j-color-accent); flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--j-radius-md);
+  color: var(--b); background: color-mix(in srgb, var(--b) 14%, transparent); border: 1px solid color-mix(in srgb, var(--b) 35%, transparent); }
+.drv-ico .i { width: 24px; height: 24px; }
+.b-nvidia { --b: #76B900; } .b-intel { --b: #3FA9F5; } .b-amd { --b: #FF5A5F; } .b-realtek { --b: #6E9BFF; } .b-logitech { --b: #00B8FC; }
+.drv-ver { margin: 0; font: 500 var(--j-text-sm)/1.4 var(--j-font-tech); color: var(--j-color-text-2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.drv-ver strong { color: var(--k); font-weight: 600; }
+.drv-arrow { color: var(--j-color-muted); }
+.drv-age { height: 4px; border-radius: 999px; background: var(--j-color-border); overflow: hidden; }
+.drv-age > span { display: block; height: 100%; border-radius: inherit; background: var(--k); transition: width var(--j-motion-slow) ease-out; }
+.drv-note { margin: 0; font-size: var(--j-text-sm); }
+.drv-rest { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--j-space-2); }
+.drv-compact { padding: var(--j-space-3); gap: var(--j-space-1); background: transparent; }
+.drv-compact .drv-ico { width: 36px; height: 36px; border-radius: var(--j-radius-sm); }
+.drv-compact .drv-ico .i { width: 20px; height: 20px; }
+.drv-compact .be-title strong { font-size: var(--j-text-sm); }
+.drv-compact .drv-ver { padding-left: calc(36px + var(--j-space-3)); font-size: var(--j-text-xs); color: var(--j-color-muted); }
+@media (prefers-color-scheme: light) {
+  .b-nvidia { --b: #3F6B00; } .b-intel { --b: #0068B5; } .b-amd { --b: #B8141A; } .b-realtek { --b: #2D57B5; } .b-logitech { --b: #00739E; }
+}
+@media (max-width: 599px) {
+  .drv-hero { gap: var(--j-space-4); padding: var(--j-space-4); }
+  .drv-hero .gauges { --g: 76px; }
+  .drv-headline { font-size: var(--j-text-lg); }
+  #drivers-go { width: 100%; white-space: normal; }
+  .drv .be-head { flex-wrap: wrap; }
+  .drv .be-title { flex-basis: calc(100% - 44px - var(--j-space-3)); }
+  .drv-badge { margin-left: calc(44px + var(--j-space-3)); }
+  .drv-compact .drv-badge { margin-left: calc(36px + var(--j-space-3)); }
+}
 
 /* ---- Repliables (Veille, Voyages, Bien-être) : titre + résumé chiffré à droite + chevron ---- */
 details.panel { padding: 0; }

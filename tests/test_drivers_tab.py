@@ -1,6 +1,9 @@
 """Onglet Pilotes : /api/drivers (lu sur le PC par l'agent) et bouton « Go » (/api/drivers/update, N2 confirmé)."""
 import dataclasses
+import shutil
+import subprocess
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from jarvis import server
@@ -54,6 +57,12 @@ class DriversTabTest(ChatBase):
                 done = self.done(body["job"])
             self.assertEqual(run.call_count, int(approve))
             self.assertIn("lancée" if approve else "refusée", done["answer"])
+
+
+    @unittest.skipUnless(shutil.which("node"), "Node absent : classement des pilotes non testé")
+    def test_classement_cote_pwa(self):
+        r = subprocess.run(["node", "--test", str(Path(__file__).with_name("pilotes.test.js"))], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 
 if __name__ == "__main__":

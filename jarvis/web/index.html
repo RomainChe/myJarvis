@@ -41,6 +41,14 @@
   <symbol id="i-snow" viewBox="0 0 24 24"><path d="M7 14h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14z"/><path d="M8 18v.1M12 19v.1M16 18v.1M10 21.5v.1M14 21.5v.1"/></symbol>
   <symbol id="i-storm" viewBox="0 0 24 24"><path d="M7 14h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14z"/><path d="M12 15l-2 3.5h4L12 22"/></symbol>
   <symbol id="i-fog" viewBox="0 0 24 24"><path d="M4 8h16M3 12h18M5 16h14M8 20h8"/></symbol>
+  <symbol id="i-gpu" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="11" rx="1.5"/><circle cx="9" cy="11.5" r="2.8"/><path d="M15 9.5h3M15 13.5h3M5 17v3M2 6V4"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/></symbol>
+  <symbol id="i-bt" viewBox="0 0 24 24"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></symbol>
+  <symbol id="i-ethernet" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="12" rx="1.5"/><path d="M8 16v4h8v-4M8 8v3M11 8v3M13 8v3M16 8v3"/></symbol>
+  <symbol id="i-headset" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5" rx=".5"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></symbol>
 </svg>
 <div id="status" class="status" role="status" hidden></div>
 
@@ -245,9 +253,17 @@
     <h1 id="t-drivers" class="title">Pilotes du PC</h1>
     <p id="drivers-error" class="error" hidden></p>
     <p id="drivers-state" class="muted" role="status">Chargement…</p>
+    <section id="drivers-hero" class="panel drv-hero" aria-labelledby="drivers-headline" hidden>
+      <ul id="drivers-gauge" class="plain gauges"></ul>
+      <div class="drv-hero-txt">
+        <h2>Bilan</h2>
+        <p id="drivers-headline" class="drv-headline"></p>
+        <p id="drivers-sub" class="muted"></p>
+        <p><button id="drivers-go" class="btn primary" type="button" hidden>Go</button></p>
+        <p id="drivers-result" class="muted" role="status"></p>
+      </div>
+    </section>
     <div id="drivers-list" class="bienetre"></div>
-    <p><button id="drivers-go" class="btn primary" type="button" hidden>Go</button></p>
-    <p id="drivers-result" class="muted" role="status"></p>
   </section>
 
   <section id="view-conso" class="view" aria-labelledby="t-conso" hidden>
