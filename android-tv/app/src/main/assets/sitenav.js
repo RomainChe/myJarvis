@@ -33,7 +33,8 @@ else if (!window.__jarvisNav) {
   // SiteActivity y fait un vrai tap (tap()).
   const EMBED = 'iframe,#turnstile-widget,.cf-turnstile';
   // Champ de saisie : le focus ouvre le clavier de la TV, qui capte alors les flèches. Il ne le reçoit que sur OK.
-  const TEXT = 'input:not([type=button]):not([type=checkbox]):not([type=radio]):not([type=submit]),textarea,[contenteditable=""],[contenteditable=true]';
+  const TEXT = ['', 'text', 'search', 'email', 'password', 'url', 'tel', 'number'].map((t) => (t ? `input[type=${t}]` : 'input:not([type])'))
+    .concat('textarea', '[contenteditable=""]', '[contenteditable=true]').join(',');
   const GROUP = '[role=menu],[role=menubar],[role=listbox],[role=tablist],[role=radiogroup],[role=toolbar],[role=grid]';
   const style = document.createElement('style');
   style.textContent = '[data-jarvis-focus]{scale:1.05;transition:scale .15s}'
@@ -52,7 +53,9 @@ else if (!window.__jarvisNav) {
     const r = e.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
     // Écrans précédents de Bowd (React Navigation) : restés dans le DOM sous l'écran courant, marqués aria-hidden.
-    if (e.closest('[aria-hidden="true"],[inert]')) return false;
+    // Seulement un écran entier : une carte de carrousel hors vue (aria-hidden aussi) reste atteignable.
+    const hid = e.closest('[aria-hidden="true"],[inert]'), hb = hid && hid.getBoundingClientRect();
+    if (hb && hb.width * hb.height >= innerWidth * innerHeight / 2) return false;
     return e.checkVisibility ? e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : getComputedStyle(e).visibility !== 'hidden';
   };
 
@@ -180,8 +183,18 @@ else if (!window.__jarvisNav) {
     },
   };
 
-  // Champ focalisé par le site lui-même (page d'un genre de Bowd) : le clavier s'ouvrirait et la page se décalerait.
-  addEventListener('focusin', (ev) => { if (ev.target !== cur && ev.target.matches && ev.target.matches(TEXT)) ev.target.blur(); }, true);
+  // Champ focalisé par le site : suivi s'il s'ouvre juste après un OK sur la même page (loupe de Bowd), sinon retiré
+  // (page d'un genre de Bowd : le clavier s'ouvrirait, capterait les flèches et décalerait la page).
+  let okAt = 0, okUrl = '';
+  addEventListener('pointerdown', () => { okAt = Date.now(); okUrl = location.href; }, true); // toucher du mode pointeur
+  addEventListener('focusin', (ev) => {
+    const t = ev.target;
+    if (t === cur || !t.matches || !t.matches(TEXT)) return;
+    if (Date.now() - okAt > 1500 || location.href !== okUrl) return t.blur();
+    if (cur) cur.removeAttribute('data-jarvis-focus');
+    cur = t;
+    t.setAttribute('data-jarvis-focus', '');
+  }, true);
 
   addEventListener('keydown', (ev) => {
     const dir = DIRS[ev.key], ok = ev.key === 'Enter';
@@ -211,6 +224,8 @@ else if (!window.__jarvisNav) {
     } else if (ok) {
       if (list[i].matches(EMBED)) return; // tap natif de SiteActivity
       if (list[i].matches(TEXT)) return list[i].focus(); // ouvre le clavier
+      okAt = Date.now();
+      okUrl = location.href;
       list[i].click();
       setTimeout(settle, 600);
       setTimeout(settle, 1500); // changement d'écran : l'ancien n'est masqué (aria-hidden) qu'à la fin de la transition
