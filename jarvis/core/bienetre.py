@@ -1,8 +1,8 @@
 """Onglet Bien-être PC de la PWA (N0, lecture seule) : bilan de santé du PC du projet bien-etre-pc, relancé chaque jour.
 
 Dossier : `~/.jarvis/bienetre.json` (`{"dir": "..."}`), par défaut `~/Desktop/WebstormProject/bien-etre-pc`. Le projet écrit
-un fichier `historique/AAAA-MM-JJ_HHMMSS.json` par mesure ; l'onglet lit le plus récent. Si le dernier bilan n'est pas
-d'aujourd'hui, `python -m bienetre` est relancé en tâche de fond (au plus une fois par heure, ni `--nettoyer` ni
+un fichier `historique/AAAA-MM-JJ_HHMMSS.json` par mesure ; l'onglet lit le plus récent. Si aucun bilan n'a été fait
+depuis le dernier passage de 18 h, `python -m bienetre` est relancé en tâche de fond (au plus une fois par heure, ni `--nettoyer` ni
 `--html` : le projet ne supprime rien dans ce mode). Le contenu du JSON (noms de processus, de disques, de programmes)
 est une DONNÉE : tronquée, jamais montrée au LLM, affichée en texte seul.
 """
@@ -13,18 +13,19 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import date, datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 CONFIG = Path.home() / ".jarvis" / "bienetre.json"
 DEFAULT_DIR = Path.home() / "Desktop" / "WebstormProject" / "bien-etre-pc"
 RUN_TIMEOUT_S, RETRY_S, MAX_BYTES, MAX_ITEMS = 180, 3600, 256 * 1024, 80
+DAILY_HOUR = 18  # bilan quotidien ; PC éteint à cette heure : rattrapé au prochain contrôle
 NAME = re.compile(r"^(\d{4}-\d{2}-\d{2})_(\d{6})\.json$")
 STATUSES = {"problème": 0, "à surveiller": 1, "non mesuré": 2, "OK": 3}
 FIELDS = {"composant": 60, "point": 60, "valeur": 300, "seuil": 200, "conseil": 500}
 ENV_KEYS = ("SystemRoot", "SYSTEMROOT", "windir", "PATH", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA",
             "ProgramData", "ProgramFiles", "ProgramFiles(x86)", "COMSPEC", "PSModulePath", "HOME")
-_state = {"tried": 0.0, "error": None, "running": False}
+_state = {"tried": 0.0, "error": None, "error_at": None, "running": False}
 _lock = threading.Lock()
 on_run = None  # rappel (ok: bool) après chaque relance : branché sur le journal d'audit par le serveur
 on_alert = None  # rappel (n: int) quand n points passent en « problème » entre deux bilans : branché sur le push par le serveur
@@ -117,14 +118,25 @@ def run(root: Path) -> bool:
     return r.returncode == 0
 
 
-def refresh_if_stale(root: Path | None = None, now: float | None = None, today: date | None = None, runner=run,
+def _fail(error: str | None) -> None:
+    """Garde le message et l'heure du premier échec d'une série (« en échec depuis »)."""
+    if error is None or not _state["error"]:
+        _state["error_at"] = datetime.now().isoformat(timespec="minutes") if error else None
+    _state["error"] = error
+
+
+def refresh_if_stale(root: Path | None = None, now: float | None = None, at: datetime | None = None, runner=run,
                      start=lambda f: threading.Thread(target=f, daemon=True).start()) -> bool:
-    """Relance le bilan en tâche de fond si le dernier n'est pas d'aujourd'hui ; au plus un essai par heure."""
+    """Relance le bilan en tâche de fond s'il n'y en a aucun depuis le dernier 18 h passé ; au plus un essai par heure."""
     root, now = Path(root) if root else project_dir(), time.time() if now is None else now
     if not (root / "bienetre").is_dir():
         return False
     files = _files(root)
-    if files and files[-1][0] == (today or date.today()).isoformat():
+    at = at or datetime.now()
+    due = at.replace(hour=DAILY_HOUR, minute=0, second=0, microsecond=0)
+    if at < due:
+        due -= timedelta(days=1)
+    if files and _stamp(NAME.match(files[-1][1].name)) >= due:
         return False
     with _lock:
         if _state["running"] or now - _state["tried"] < RETRY_S:
@@ -136,11 +148,11 @@ def refresh_if_stale(root: Path | None = None, now: float | None = None, today: 
         try:
             prec = _latest(root)
             ok = runner(root)
-            _state["error"] = None if ok else "le bilan a échoué"
+            _fail(None if ok else "le bilan a échoué")
             if ok and on_alert and (cur := _latest(root)) is not None and (new := nouveaux_problemes(prec, cur)):
                 on_alert(len(new))
         except Exception:  # noqa: BLE001 (OSError, délai dépassé, ou autre : l'onglet le dit, le serveur continue)
-            _state["error"] = "le bilan n'a pas pu être lancé"
+            _fail("le bilan n'a pas pu être lancé")
         finally:
             _state["running"] = False
             if on_run:
@@ -153,7 +165,7 @@ def snapshot(root: Path | None = None) -> dict:
     root = Path(root) if root else project_dir()
     refresh_if_stale(root)
     files = _files(root)
-    base = {"configured": (root / "bienetre").is_dir(), "running": _state["running"], "error": _state["error"],
+    base = {"configured": (root / "bienetre").is_dir(), "running": _state["running"], "error": _state["error"], "error_at": _state["error_at"],
             "at": None, "items": [], "counts": None, "previous": None}
     for i in range(len(files) - 1, -1, -1):  # le plus récent lisible (un fichier abîmé n'efface pas l'onglet)
         items = _load(files[i][1])
