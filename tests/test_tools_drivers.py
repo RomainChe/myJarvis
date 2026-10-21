@@ -27,6 +27,7 @@ class DriverwatchBase(PcBase):
         self.dir = tmp.name
         mock.patch.dict(os.environ, {"JARVIS_DRIVERWATCH_DIR": tmp.name}).start()
         self.popen = mock.patch.object(drivers.subprocess, "Popen").start()
+        mock.patch.dict(drivers._updating, {"on": False}).start()
         self.addCleanup(mock.patch.stopall)
 
 
@@ -42,8 +43,20 @@ class DriverwatchTest(DriverwatchBase):
         self.assertEqual(self.popen.call_args.kwargs["cwd"], Path(self.dir))
 
     def test_update_all_confirme(self):
+        mock.patch.object(drivers.threading, "Thread").start()
         self.assertEqual(self.run_tool("driverwatch_update_all", confirm=yes), {"driverwatch": "mise à jour lancée"})
         self.assertEqual(self.popen.call_args.args[0][1:], ["-m", "driverwatch", "update-all"])
+
+    def test_update_all_relance_une_verification_a_la_fin(self):
+        thread = mock.patch.object(drivers.threading, "Thread").start()
+        self.run_tool("driverwatch_update_all", confirm=yes)
+        self.assertTrue(drivers._updating["on"])  # l'onglet continue de relire tant que ça dure
+        proc, spawn = mock.Mock(), mock.Mock()
+        drivers._recheck_after(proc, spawn)
+        proc.wait.assert_called_once()
+        spawn.assert_called_once_with("check")
+        self.assertFalse(drivers._updating["on"])
+        self.assertIs(thread.call_args.kwargs["target"], drivers._recheck_after)
 
     def test_update_all_sans_confirmation(self):
         self.assert_refused_without_confirmation("driverwatch_update_all", {})
