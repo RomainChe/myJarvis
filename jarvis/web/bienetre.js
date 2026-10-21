@@ -38,7 +38,7 @@ async function loadBienetre() {
     $('bienetre-headline').textContent = bad ? plural(bad, 'problème à traiter', 'problèmes à traiter')
       : warn ? plural(warn, 'point à surveiller', 'points à surveiller') : 'Tout va bien';
     const parts = [bad && plural(bad, 'problème', 'problèmes'), warn && `${warn} à surveiller`, `${ok} en bon état`, c['non mesuré'] && `${c['non mesuré']} non mesuré(s)`];
-    const note = d.running ? 'Nouvelle mesure en cours…' : d.error ? `Mesure du jour : ${d.error}.` : `Bilan du ${when}, renouvelé chaque jour.`;
+    const note = d.running ? 'Nouvelle mesure en cours…' : d.error ? `Mesure du jour : ${d.error}${d.error_at ? ` depuis ${new Date(d.error_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}.` : `Bilan du ${when}, renouvelé chaque jour.`;
     $('bienetre-sub').textContent = `${parts.filter(Boolean).join(' · ')}. ${note}${prev}`;
     hero.hidden = false;
     const row = (i, compact) => {

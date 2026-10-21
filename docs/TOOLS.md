@@ -224,7 +224,7 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Paramètres** : aucun.
 - **Retour** : `driverwatch` : `mise à jour lancée` (le travail continue en arrière-plan, UAC demandé).
 - **Exemple** : « mets à jour tous les pilotes » (LLM, puis confirmation) ou `python -m jarvis run driverwatch_update_all`.
-- **Notes** : aucune règle du routeur (le catalogue ne vise aucun N2, S12/C4). Un échec sur un pilote n'arrête pas les suivants ; le résultat est dans l'historique de DriverWatch. Testé avec des mocks.
+- **Notes** : aucune règle du routeur (le catalogue ne vise aucun N2, S12/C4). Un échec sur un pilote n'arrête pas les suivants ; le résultat est dans l'historique de DriverWatch. Un fil du PC attend la fin d'`update-all` puis lance `python -m driverwatch check` (lecture seule) : l'onglet Pilotes relit l'état réel (`checking` reste vrai entre-temps). Testé avec des mocks.
 
 ## pc_plug_on
 

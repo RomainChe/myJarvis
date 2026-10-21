@@ -150,6 +150,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=_reminders, args=(audit, mic), daemon=True).start()
         threading.Thread(target=_voyages_watch, args=(audit,), daemon=True).start()
         threading.Thread(target=_conso_watch, daemon=True).start()
+        threading.Thread(target=_drivers_watch, args=(audit,), daemon=True).start()
         threading.Thread(target=_conso_home_watch, args=(audit,), daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic,
                              stt=getattr(mic.on_utterance, "stt", None) if mic else None)  # même modèle que le micro du PC
@@ -426,6 +427,27 @@ def _reminders(audit, mic) -> None:
     reminders.run(announce, at)
 
 
+def _drivers_watch(audit) -> None:
+    """Toutes les 6 h : pilote GPU/réseau/système en retard jamais signalé -> push générique, sans nom de pilote."""
+    import time
+    from jarvis.core import agentlink, doctor, driveralert
+    from jarvis.core.host import HAS_PC_TOOLS
+    body = {"title": "Jarvis", "body": "Une mise à jour de pilote importante est disponible. Ouvre l'onglet Pilotes."}
+    while True:
+        time.sleep(180)  # le serveur démarre d'abord
+        try:
+            if HAS_PC_TOOLS:
+                from jarvis.tools.pc.drivers import status
+                snap = status()
+            else:
+                snap = agentlink.call("run", "pc_drivers", {}, timeout=5)
+            if isinstance(snap, dict) and driveralert.check(snap, lambda: doctor.notify_all(str(DB_PATH), body)):
+                audit.log("pwa:pilotes", "drivers_alert", {}, 0, "auto", "notification envoyée")
+        except Exception:  # noqa: BLE001 (PC éteint, push : réessai au prochain tour)
+            pass
+        time.sleep(6 * 3600)
+
+
 def _bienetre() -> None:
     """Bilan de santé du PC relancé chaque jour (onglet Bien-être) : un contrôle toutes les 30 min."""
     import time
@@ -433,8 +455,8 @@ def _bienetre() -> None:
     while True:
         try:
             bienetre.refresh_if_stale()
-        except Exception:  # noqa: BLE001 (le serveur ne dépend pas du bilan)
-            pass
+        except Exception as e:  # noqa: BLE001 (le serveur ne dépend pas du bilan)
+            print(f"Bien-être : contrôle du bilan en erreur ({type(e).__name__}).", file=sys.stderr)
         time.sleep(1800)
 
 
