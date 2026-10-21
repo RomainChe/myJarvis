@@ -156,3 +156,7 @@ Tester au clavier uniquement (aucune souris) dans Chrome, puis sur émulateur An
 7. **OpenFlix : après OK la fiche s'ouvre sans focus ; après Retour, focus perdu ou sur une autre carte**
    → la page met 2 à 5 s à se charger ; au retour, l'URL change avant que l'ancienne page disparaisse (mémoire écrasée) et l'accueil est reconstruit, remonté en haut, rangées déplacées.
    → `settleSoon()` réessaie toutes les 0,5 s pendant 8 s (après OK et sur `popstate`) ; mémoire en coordonnées du document, par page de l'élément, avec sa signature (`href`, image ou texte) pour retrouver la même carte.
+
+8. **Accueil APK : tuiles blanches avec le nom de l'appli au lieu du logo** (2026-10-21)
+   → `tv/logos/` est hors Git (marques déposées) : un APK construit depuis un worktree n'a aucun logo, et `tv.js` affiche alors le nom.
+   → `preBuild` (`android-tv/app/build.gradle`) échoue si `tv/logos/` est vide ou absent ; lancer `python scripts/tv_logos.py` dans le worktree avant le build.
