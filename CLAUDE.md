@@ -108,6 +108,9 @@ Validations (règle unique, appliquée par `garde-branches` avant tout merge) :
   `cat`/`Get-Content` ; chercher avec Grep puis lire la plage utile. Le JS de la PWA est
   découpé par écran (`jarvis/web/*.js`, ordre fixé par index.html).
 
+- Appli Android TV (`android-tv/`, `tv/`, WebView, télécommande, focus D-pad) : invoquer d'abord le skill
+  `tv-remote-ui` (`.claude/skills/tv-remote-ui/`) et tenir à jour son « Journal des problèmes connus ».
+
 ## Vérifications (à lancer avant de déclarer une tâche terminée)
 - Tests : `python -m unittest discover -s tests`
 - Aucun linter configuré ; si le MCP `webstorm` est connecté, `get_file_problems` sans erreur sur les fichiers modifiés.
