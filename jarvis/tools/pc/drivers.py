@@ -31,6 +31,7 @@ def _spawn(command: str) -> subprocess.Popen:
 
 STATUS = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "DriverWatch" / "status.json"
 STALE_S, RETRY_S, CHECK_S = 86400, 3600, 900  # relevé périmé après 1 j ; une relance par heure ; une vérification dure < 15 min
+UPDATE_S = 1800  # attente maximale de la fin d'update-all avant de relire l'état
 MAX_BYTES, MAX_DRIVERS = 64 * 1024, 60
 STATUSES = ("critical", "moderate", "unknown", "ok")  # ordre d'affichage
 FIELDS = {"id": 40, "name": 120, "category": 20, "installed": 40, "installed_date": 10, "latest": 40, "latest_date": 10,
@@ -89,9 +90,9 @@ def status(path: Path | None = None, now: float | None = None, spawn=_spawn) -> 
 def _recheck_after(proc, spawn=_spawn) -> None:
     """Fin de la mise à jour : relit l'état réel (lecture seule) pour que l'onglet Pilotes ne garde pas l'ancien."""
     try:
-        proc.wait()
+        proc.wait(UPDATE_S)  # UAC jamais validé : on cesse d'attendre, l'onglet ne reste pas « en cours » sans fin
         spawn("check")
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         pass
     finally:
         with _lock:
@@ -115,6 +116,7 @@ def driverwatch_accept() -> dict:
                                 "Windows demandera l'UAC).", Level.N2)
 def driverwatch_update_all() -> dict:
     proc = _spawn("update-all")
-    _updating["on"] = True
+    with _lock:
+        _updating["on"] = True
     threading.Thread(target=_recheck_after, args=(proc,), daemon=True).start()
     return {"driverwatch": "mise à jour lancée"}

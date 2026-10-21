@@ -58,6 +58,13 @@ class DriverwatchTest(DriverwatchBase):
         self.assertFalse(drivers._updating["on"])
         self.assertIs(thread.call_args.kwargs["target"], drivers._recheck_after)
 
+    def test_update_all_bloque_ne_laisse_pas_l_onglet_en_cours(self):
+        drivers._updating["on"] = True
+        proc, spawn = mock.Mock(), mock.Mock()
+        proc.wait.side_effect = drivers.subprocess.TimeoutExpired("update-all", drivers.UPDATE_S)
+        drivers._recheck_after(proc, spawn)
+        self.assertFalse(drivers._updating["on"])
+
     def test_update_all_sans_confirmation(self):
         self.assert_refused_without_confirmation("driverwatch_update_all", {})
         self.popen.assert_not_called()
