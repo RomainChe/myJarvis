@@ -34,3 +34,6 @@ android-tv/local.properties
 
 # Idées proposées par l’agent idees (privé, hors recherche Claude)
 /IDEES.md
+
+# Notes locales (IP, chemins) : jamais publiques
+/NOTES_LOCALES.md

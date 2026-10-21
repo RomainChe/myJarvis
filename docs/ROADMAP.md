@@ -10,7 +10,7 @@ Règle : cette section reste sous ~2 Ko. Une tâche finie se résume en une lign
 - **Mini-PC** : lots 0–5 faits. Dès le 2026-10-25 : supprimer VM Hyper-V et tâches Windows. Reste : revue Sécurité `pc_off_plug`, test prise Tapo (INSTALL_SERVEUR_HA §10.3).
 - **Voix** : reste latence PC ~5 s, Voice PE puis `hey_jarvis`, essai `jarvis_fr` (seuil 0.7) puis revue Sécurité.
 - **Finances** : vérifier `journalctl --user -u jarvis-banque` ; `python -m jarvis portfolio base <cto> <pea>` sur le mini-PC.
-- **TV** (`tv/`, `android-tv/`) : étape (c) faite. Reste : essai d'une scène, `sitenav.js` et lecteur plein écran sur la vraie TV, puis (d) ; débogage USB à couper, clé `tv` n°9 à révoquer.
+- **TV** (`tv/`, `android-tv/`) : étape (c) faite ; échelle OpenFlix remise à 100 %, badges `.brand` élargis (CSS). Reste : essai d'une scène, `sitenav.js` et lecteur plein écran sur la vraie TV, puis (d) ; débogage USB à couper, clé `tv` n°9 à révoquer.
 - **Essais réels en attente** : bouton « parler » et onglets UI v2/Conso sur le téléphone (375/1280 px), tuile Mini-PC, rappels/briefing, outil Claude Code, `voyage_recherche`.
 - **Propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md ; droits TikTok ; Swile, Ledger.
 - **Décisions en attente** : sauvegardes hors mini-PC, consignes des clims, texte du rappel push, pistes Phase 7, règles Conso nocturnes, 4 erreurs CI (`RUNNER~1` refusé par `system.py`).

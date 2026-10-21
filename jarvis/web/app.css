@@ -534,7 +534,7 @@ h2.section { margin-top: var(--j-space-5); }
 #dg-veille li { flex-direction: row; align-items: flex-start; gap: var(--j-space-3); }
 .dg-news { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .brand {
-  --b: var(--j-color-text); flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--j-radius-sm);
+  --b: var(--j-color-text); flex: none; height: 30px; padding: 7px; display: grid; place-items: center; border-radius: var(--j-radius-sm);
   color: var(--b); background: color-mix(in srgb, var(--b) 12%, transparent); border: 1px solid color-mix(in srgb, var(--b) 22%, transparent);
 }
 .brand .i { width: 16px; height: 16px; fill: currentColor; stroke: none; }
