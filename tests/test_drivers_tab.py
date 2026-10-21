@@ -58,6 +58,20 @@ class DriversTabTest(ChatBase):
             self.assertEqual(run.call_count, int(approve))
             self.assertIn("lancée" if approve else "refusée", done["answer"])
 
+    def test_bouton_d_une_ligne_demande_confirmation_puis_lance(self):
+        self.assertEqual(REGISTRY["driverwatch_update_one"].level, Level.N2)
+        self.assertEqual(self.call("POST", "/api/drivers/update-one", {"id": "oem51.inf"})[0], 401)
+        self.assertEqual(self.call("POST", "/api/drivers/update-one", {"id": ""}, token=self.token)[0], 422)
+        self.assertEqual(self.call("POST", "/api/drivers/update-one", {"id": "x" * 41}, token=self.token)[0], 422)
+        for approve in (False, True):
+            run = mock.Mock(return_value={"driverwatch": "mise à jour lancée"})
+            with mock.patch.dict(_registry, {"driverwatch_update_one": dataclasses.replace(REGISTRY["driverwatch_update_one"], run=run, describe=None)}):
+                status, body, _ = self.call("POST", "/api/drivers/update-one", {"id": "oem51.inf"}, token=self.token)
+                self.assertEqual(status, 202)
+                self.decide(self.pending(body["job"])["id"], approve)
+                done = self.done(body["job"])
+            self.assertEqual(run.call_args_list, [mock.call(driver_id="oem51.inf")] * int(approve))
+            self.assertIn("lancée" if approve else "refusée", done["answer"])
 
     @unittest.skipUnless(shutil.which("node"), "Node absent : classement des pilotes non testé")
     def test_classement_cote_pwa(self):

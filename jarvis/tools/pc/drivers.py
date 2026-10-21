@@ -1,7 +1,8 @@
 """DriverWatch (projet voisin) : `driverwatch_accept` valide la proposition de la console, `driverwatch_update_all` met à jour
-tous les pilotes en retard, `pc_drivers` lit la dernière vérification (onglet Pilotes).
+tous les pilotes en retard, `driverwatch_update_one` un seul (bouton de sa ligne), `pc_drivers` lit la dernière vérification
+(onglet Pilotes).
 
-Rien n'est installé par Jarvis : les deux outils lancent `python -m driverwatch ...`, qui garde ses propres garde-fous
+Rien n'est installé par Jarvis : les outils lancent `python -m driverwatch ...`, qui garde ses propres garde-fous
 (point de restauration, signature, UAC). Le dossier du projet se règle par `JARVIS_DRIVERWATCH_DIR`.
 `status.json` (écrit par DriverWatch à chaque vérification) est une DONNÉE : bornée, validée, affichée en texte seul.
 """
@@ -24,8 +25,8 @@ def _dir() -> Path:
     return path
 
 
-def _spawn(command: str) -> None:
-    subprocess.Popen([sys.executable, "-m", "driverwatch", command], cwd=_dir(), stdin=subprocess.DEVNULL,
+def _spawn(command: str, *args: str) -> None:
+    subprocess.Popen([sys.executable, "-m", "driverwatch", command, *args], cwd=_dir(), stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
 
 
@@ -101,4 +102,25 @@ def driverwatch_accept() -> dict:
                                 "Windows demandera l'UAC).", Level.N2)
 def driverwatch_update_all() -> dict:
     _spawn("update-all")
+    return {"driverwatch": "mise à jour lancée"}
+
+
+def _pending(driver_id: str) -> dict:
+    """Pilote du dernier relevé ayant une version plus récente : l'id n'arrive jamais libre jusqu'à la commande."""
+    found = _read(STATUS)
+    for d in found[1] if found else ():
+        if d["id"] == driver_id and d["newer"] and not d["ignored"] and not driver_id.startswith("-"):
+            return d
+    raise ValueError("pilote inconnu, ignoré ou déjà à jour dans le dernier relevé")
+
+
+def _describe_one(driver_id: str) -> str:
+    d = _pending(driver_id)
+    return f"Mettre à jour {d['name']}" + (f" : {d['installed']} → {d['latest']}" if d["installed"] and d["latest"] else "")
+
+
+@tool("driverwatch_update_one", "Met à jour un seul pilote en retard (id du dernier relevé DriverWatch ; point de "
+                                "restauration créé, Windows demandera l'UAC).", Level.N2, describe=_describe_one, driver_id=str)
+def driverwatch_update_one(driver_id: str) -> dict:
+    _spawn("update", _pending(driver_id)["id"])
     return {"driverwatch": "mise à jour lancée"}

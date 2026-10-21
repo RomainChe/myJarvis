@@ -226,6 +226,15 @@ une donnée : chaque entrée est revalidée à chaque appel.
 - **Exemple** : « mets à jour tous les pilotes » (LLM, puis confirmation) ou `python -m jarvis run driverwatch_update_all`.
 - **Notes** : aucune règle du routeur (le catalogue ne vise aucun N2, S12/C4). Un échec sur un pilote n'arrête pas les suivants ; le résultat est dans l'historique de DriverWatch. Testé avec des mocks.
 
+## driverwatch_update_one
+
+- **Description** : met à jour un seul pilote (`python -m driverwatch update <id>`) : bouton « Mettre à jour » de sa ligne dans l'onglet Pilotes (`POST /api/drivers/update-one`).
+- **Niveau** : N2 (confirmation dans l'app, texte « Mettre à jour <nom> : <installée> → <dernière> » ; refusé à la voix, plafond N0/N1).
+- **Paramètres** : `driver_id` (texte) : doit être un pilote du dernier relevé avec une version plus récente et non ignoré, sinon `ValueError` ; jamais passé libre à la commande (id commençant par `-` refusé).
+- **Retour** : `driverwatch` : `mise à jour lancée` (UAC demandé ; DriverWatch peut reporter d'une heure si le PC est occupé).
+- **Exemple** : clic sur « Mettre à jour » sous « Mise à jour dispo ».
+- **Notes** : même garde-fous que « Go » (point de restauration, signature, UAC). Testé avec des mocks.
+
 ## pc_plug_on
 
 - **Description** : remet sous tension la multiprise du PC et des écrans (prise Tapo) ; le PC démarre seul si son BIOS est sur « Power On ».

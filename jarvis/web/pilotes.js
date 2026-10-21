@@ -1,5 +1,5 @@
 'use strict';
-// ---- Pilotes : dernière vérification de DriverWatch (status.json du PC : donnée, texte seul) ; « Go » = driverwatch_update_all (N2) ----
+// ---- Pilotes : dernière vérification de DriverWatch (status.json du PC : donnée, texte seul) ; « Go » = driverwatch_update_all (N2), bouton d'une ligne = driverwatch_update_one (N2) ----
 // « avail » : version plus récente mais retard sous le seuil DriverWatch (statut ok). « Go » (update-all) ne traite que critical et moderate.
 const DRV_KIND = {
   critical: ['bad', 'Urgent'], moderate: ['warn', 'En retard'], avail: ['avail', 'Mise à jour dispo'],
@@ -47,6 +47,12 @@ function driverRow(p, compact) {
     fill.style.width = `${Math.min(100, p.days / 3.65)}%`; // retard rapporté à un an ; API DOM : compatible CSP
     age.append(fill);
     li.append(age, el('p', 'be-point', `${p.days} j de retard${p.source ? ` · source : ${p.source}` : ''}`));
+  }
+  if (!compact && !p.ignored) { // l'id vient du relevé (donnée) : il n'est que renvoyé au serveur, qui le revérifie
+    const b = el('button', 'btn drv-one', 'Mettre à jour');
+    b.type = 'button';
+    b.addEventListener('click', () => runDriverUpdate('/api/drivers/update-one', { id: p.id }, b));
+    li.append(b);
   }
   return li;
 }
@@ -100,15 +106,15 @@ async function loadDrivers() {
     err.textContent = unavailable('Pilotes indisponibles', e);
   }
 }
-$('drivers-go').addEventListener('click', async () => {
+async function runDriverUpdate(url, body, btn) {
   if (busy) { toast('Jarvis est occupé avec une autre demande.'); return; }
-  const out = $('drivers-result'), go = $('drivers-go');
-  const say = (kind, text) => { out.textContent = kind === 'jarvis' && text.includes('lancée') ? 'Mise à jour lancée : accepte la demande Windows (UAC) sur le PC.' : text; };
+  const out = $('drivers-result');
+  const say = (kind, text) => { out.textContent = kind === 'jarvis' && text.includes('lancée') ? 'Mise à jour lancée : accepte la demande Windows (UAC) sur le PC.' : text; if (kind !== 'note') toast(out.textContent); }; // le bouton d'une ligne est loin de ce message
   say('note', 'Envoi…');
   setBusy(true);
-  go.disabled = true;
+  btn.disabled = true;
   try {
-    const r = await api('/api/drivers/update', { method: 'POST', body: {} });
+    const r = await api(url, { method: 'POST', body });
     if (r.status === 429) { say('note', 'Jarvis est occupé avec une autre demande.'); return; }
     if (!r.ok || !r.data || !r.data.job) { say('fail', 'Demande refusée.'); return; }
     await pollJob(r.data.job, say); // N2 : la PWA demande la confirmation
@@ -116,6 +122,7 @@ $('drivers-go').addEventListener('click', async () => {
     if (err.message === 'network') say('fail', 'PC injoignable.');
   } finally {
     setBusy(false);
-    go.disabled = false;
+    btn.disabled = false;
   }
-});
+}
+$('drivers-go').addEventListener('click', (e) => runDriverUpdate('/api/drivers/update', {}, e.currentTarget));

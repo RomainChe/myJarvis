@@ -87,6 +87,7 @@ LABELS = {
     "lock_session": ("Verrouiller la session", "Verrouille la session Windows."),
     "driverwatch_accept": ("Accepter la mise à jour des pilotes", "Valide la proposition de DriverWatch (autorisation Windows demandée)."),
     "driverwatch_update_all": ("Mettre à jour tous les pilotes", "DriverWatch met à jour les pilotes en retard."),
+    "driverwatch_update_one": ("Mettre à jour un pilote", "DriverWatch met à jour le pilote choisi dans l'onglet Pilotes."),
     "power": ("Veille, redémarrage, arrêt", "Alimentation du PC, avec délai d'annulation."),
     "pc_plug_on": ("Allumer la prise du PC", "Remet la multiprise sous tension : le PC démarre seul."),
     "pc_off_plug": ("Éteindre le PC et sa prise", "Arrêt du PC, puis coupe la multiprise (PC et écrans)."),

@@ -31,6 +31,14 @@ class DriverwatchBase(PcBase):
 
 
 class DriverwatchTest(DriverwatchBase):
+    def write_status(self):
+        path = Path(self.dir) / "status.json"
+        path.write_text(json.dumps({"at": "2026-10-20T09:00:00", "drivers": [
+            {"id": "oem20.inf", "name": "Wi-Fi", "status": "ok", "days": 0},
+            {"id": "oem51.inf", "name": "RTX", "status": "ok", "days": 90, "newer": True, "installed": "595.97", "latest": "596.10"},
+            {"id": "oem30.inf", "name": "Ignoré", "status": "ok", "newer": True, "ignored": True}]}), encoding="utf-8")
+        mock.patch.object(drivers, "STATUS", path).start()
+
     def test_niveaux(self):
         self.assertEqual(REGISTRY["driverwatch_accept"].level, Level.N1)
         self.assertTrue(REGISTRY["driverwatch_accept"].taint_blocked)
@@ -47,6 +55,28 @@ class DriverwatchTest(DriverwatchBase):
 
     def test_update_all_sans_confirmation(self):
         self.assert_refused_without_confirmation("driverwatch_update_all", {})
+        self.popen.assert_not_called()
+
+    def test_update_one(self):
+        self.assertEqual(REGISTRY["driverwatch_update_one"].level, Level.N2)
+        self.write_status()
+        self.assertEqual(self.run_tool("driverwatch_update_one", {"driver_id": "oem51.inf"}, confirm=yes),
+                         {"driverwatch": "mise à jour lancée"})
+        self.assertEqual(self.popen.call_args.args[0][1:], ["-m", "driverwatch", "update", "oem51.inf"])
+        self.assertIn("RTX : 595.97 → 596.10", REGISTRY["driverwatch_update_one"].describe("oem51.inf"))
+
+    def test_update_one_id_refuse(self):
+        self.write_status()
+        for bad in ("inconnu.inf", "oem20.inf", "oem30.inf", "--dry-run", "-x", "oem51.inf --all", ""):  # absent, à jour, ignoré, option
+            with self.assertRaises(ValueError, msg=bad):
+                self.run_tool("driverwatch_update_one", {"driver_id": bad}, confirm=yes)
+        self.popen.assert_not_called()
+
+    def test_update_one_sans_releve_ni_confirmation(self):
+        with self.assertRaises(ValueError):
+            self.run_tool("driverwatch_update_one", {"driver_id": "oem51.inf"}, confirm=yes)  # aucun relevé
+        self.write_status()
+        self.assert_refused_without_confirmation("driverwatch_update_one", {"driver_id": "oem51.inf"})
         self.popen.assert_not_called()
 
     def test_driverwatch_introuvable(self):

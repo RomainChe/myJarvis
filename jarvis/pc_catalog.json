@@ -80,6 +80,20 @@
   "owner_only": false
  },
  {
+  "name": "driverwatch_update_one",
+  "description": "Met à jour un seul pilote en retard (id du dernier relevé DriverWatch ; point de restauration créé, Windows demandera l'UAC).",
+  "level": 2,
+  "params": {
+   "driver_id": "str"
+  },
+  "hidden": [],
+  "describe": true,
+  "private": false,
+  "external": false,
+  "taint_blocked": false,
+  "owner_only": false
+ },
+ {
   "name": "game_running",
   "description": "Un jeu est-il en cours sur le PC ? (mode jeu : le LLM évite la carte graphique)",
   "level": 0,

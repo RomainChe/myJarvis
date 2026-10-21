@@ -618,6 +618,7 @@ details .be-list { margin-top: var(--j-space-3); }
 .drv-arrow { color: var(--j-color-muted); }
 .drv-age { height: 4px; border-radius: 999px; background: var(--j-color-border); overflow: hidden; }
 .drv-age > span { display: block; height: 100%; border-radius: inherit; background: var(--k); transition: width var(--j-motion-slow) ease-out; }
+.drv-one { align-self: flex-start; min-height: 44px; }
 .drv-note { margin: 0; font-size: var(--j-text-sm); }
 .drv-rest { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--j-space-2); }
 .drv-compact { padding: var(--j-space-3); gap: var(--j-space-1); background: transparent; }

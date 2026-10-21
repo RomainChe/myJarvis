@@ -152,6 +152,10 @@ class Destination(BaseModel):  # formulaire de l'onglet Voyages ; contenu revali
     alert_below: StrictInt = Field(ge=0, le=20_000)
 
 
+class DriverOne(BaseModel):  # bouton d'une ligne de l'onglet Pilotes ; l'id est revérifié contre le relevé par l'outil
+    id: str = Field(min_length=1, max_length=40)
+
+
 class Tarif(BaseModel):  # prix du kWh saisi dans l'onglet Consommation
     price_kwh: float = Field(gt=0, le=conso_core.MAX_PRICE)
 
@@ -680,6 +684,15 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         if isinstance(auth, JSONResponse):
             return auth
         job = chat.start(auth[0], "driverwatch_update_all", ("driverwatch_update_all", {}))
+        return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
+
+    @app.post("/api/drivers/update-one", status_code=202)
+    def drivers_update_one(body: DriverOne, request: Request):
+        """Bouton d'une ligne de l'onglet Pilotes : confirmation N2 dans la PWA, puis UAC sur le PC."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        job = chat.start(auth[0], "driverwatch_update_one", ("driverwatch_update_one", {"driver_id": body.id}))
         return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
 
     @app.get("/api/veille")
