@@ -27,6 +27,13 @@ android {
     }
 }
 
+// tv/logos/ est hors Git (absent d'un worktree neuf) : sans lui, les tuiles n'affichent que les noms.
+tasks.named('preBuild') {
+    doFirst {
+        if (!file('../../tv/logos').list()) throw new GradleException('tv/logos/ vide ou absent : lancer python scripts/tv_logos.py')
+    }
+}
+
 dependencies {
     implementation 'androidx.webkit:webkit:1.11.0'
 }
