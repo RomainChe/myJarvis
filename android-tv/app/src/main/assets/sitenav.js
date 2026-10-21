@@ -186,7 +186,7 @@ else if (!window.__jarvisNav) {
   // Champ focalisé par le site : suivi s'il s'ouvre juste après un OK sur la même page (loupe de Bowd), sinon retiré
   // (page d'un genre de Bowd : le clavier s'ouvrirait, capterait les flèches et décalerait la page).
   let okAt = 0, okUrl = '';
-  addEventListener('pointerdown', () => { okAt = Date.now(); okUrl = location.href; }, true); // toucher du mode pointeur
+  addEventListener('pointerdown', (ev) => { if (ev.isTrusted) { okAt = Date.now(); okUrl = location.href; } }, true); // toucher du mode pointeur
   addEventListener('focusin', (ev) => {
     const t = ev.target;
     if (t === cur || !t.matches || !t.matches(TEXT)) return;
