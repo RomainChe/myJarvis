@@ -55,7 +55,8 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
   (le jeton de lol-clipper reste sur le PC).
 - **Exemple** : ouvrir l'onglet Réseaux de la PWA.
 - **Notes** : PC éteint, Bien-être affiche « PC éteint » ; Réseaux affiche le dernier relevé gardé par le Core
-  (`~/.jarvis/social-cache.json`) avec sa date. Après ajout : `python -m jarvis.agent catalog` et relance de l'agent.
+  (`~/.jarvis/social-cache.json`) avec sa date. Push « Bien-être : N point(s) en problème » (sans le texte des points) quand un bilan relancé
+  par le Core fait passer un point en problème ; sur le Core du mini-PC la relance se fait sur le PC : pas encore d'alerte. Après ajout : `python -m jarvis.agent catalog` et relance de l'agent.
 
 ## list_processes
 

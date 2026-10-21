@@ -90,6 +90,33 @@ class BienetreTest(unittest.TestCase):
         self.assertEqual(bienetre._state["error"], "le bilan n'a pas pu être lancé")
         self.assertFalse(bienetre._state["running"])
 
+    def test_nouveaux_problemes(self):
+        ok, mal, autre = c("OK", "Disque"), c("problème", "Disque"), c("problème", "Température")
+        self.assertEqual(bienetre.nouveaux_problemes([ok], [ok]), [])
+        self.assertEqual(bienetre.nouveaux_problemes([ok, c("OK", "Température")], [mal, c("OK", "Température")]), ["Processeur : Disque"])
+        self.assertEqual(bienetre.nouveaux_problemes([mal], [mal, autre]), ["Processeur : Température"])  # Disque déjà connu
+        self.assertEqual(bienetre.nouveaux_problemes(None, [mal]), [])  # premier bilan : rien à comparer
+
+    def test_alerte_apres_relance_reussie_seulement_si_nouveau_probleme(self):
+        root = project({"2026-10-12_080000.json": [c("OK", "Disque")]})
+        alertes = []
+
+        def go(runner):
+            with mock.patch.object(bienetre, "on_alert", alertes.append):
+                bienetre.refresh_if_stale(root, today=date(2026, 10, 20), runner=runner, start=lambda f: f(), now=time.time())
+            bienetre._state["tried"] = 0.0
+
+        def ecrit(statut):
+            def r(_):
+                (root / "historique" / f"2026-10-1{len(list((root / 'historique').iterdir()))}_080000.json").write_text(json.dumps([c(statut, "Disque")]), encoding="utf-8")
+                return True
+            return r
+        go(ecrit("OK"))
+        go(lambda _: False)  # relance échouée : pas d'alerte
+        self.assertEqual(alertes, [])
+        go(ecrit("problème"))
+        self.assertEqual(alertes, [1])
+
     def test_dossier_sans_projet_jamais_relance(self):
         self.assertFalse(bienetre.refresh_if_stale(Path(tempfile.mkdtemp()), runner=lambda r: True, start=lambda f: f()))
 

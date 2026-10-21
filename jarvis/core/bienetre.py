@@ -27,6 +27,7 @@ ENV_KEYS = ("SystemRoot", "SYSTEMROOT", "windir", "PATH", "PATHEXT", "TEMP", "TM
 _state = {"tried": 0.0, "error": None, "running": False}
 _lock = threading.Lock()
 on_run = None  # rappel (ok: bool) après chaque relance : branché sur le journal d'audit par le serveur
+on_alert = None  # rappel (n: int) quand n points passent en « problème » entre deux bilans : branché sur le push par le serveur
 
 
 def project_dir(path: Path = CONFIG) -> Path:
@@ -84,6 +85,22 @@ def _counts(items: list[dict]) -> dict:
     return {s: sum(i["statut"] == s for i in items) for s in STATUSES}
 
 
+def _latest(root: Path) -> list[dict] | None:
+    for _, f in reversed(_files(root)):
+        items = _load(f)
+        if items is not None:
+            return items
+    return None
+
+
+def nouveaux_problemes(prec: list[dict] | None, courant: list[dict]) -> list[str]:
+    """Points en « problème » au bilan courant et qui ne l'étaient pas au précédent. Sans précédent : aucun (rien à comparer)."""
+    if prec is None:
+        return []
+    avant = {(i["composant"], i["point"]) for i in prec if i["statut"] == "problème"}
+    return [f"{i['composant']} : {i['point']}" for i in courant if i["statut"] == "problème" and (i["composant"], i["point"]) not in avant]
+
+
 def _python(root: Path) -> str:
     for rel in ("Scripts/python.exe", "bin/python"):
         p = root / ".venv" / rel
@@ -117,8 +134,11 @@ def refresh_if_stale(root: Path | None = None, now: float | None = None, today: 
     def job():
         ok = False
         try:
+            prec = _latest(root)
             ok = runner(root)
             _state["error"] = None if ok else "le bilan a échoué"
+            if ok and on_alert and (cur := _latest(root)) is not None and (new := nouveaux_problemes(prec, cur)):
+                on_alert(len(new))
         except Exception:  # noqa: BLE001 (OSError, délai dépassé, ou autre : l'onglet le dit, le serveur continue)
             _state["error"] = "le bilan n'a pas pu être lancé"
         finally:
