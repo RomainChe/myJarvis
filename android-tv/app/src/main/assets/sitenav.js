@@ -32,6 +32,8 @@ else if (!window.__jarvisNav) {
   // Contenus d'un autre domaine (case Cloudflare d'OpenFlix, lecteur intégré) : le script ne peut pas y cliquer,
   // SiteActivity y fait un vrai tap (tap()).
   const EMBED = 'iframe,#turnstile-widget,.cf-turnstile';
+  // Champ de saisie : le focus ouvre le clavier de la TV, qui capte alors les flèches. Il ne le reçoit que sur OK.
+  const TEXT = 'input:not([type=button]):not([type=checkbox]):not([type=radio]):not([type=submit]),textarea,[contenteditable=""],[contenteditable=true]';
   const GROUP = '[role=menu],[role=menubar],[role=listbox],[role=tablist],[role=radiogroup],[role=toolbar],[role=grid]';
   const style = document.createElement('style');
   style.textContent = '[data-jarvis-focus]{scale:1.05;transition:scale .15s}'
@@ -49,6 +51,8 @@ else if (!window.__jarvisNav) {
   const shown = (e) => {
     const r = e.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
+    // Écrans précédents de Bowd (React Navigation) : restés dans le DOM sous l'écran courant, marqués aria-hidden.
+    if (e.closest('[aria-hidden="true"],[inert]')) return false;
     return e.checkVisibility ? e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : getComputedStyle(e).visibility !== 'hidden';
   };
 
@@ -109,7 +113,7 @@ else if (!window.__jarvisNav) {
     curPage = location.href;
     inPage = layer() === document.body;
     e.setAttribute('data-jarvis-focus', '');
-    if (e.matches(EMBED)) { // focus() y enverrait les flèches suivantes, hors de notre portée : anneau seulement
+    if (e.matches(EMBED) || e.matches(TEXT)) { // focus() y enverrait les flèches suivantes, hors de notre portée : anneau seulement
       document.activeElement.blur();
     } else {
       if (e.tabIndex < 0 && !e.hasAttribute('tabindex')) e.tabIndex = -1; // carte en <div> : sinon activeElement reste sur l'ancien
@@ -176,6 +180,9 @@ else if (!window.__jarvisNav) {
     },
   };
 
+  // Champ focalisé par le site lui-même (page d'un genre de Bowd) : le clavier s'ouvrirait et la page se décalerait.
+  addEventListener('focusin', (ev) => { if (ev.target !== cur && ev.target.matches && ev.target.matches(TEXT)) ev.target.blur(); }, true);
+
   addEventListener('keydown', (ev) => {
     const dir = DIRS[ev.key], ok = ev.key === 'Enter';
     if (!dir && !ok) return;
@@ -203,8 +210,10 @@ else if (!window.__jarvisNav) {
       enter(list, l);
     } else if (ok) {
       if (list[i].matches(EMBED)) return; // tap natif de SiteActivity
+      if (list[i].matches(TEXT)) return list[i].focus(); // ouvre le clavier
       list[i].click();
       setTimeout(settle, 600);
+      setTimeout(settle, 1500); // changement d'écran : l'ancien n'est masqué (aria-hidden) qu'à la fin de la transition
     } else {
       const j = SiteNav.pick(list.map(rect), rect(list[i]), dir);
       if (j >= 0) focus(list[j]);

@@ -95,6 +95,9 @@ class TvMaquetteTest(unittest.TestCase):
         nav = (base / "assets/sitenav.js").read_text(encoding="utf-8")
         self.assertTrue(nav.startswith("'use strict';"))
         self.assertNotIn("innerHTML", nav)
+        # Écrans cachés de Bowd (aria-hidden) jamais visés ; un champ ne prend le focus (clavier) que sur OK.
+        self.assertIn("e.closest('[aria-hidden=\"true\"],[inert]')", nav)
+        self.assertIn("addEventListener('focusin'", nav)
         # Retour confié à la page mais jamais bloqué, tap borné à la vue, zoom coupé (revue Sécurité C1/C2).
         self.assertIn("setSupportZoom(false)", site)
         self.assertIn("fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1", site)

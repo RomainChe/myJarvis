@@ -140,3 +140,11 @@ Tester au clavier uniquement (aucune souris) dans Chrome, puis sur émulateur An
 3. **Ouverture d'une fiche (ex. modale « Matchbox ») : le focus reste sur la grille derrière**
    → pas de changement de zone ni de piège de focus à l'ouverture.
    → `MutationObserver` + `inert` sur l'arrière-plan + focus sur « Lecture » + restauration au Retour (§4).
+
+4. **Bowd : Bas/Haut sautent sur une affiche ou un menu invisible, la page « défile » toute seule** (2026-10-21)
+   → React Navigation garde les écrans précédents dans le DOM, sous l'écran courant, dans un ancêtre `aria-hidden="true"` ; ils restaient candidats.
+   → `shown()` de `sitenav.js` exclut `e.closest('[aria-hidden="true"],[inert]')` (vérifié sur la TV par CDP : `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`, l'APK debug est inspectable).
+
+5. **Page d'un genre Bowd : le clavier s'ouvre, capte les flèches et décale la page**
+   → le site focalise lui-même son champ de recherche à l'ouverture.
+   → `focusin` en capture : un champ focalisé par le site (pas par la navigation) est `blur()` ; les flèches s'arrêtent sur un champ sans l'activer, OK l'active.
