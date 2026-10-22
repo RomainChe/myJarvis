@@ -8,6 +8,7 @@ Rien n'est installé par Jarvis : les outils lancent `python -m driverwatch ...`
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -34,6 +35,7 @@ STATUS = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "DriverWatch" / "
 STALE_S, RETRY_S, CHECK_S = 86400, 3600, 900  # relevé périmé après 1 j ; une relance par heure ; une vérification dure < 15 min
 UPDATE_S = 1800  # attente maximale de la fin d'update-all avant de relire l'état
 MAX_BYTES, MAX_DRIVERS = 64 * 1024, 60
+ID_RE = re.compile(r"[A-Za-z0-9._{}][A-Za-z0-9._{}-]{0,39}")  # l'id part tel quel dans l'argv de DriverWatch : jamais d'option
 STATUSES = ("critical", "moderate", "unknown", "ok")  # ordre d'affichage
 FIELDS = {"id": 40, "name": 120, "category": 20, "installed": 40, "installed_date": 10, "latest": 40, "latest_date": 10,
           "source": 20}
@@ -134,7 +136,7 @@ def _pending(driver_id: str) -> dict:
     """Pilote du dernier relevé ayant une version plus récente : l'id n'arrive jamais libre jusqu'à la commande."""
     found = _read(STATUS)
     for d in found[1] if found else ():
-        if d["id"] == driver_id and d["newer"] and not d["ignored"] and not driver_id.startswith("-"):
+        if d["id"] == driver_id and d["newer"] and not d["ignored"] and ID_RE.fullmatch(driver_id):
             return d
     raise ValueError("pilote inconnu, ignoré ou déjà à jour dans le dernier relevé")
 

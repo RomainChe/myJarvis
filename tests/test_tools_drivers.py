@@ -99,6 +99,17 @@ class DriverwatchTest(DriverwatchBase):
                 self.run_tool("driverwatch_update_one", {"driver_id": bad}, confirm=yes)
         self.popen.assert_not_called()
 
+    def test_update_one_id_hors_liste_blanche(self):
+        path = Path(self.dir) / "status.json"  # status.json écrit par un tiers : id piégé mais « en retard »
+        bad = ("oem1.inf /x", 'oem1.inf"', "oem1.inf\t-x", "oem1;inf", "..\\oem1.inf")
+        path.write_text(json.dumps({"at": "2026-10-20T09:00:00", "drivers": [
+            {"id": i, "name": "Piège", "status": "ok", "newer": True} for i in bad]}), encoding="utf-8")
+        mock.patch.object(drivers, "STATUS", path).start()
+        for i in bad:
+            with self.assertRaises(ValueError, msg=i):
+                self.run_tool("driverwatch_update_one", {"driver_id": i}, confirm=yes)
+        self.popen.assert_not_called()
+
     def test_update_one_sans_releve_ni_confirmation(self):
         with self.assertRaises(ValueError):
             self.run_tool("driverwatch_update_one", {"driver_id": "oem51.inf"}, confirm=yes)  # aucun relevé
