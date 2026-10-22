@@ -51,7 +51,7 @@ seulement : c'est la garde de permissions qui décide. Latence mesurée par un t
 - **Description** : onglets Bien-être et Réseaux pour le Core du mini-PC, lus sur le PC par l'agent.
 - **Niveau** : N0, `owner_only` (jamais proposés au LLM, appelés seulement par `/api/bienetre` et `/api/social`).
 - **Paramètres** : aucun.
-- **Retour** : `pc_bienetre` = `core.bienetre.snapshot()` ; `pc_social` = `core.social.snapshot()` + compteurs YouTube
+- **Retour** : `pc_bienetre` = `core.bienetre.snapshot()` + point « Pilotes » (`with_drivers`, dernier relevé DriverWatch) ; `pc_social` = `core.social.snapshot()` + compteurs YouTube
   (le jeton de lol-clipper reste sur le PC).
 - **Exemple** : ouvrir l'onglet Réseaux de la PWA.
 - **Notes** : PC éteint, Bien-être affiche « PC éteint » ; Réseaux affiche le dernier relevé gardé par le Core
