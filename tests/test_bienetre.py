@@ -25,6 +25,30 @@ def project(files: dict) -> Path:
     return root
 
 
+class PilotesTest(unittest.TestCase):
+    SNAP = {"counts": {"problème": 0, "à surveiller": 0, "non mesuré": 0, "OK": 1}, "items": [c("OK")]}
+
+    def drv(self, *status, at="2026-10-22T10:00"):
+        return {"configured": True, "at": at, "checking": False,
+                "drivers": [{"name": f"P{n}", "status": s} for n, s in enumerate(status)]}
+
+    def point(self, drv):
+        out = bienetre.with_drivers(self.SNAP, drv)
+        return [i for i in out["items"] if i["composant"] == "Pilotes"][0], out["counts"]
+
+    def test_statuts(self):
+        self.assertEqual(self.point(self.drv("ok"))[0]["statut"], "OK")
+        self.assertEqual(self.point(self.drv("ok", "moderate"))[0]["statut"], "à surveiller")
+        i, counts = self.point(self.drv("critical", "moderate"))
+        self.assertEqual((i["statut"], counts["problème"], counts["OK"]), ("problème", 1, 1))
+        self.assertEqual(self.point(self.drv(at=None))[0]["statut"], "non mesuré")
+
+    def test_sans_driverwatch_ou_sans_bilan_inchange(self):
+        self.assertIs(bienetre.with_drivers(self.SNAP, {"configured": False}), self.SNAP)
+        vide = {"counts": None, "items": []}
+        self.assertIs(bienetre.with_drivers(vide, self.drv("critical")), vide)
+
+
 class BienetreTest(unittest.TestCase):
     def setUp(self):
         bienetre._state.update(tried=0.0, error=None, error_at=None, running=False)

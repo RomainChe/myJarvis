@@ -658,7 +658,7 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         log_read(auth[0], "bienetre_read", "bilan de santé du PC lu")
         if HAS_PC_TOOLS:
-            return bienetre_core.snapshot()
+            return bienetre_core.with_drivers(bienetre_core.snapshot(), drivers_status())
         try:
             snap = agentlink.call("run", "pc_bienetre", {}, timeout=PANEL_TIMEOUT_S)
             if not isinstance(snap, dict):

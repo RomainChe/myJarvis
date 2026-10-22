@@ -161,6 +161,23 @@ def refresh_if_stale(root: Path | None = None, now: float | None = None, at: dat
     return True
 
 
+def with_drivers(snap: dict, drv: dict) -> dict:
+    """Ajoute au bilan le point « Pilotes » d'après la dernière vérification DriverWatch (`drivers.status`)."""
+    if not snap.get("counts") or not drv.get("configured"):
+        return snap
+    late = [d for d in drv["drivers"] if d["status"] in ("critical", "moderate")]
+    if not drv["at"]:
+        statut, valeur, conseil = "non mesuré", "Vérification DriverWatch en cours." if drv["checking"] else "Aucune vérification DriverWatch.", ""
+    elif late:
+        statut = "problème" if any(d["status"] == "critical" for d in late) else "à surveiller"
+        valeur, conseil = f"{len(late)} pilote(s) en retard : {', '.join(d['name'] for d in late[:3])}.", "Onglet Pilotes : bouton « Go »."
+    else:
+        statut, valeur, conseil = "OK", "Tous les pilotes sont à jour.", ""
+    item = {"composant": "Pilotes", "point": "Mises à jour", "statut": statut, "valeur": valeur[:300], "seuil": "", "conseil": conseil, "impact": 2}
+    items = sorted([*snap["items"], item], key=lambda i: (STATUSES[i["statut"]], -i["impact"]))
+    return {**snap, "items": items, "counts": _counts(items)}
+
+
 def snapshot(root: Path | None = None) -> dict:
     root = Path(root) if root else project_dir()
     refresh_if_stale(root)
