@@ -3,6 +3,7 @@ package fr.jarvis.tv;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.KeyEvent;
@@ -26,6 +27,10 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
     private static final String HOME_URL = "https://appassets.androidplatform.net/assets/index.html";
 
+    private static final String PREFS = "boot";
+    private static final int MAX_STARTS = 3;
+    private static final long WINDOW_MS = 120_000, STABLE_MS = 15_000;
+
     private WebView web;
     private CoreLink core;
     private final ExecutorService io = Executors.newSingleThreadExecutor(); // un appel au Core à la fois
@@ -33,6 +38,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (tooManyCrashes()) {
+            openSettings();
+            return;
+        }
         core = new CoreLink(this);
         core.importConfig();
         WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
@@ -74,6 +83,27 @@ public class MainActivity extends Activity {
         setContentView(web);
         web.loadUrl(HOME_URL);
         web.requestFocus();
+        // Démarrage jugé réussi si l'écran tient STABLE_MS : le compteur repart de zéro.
+        web.postDelayed(() -> getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt("starts", 0).apply(), STABLE_MS);
+    }
+
+    /**
+     * Garde-fou « accueil par défaut » : chaque démarrage est compté, remis à zéro après STABLE_MS.
+     * MAX_STARTS démarrages sans stabilité en WINDOW_MS (le processus meurt, Android relance l'accueil) :
+     * on cesse de se relancer et on ouvre les réglages. Après WINDOW_MS le compte est oublié : pas de blocage définitif.
+     */
+    private boolean tooManyCrashes() {
+        SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
+        long now = System.currentTimeMillis();
+        int starts = now - p.getLong("last", 0) > WINDOW_MS ? 0 : p.getInt("starts", 0);
+        p.edit().putInt("starts", starts + 1).putLong("last", now).commit(); // commit : on peut mourir juste après
+        return starts + 1 > MAX_STARTS;
+    }
+
+    private void openSettings() {
+        Intent i = Apps.intentFor(this, "settings");
+        if (i != null) startActivity(i);
+        finish();
     }
 
     @Override
@@ -87,7 +117,6 @@ public class MainActivity extends Activity {
     }
 
     /** L'interface a planté : on rend la main à l'accueil Google TV, à défaut aux réglages (jamais à JARVIS). */
-    // ponytail: pas de compteur de plantages ; obligatoire avant que JARVIS devienne l'accueil par défaut (étape d)
     private void fallback() {
         Intent home = Apps.intentFor(this, "googletv");
         if (home == null) home = Apps.intentFor(this, "settings");
