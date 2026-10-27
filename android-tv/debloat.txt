@@ -1,0 +1,41 @@
+# Liste de nettoyage de la TV salon (Continental Edison CDI SMART TV, Android TV 11, SDK 30, MediaTek).
+# Format cleanyourtv : un paquet par ligne, « # » pour la raison. Désactivation (pm disable-user), jamais de désinstallation.
+# Lignes « # gardé » : applis que le propriétaire veut conserver (choix du 2026-10-27).
+# Inventaire du 2026-10-27 ; plan : docs/TV_NETTOYAGE.md.
+
+# --- Lot 1 : pistage et retours constructeur / Google ---
+com.google.android.feedback            # envoi de retours d'expérience à Google
+com.google.android.onetimeinitializer  # configuration initiale, inutile après la 1re mise en route
+com.google.android.partnersetup        # configuration par le revendeur / partenaire
+com.android.hotspot2.osulogin          # Hotspot 2.0, inutile à la maison
+
+# --- Lot 2 : pub, recommandations, installations automatiques ---
+android.autoinstalls.config.google.gtvpai  # installe des applis recommandées à la configuration
+com.google.android.play.games              # Play Jeux
+com.google.android.youtube.tvmusic         # YouTube Music
+com.google.android.videos                  # Google TV films (achat/location)
+com.expressluck.tvhelpmanual               # manuel d'aide du constructeur
+fusion.android.tv.demo                     # appli de démonstration préinstallée
+com.google.android.apps.tv.dreamx      # économiseur d'écran Google (photos, recommandations)
+com.google.android.katniss             # Assistant Google (touche micro de la télécommande)
+com.google.android.tv.assistant        # Assistant : interface TV
+com.google.android.apps.mediashell     # Chromecast intégré (le propriétaire ne caste pas)
+
+# --- Lot 3 : applis préinstallées non utilisées (aucune n'a de tuile JARVIS) ---
+# gardé : com.canal.android.canal                # myCANAL
+com.orange.owtv.tv                     # TV d'Orange
+# gardé : fr.francetv.pluzz                      # france.tv
+# gardé : fr.m6.m6replay                         # 6play
+# gardé : fr.tf1.mytf1                           # TF1+
+tv.arte.plus7                          # ARTE
+# gardé : com.crunchyroll.crunchyroid            # Crunchyroll
+com.castify.tv                         # Castify (appli tierce préinstallée)
+com.goodtoolapps.zeus                  # appli tierce préinstallée, rôle à vérifier (dumpsys package)
+app.zeniptv.mobile                     # Zeni IPTV, appli tierce préinstallée
+
+# --- Jamais touchés (voir docs/TV_NETTOYAGE.md « Principes ») ---
+# Services Google Play (gms, gsf), Play Store, WebView, clavier, TTS, ext.services, permissioncontroller,
+# packageinstaller, systemui, settings, providers.*, mediatek.* et expressluck.* (entrées HDMI/tuner, menu Sources),
+# *.factory.* / facmenu / fac.test / cvte.tv.at (usine : ne pas toucher ni lancer), autopair (appairage Bluetooth),
+# google.android.tv.remote.service (Home Assistant), setupwraith (possède le Wi-Fi enregistré), launcherx (repli Phase 7),
+# com.tailscale.ipn, fr.jarvis.tv, et les applis des tuiles : Netflix, YouTube, Disney+, Prime Video, Spotify, Twitch, Play Store.
