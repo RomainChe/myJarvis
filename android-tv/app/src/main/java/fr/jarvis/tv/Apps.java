@@ -24,6 +24,9 @@ final class Apps {
         PACKAGES.put("plex", "com.plexapp.android");
         PACKAGES.put("smarttube", "com.teamsmart.videomanager.tv");
         PACKAGES.put("twitch", "tv.twitch.android.app");
+        PACKAGES.put("tf1", "fr.tf1.mytf1");
+        PACKAGES.put("m6", "fr.m6.m6replay");
+        PACKAGES.put("francetv", "fr.francetv.pluzz");
         PACKAGES.put("playstore", "com.android.vending");
     }
 
