@@ -192,3 +192,10 @@ Ajouts à la PWA demandés par le propriétaire. Chacun passe par la porte habit
    4. [x] **Voix et chat** : `voyage_status` N0 (« combien coûte le voyage ? », intention au routeur sans LLM), `voyage_destination` N2 (« passe le suivi sur Lisbonne en juin ») qui prépare le changement de l'étape 3 et le fait confirmer dans la PWA.
    5. [~] (recherche ponctuelle codée le 2026-10-14 : `voyage_recherche` N1 `taint_blocked`, `feat/voyages-recherche` ; alertes : e-mail du tracker sur `alert_below` + push « bon plan Japon » déjà en place, push générique non fait (YAGNI)) **Alertes et recherche ponctuelle** : push (Web Push existant) quand le meilleur prix passe sous `alert_below` ; « cherche aussi la Thaïlande » = workflow `search.yml` lancé par `gh workflow run` (N1, sans toucher à `config.yaml`).
 Ordre proposé : 1 → 2 (rapides, N0), puis 6 (débloque 5), 4, 3 ; 7 après 1–2 (réutilise leurs données).
+
+## 2026-10-27 — Nettoyage TV (docs/TV_NETTOYAGE.md, T1–T7)
+- cleanyourtv cloné hors dépôt au commit `c5f9cd4`, scripts relus (aucun réseau hors ADB), venv + `pip-audit` sans faille dans les dépendances.
+- Sauvegarde dans `~/tv-backup/2026-10-27/` (hors Git) ; Android 11 SDK 30, MediaTek, `ro.adb.secure=1`.
+- `android-tv/debloat.txt` : 19 paquets désactivés en 3 lots avec redémarrage entre chaque, aucun réactivé par le firmware ; annulation par `restore.ps1` sur la liste de travail et l'enregistrement `~/.cleanyourtv/`.
+- `MainActivity` : compteur de plantages (3 démarrages sans 15 s de stabilité en 2 min → réglages ; oublié après 2 min).
+- Accueil : Wi-Fi oublié puis rejoint, `setupwraith` coupé (forcé, 2e réseau fantôme), puis `launcherx` : Accueil ouvre `fr.jarvis.tv`. `set-home-activity` répond `Success` sans effet, c'est la coupure de `launcherx` qui fait l'accueil.

@@ -58,3 +58,8 @@ APK : `app/build/outputs/apk/debug/app-debug.apk`.
 ## Revenir en arrière
 - Dans l'appli : pastille « Accueil Google TV ».
 - Désinstaller : `adb uninstall fr.jarvis.tv`.
+
+## Nettoyage de la TV et annulation
+Liste : `debloat.txt` (désactivation `pm disable-user`, rien n'est désinstallé). Appliquée avec `disable.ps1` de cleanyourtv (commit `c5f9cd4`), qui enregistre l'état d'origine dans `~/.cleanyourtv/`.
+JARVIS devient l'accueil en désactivant `com.google.android.tungsten.setupwraith` (après avoir oublié puis rejoint le Wi-Fi) puis `com.google.android.apps.tv.launcherx`. Si l'accueil plante 3 fois de suite, il ouvre les réglages.
+Annuler : `restore.ps1` sur la même liste, et `adb shell pm enable com.google.android.apps.tv.launcherx` puis `com.google.android.tungsten.setupwraith`.
