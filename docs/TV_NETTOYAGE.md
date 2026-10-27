@@ -122,7 +122,7 @@ C'est l'étape (d) de la Phase 7, piste 6 (docs/ROADMAP.md), élargie au nettoya
 | T8 | Reprise des boutons télécommande orphelins (si besoin) | Claude | T7 |
 | T9 | Revue Sécurité de l'étape (d) | Sécurité | T7, T8 |
 | T10 | AdGuard Home (Docker, mini-PC), DNS Tailscale, 2e serveur | Claude + propriétaire | — |
-| T11 | Tests DNS : Core, applis, sites ; revue Sécurité | Claude + Sécurité | T10 |
+| T11 | Tests DNS : Core, applis, sites ; revue Sécurité : feu vert sous conditions (docs/SECURITY_REVIEW_ADGUARD.md), contrôles `ufw`/Bbox/config à faire à la main | Claude + Sécurité | T10 |
 | T12 | Outils JARVIS AdGuard (N0 stats, N1 pause) : code et revue du code faits (2026-10-27), config du mini-PC à faire | Claude | T11 |
 | T13 | Couper ADB, vérifier le port 5555, révoquer la clé `tv` n°9, docs à jour | Propriétaire + Claude | T7, T11 |
 
