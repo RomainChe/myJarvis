@@ -1,0 +1,21 @@
+# AdGuard Home (DNS anti-pub de la TV et du téléphone, docs/TV_NETTOYAGE.md étape 6).
+# Projet Compose SÉPARÉ (/srv/adguard) : un échec ici ne touche pas Home Assistant.
+# Les ports ne sont publiés que sur l'adresse Tailscale du mini-PC (TAILSCALE_IP, dans /srv/adguard/.env, hors Git,
+# voir .env.example) : ni le réseau local ni Internet n'y accèdent. Aucun secret ici : le compte de l'interface est
+# créé à l'assistant d'installation (port 3000, une seule fois) puis rangé avec les autres identifiants (jarvis/core/secrets.py).
+# Version épinglée, vérifiée le 2026-10-27.
+services:
+  adguardhome:
+    image: adguard/adguardhome:v0.107.79
+    ports:
+      - "${TAILSCALE_IP:?définir TAILSCALE_IP dans .env}:53:53/tcp"
+      - "${TAILSCALE_IP}:53:53/udp"
+      - "${TAILSCALE_IP}:3000:3000/tcp"   # assistant d'installation ; après : passer l'interface sur 3000 dans AdGuardHome.yaml
+    volumes:
+      - ./work:/opt/adguardhome/work
+      - ./conf:/opt/adguardhome/conf
+    restart: unless-stopped
+    mem_limit: 512m
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]   # port 53
+    security_opt: ["no-new-privileges:true"]
