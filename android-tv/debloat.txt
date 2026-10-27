@@ -19,7 +19,7 @@ fusion.android.tv.demo                     # appli de démonstration préinstall
 com.google.android.apps.tv.dreamx      # économiseur d'écran Google (photos, recommandations)
 com.google.android.katniss             # Assistant Google (touche micro de la télécommande)
 com.google.android.tv.assistant        # Assistant : interface TV
-com.google.android.apps.mediashell     # Chromecast intégré (le propriétaire ne caste pas)
+# gardé : com.google.android.apps.mediashell     # Chromecast intégré, nécessaire à Spotify Connect (et au Cast de Home Assistant)
 
 # --- Lot 3 : applis préinstallées non utilisées (aucune n'a de tuile JARVIS) ---
 # gardé : com.canal.android.canal                # myCANAL
