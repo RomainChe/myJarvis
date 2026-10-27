@@ -85,11 +85,18 @@ C'est l'étape (d) de la Phase 7, piste 6 (docs/ROADMAP.md), élargie au nettoya
 ### 6. AdGuard Home sur le mini-PC (choix du propriétaire)
 - Conteneur Docker sur le mini-PC ; interface d'administration joignable seulement par Tailscale ; identifiants
   dans les identifiants systemd chiffrés (`jarvis/core/secrets.py`).
-- Distribution : serveur DNS global du réseau Tailscale = mini-PC ; la TV (et le téléphone) l'utilisent via
-  l'appli Tailscale (« Utiliser le DNS Tailscale »). MagicDNS continue de résoudre les noms `*.ts.net` du Core.
-  **Pas de DNS privé** sur la TV : il contournerait AdGuard Home. Variante maison entière : DNS de la Bbox, si elle
-  le permet (à vérifier).
-- Mini-PC éteint : prévoir un 2e serveur DNS dans Tailscale, sinon la TV n'a plus de DNS.
+- **Fait (2026-10-27, T10)** : `/srv/adguard/docker-compose.yml`, `network_mode: host` (la redirection de ports
+  Docker était bloquée par `ufw`, politique « routed » à `deny`). Assistant d'installation : administration sur
+  l'IP Tailscale seulement (port 80), DNS sur toutes les interfaces (port 53) ; `ufw` n'ouvre le 53 qu'à Tailscale et
+  au réseau local. Amonts DoH Quad9 + Cloudflare en parallèle. L'ACL Tailscale ne laisse passer que le 22 et le 8123 :
+  l'administration se consulte par tunnel SSH (`ssh -N -L 8081:<ip-tailscale>:80 jarvis@<minipc>`).
+- Distribution (**option retenue**) : la TV n'a pas Tailscale. Son DNS est réglé à la main (IP statique, DNS 1 = mini-PC,
+  DNS 2 vide : Android mélange les deux serveurs, un DNS de secours laisserait passer des pubs). L'IP de la TV est
+  réservée dans la Bbox (« Rendre statique » dans Mes appareils). Vérifié : requêtes de la TV dans le journal AdGuard ;
+  YouTube, Netflix, Prime Video, Disney+ fonctionnent. Annulation : TV en DHCP automatique.
+  **Pas de DNS privé** sur la TV : il contournerait AdGuard Home. Variante maison entière : option 6 du DHCP de la
+  Bbox (Réglages avancés > DHCP), non retenue : mini-PC éteint = plus d'Internet pour toute la maison.
+- Mini-PC éteint : la TV n'a plus de DNS. Sonde de santé prévue (IDEES.md #36).
 - Tests : Core joignable (« JARVIS en ligne »), Netflix, Prime Video, Disney+, SmartTube, Bowd, OpenFlix ; listes
   blanches au besoin.
 - JARVIS (plus tard) : outil N0 « statistiques AdGuard » et N1 « pause du blocage 5 min » (comme l'add-on
