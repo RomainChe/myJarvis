@@ -58,6 +58,7 @@ from jarvis.tools.home import pcplug
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.voyages  # noqa: F401  (enregistre les outils voyages)
 import jarvis.tools.conso  # noqa: F401  (enregistre conso_pc)
+import jarvis.tools.adguard  # noqa: F401  (enregistre les outils AdGuard Home)
 from jarvis.core.host import load_pc_tools
 
 load_pc_tools()  # outils PC réels, ou proxys vers l'agent PC sur le mini-PC

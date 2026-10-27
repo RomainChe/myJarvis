@@ -6,7 +6,7 @@ from pathlib import Path
 import keyring
 
 SERVICE = "jarvis"
-NAMES = ("ha_token", "vapid_key", "mail_password", "bank_key", "mail_sig_key", "agent_key", "med_token", "med_pdl", "voice_key")  # liste blanche : une faute de frappe ne crée pas un secret orphelin
+NAMES = ("ha_token", "vapid_key", "mail_password", "bank_key", "mail_sig_key", "agent_key", "med_token", "med_pdl", "voice_key", "adguard_auth")  # liste blanche : une faute de frappe ne crée pas un secret orphelin
 
 
 MAIL_KEY_MIN = 32
