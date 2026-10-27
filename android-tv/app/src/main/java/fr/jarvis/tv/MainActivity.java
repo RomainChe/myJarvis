@@ -96,8 +96,12 @@ public class MainActivity extends Activity {
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
         long now = System.currentTimeMillis();
         int starts = now - p.getLong("last", 0) > WINDOW_MS ? 0 : p.getInt("starts", 0);
-        p.edit().putInt("starts", starts + 1).putLong("last", now).commit(); // commit : on peut mourir juste après
-        return starts + 1 > MAX_STARTS;
+        boolean tooMany = starts + 1 > MAX_STARTS;
+        // last n'avance pas une fois le seuil passé : la fenêtre expire depuis le dernier vrai démarrage.
+        SharedPreferences.Editor e = p.edit().putInt("starts", starts + 1);
+        if (!tooMany) e.putLong("last", now);
+        e.commit(); // commit : on peut mourir juste après
+        return tooMany;
     }
 
     private void openSettings() {
@@ -116,12 +120,9 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    /** L'interface a planté : on rend la main à l'accueil Google TV, à défaut aux réglages (jamais à JARVIS). */
+    /** L'interface a planté : on ouvre les réglages (jamais JARVIS, qui est l'accueil). */
     private void fallback() {
-        Intent home = Apps.intentFor(this, "googletv");
-        if (home == null) home = Apps.intentFor(this, "settings");
-        if (home != null) startActivity(home);
-        finish();
+        openSettings();
     }
 
     private final class Bridge {

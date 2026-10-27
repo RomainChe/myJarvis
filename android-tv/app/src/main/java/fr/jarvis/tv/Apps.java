@@ -12,7 +12,6 @@ import java.util.Map;
 
 /** Liste blanche des applis que la page peut lancer : la page ne passe qu'une clé, jamais un paquet ni une intention. */
 final class Apps {
-    static final String STOCK_LAUNCHER = "com.google.android.apps.tv.launcherx";
 
     private static final Map<String, String> PACKAGES = new HashMap<>();
     static {
@@ -41,9 +40,6 @@ final class Apps {
             case "livetv":
                 i = new Intent(Intent.ACTION_VIEW, TvContract.Channels.CONTENT_URI);
                 break;
-            case "googletv":
-                i = stockHome();
-                break;
             default:
                 if (SiteHosts.has(key)) { // URL fixes côté Java (SiteHosts), la page ne fournit jamais d'adresse
                     Uri url = Uri.parse(SiteHosts.url(key));
@@ -59,7 +55,4 @@ final class Apps {
         return i.resolveActivity(pm) == null ? null : i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     }
 
-    static Intent stockHome() {
-        return new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(STOCK_LAUNCHER);
-    }
 }
