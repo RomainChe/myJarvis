@@ -114,7 +114,7 @@ une panne du disque, `--dest` doit pointer vers un autre disque ou un NAS.
 
 Depuis la bascule (2026-10-17), le Core tourne sur le mini-PC : ses tâches sont des **unités systemd utilisateur**
 (`deploy/systemd/` : `jarvis-core`, `jarvis-doctor` + timer 1 min = garde-fou, `jarvis-backup` 03:30, `jarvis-purge`,
-`jarvis-banque` 07:00 + relances 13:00 et 19:00 des seules banques en échec, `jarvis-update` toutes les 5 min).
+`jarvis-banque` 10:30 + relances 14:00 et 20:00 des seules banques en échec, `jarvis-update` toutes les 5 min).
 Procédure et retour arrière : docs/MIGRATION_CORE_MINIPC.md lot 5. Sur le PC ne reste que la tâche de l'agent
 (`deploy/windows/agent-task.ps1`). Les anciennes tâches Windows (« JARVIS - core », « - garde-fou », « - banque »,
 « - sauvegarde », « - mise à jour ») sont désactivées, à supprimer après une semaine sans retour arrière ; pour un Core
