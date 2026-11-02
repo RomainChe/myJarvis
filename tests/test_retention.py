@@ -119,8 +119,8 @@ class RetentionTest(unittest.TestCase):
             old(d / name, age)
         self.log_at(400, 2)
         out = retention.run(self.audit, now=NOW, archive_dir=self.root / "arch", captures=(cap,),
-                            finance=fin, veille=vei, social=self.root / "social.db")
-        self.assertEqual(out, {"captures": 1, "finance": 1, "veille": 1, "social": 0, "audit": 2})
+                            finance=fin, veille=vei, social=self.root / "social.db", iacompare=self.root / "ia.db")
+        self.assertEqual(out, {"captures": 1, "finance": 1, "veille": 1, "social": 0, "iacompare": 0, "audit": 2})
         self.assertEqual([p.name for p in vei.iterdir()], ["veille-2026-40.eml"])
 
 

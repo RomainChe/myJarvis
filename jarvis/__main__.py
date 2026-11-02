@@ -153,6 +153,7 @@ def device_or_serve(argv: list[str], audit: Audit) -> int:
         threading.Thread(target=_conso_watch, daemon=True).start()
         threading.Thread(target=_drivers_watch, args=(audit,), daemon=True).start()
         threading.Thread(target=_conso_home_watch, args=(audit,), daemon=True).start()
+        threading.Thread(target=_iacompare_watch, args=(audit,), daemon=True).start()
         server = make_server(devices, audit, port, ts_host=ts_host, mic=mic,
                              stt=getattr(mic.on_utterance, "stt", None) if mic else None)  # même modèle que le micro du PC
         threading.Thread(target=_bienetre, daemon=True).start()
@@ -368,6 +369,24 @@ def _conso_home_watch(audit) -> None:
         if status in ("ok", "indisponible") and status != last:
             audit.log("pwa:conso", "conso_enedis_fetch", {}, 0, "auto", status)
         last = status if status != "à jour" else last
+        time.sleep(3600)
+
+
+def _iacompare_watch(audit) -> None:
+    """Toutes les heures : relevé des sources du comparatif des IA (une fois par jour à partir de 6 h, voir
+    jarvis/core/iacompare.py). Une ligne au journal par relevé, avec l'état de chaque source, sans valeur."""
+    import time
+    from jarvis.core import iacompare
+    while True:
+        time.sleep(120)  # le serveur démarre d'abord
+        try:
+            status = iacompare.refresh()
+        except Exception:  # noqa: BLE001 (disque : réessai à l'heure suivante)
+            status = {"base": "indisponible"}
+        if status:
+            ok = all(v != "indisponible" for v in status.values())
+            audit.log("pwa:ia", "iacompare_fetch", {}, 0, "auto" if ok else "refusé",
+                      ", ".join(f"{k} {v}" for k, v in status.items()))
         time.sleep(3600)
 
 
