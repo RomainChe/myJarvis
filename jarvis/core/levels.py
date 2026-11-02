@@ -99,6 +99,8 @@ LABELS = {
     "conso_totale": ("Consommation du logement", "kWh et € du compteur Linky (relevé de la veille) sur le jour, la semaine ou le mois, avec la part du PC."),
     "conso_pc": ("Consommation du PC", "kWh et € de la prise du PC sur le jour, la semaine ou le mois, comparés à la période d'avant."),
     "voyage_destination": ("Changer de destination", "Nouvelle recherche de vols suivie par flight-price-tracker (push sur GitHub)."),
+    "adguard_stats": ("Statistiques AdGuard", "Requêtes DNS, part bloquée et domaines les plus bloqués (pubs et pistage de la TV)."),
+    "adguard_pause": ("Pause du blocage de pubs", "Coupe AdGuard Home 1 à 15 minutes ; le blocage revient seul."),
     "tv_status": ("État de la TV", "Allumée, appli en cours, volume."),
     "tv_on": ("Allumer la TV", "TV du salon."),
     "tv_off": ("Éteindre la TV", "La barre de son suit."),

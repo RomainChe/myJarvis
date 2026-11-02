@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 HOME = Path.home() / ".jarvis"
-DAYS = {"audit": 365, "captures": 7, "finance": 120, "veille": 120, "social": 365}
+DAYS = {"audit": 365, "captures": 7, "finance": 120, "veille": 120, "social": 365, "iacompare": 365}
 ARCHIVE_DIR = Path(os.environ.get("JARVIS_ARCHIVE_DIR") or HOME / "audit-archive")
 
 
@@ -48,8 +48,18 @@ def purge_social(db: Path, days: int, today=None, dry: bool = False) -> int:
         cx.close()
 
 
+def _purge_iacompare(db: Path, today, dry: bool) -> int:
+    """Instantanés quotidiens du comparatif des IA (`snap`, un par jour)."""
+    from jarvis.core import iacompare
+    try:
+        return iacompare.purge(db, DAYS["iacompare"], today, dry)
+    except sqlite3.Error:
+        return 0
+
+
 def run(audit, *, dry: bool = False, now: datetime | None = None, archive_dir: Path = ARCHIVE_DIR,
-        captures=None, finance=None, veille=None, social: Path = HOME / "social.db") -> dict:
+        captures=None, finance=None, veille=None, social: Path = HOME / "social.db",
+        iacompare: Path = HOME / "iacompare.db") -> dict:
     """Un passage complet ; renvoie les comptes. Aucun contenu n'est écrit au journal."""
     if captures is None:
         captures = (HOME / "captures", Path.home() / "Pictures" / "Jarvis")  # + ancien dossier des captures
@@ -63,6 +73,7 @@ def run(audit, *, dry: bool = False, now: datetime | None = None, archive_dir: P
         "finance": purge_dir(finance, "semaine-*.eml", DAYS["finance"], ts, dry),
         "veille": purge_dir(veille, "veille-*.eml", DAYS["veille"], ts, dry),
         "social": purge_social(social, DAYS["social"], now.date(), dry),
+        "iacompare": _purge_iacompare(iacompare, now.date(), dry),
         "audit": 0,
     }
     if not dry:

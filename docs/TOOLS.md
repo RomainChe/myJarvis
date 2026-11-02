@@ -421,7 +421,12 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Paramètres** : `periode` = `jour` (hier), `semaine` (7 jours) ou `mois` (30 jours), fenêtres de jours complets finissant hier. Autre valeur : refusée. **Exemple** : « Jarvis, combien j'ai consommé chez moi hier ? »
 - **Notes** : le Core appelle l'API au plus une fois par 24 h, jusqu'à 3 fois si le relevé de la veille n'est pas encore publié (à partir de 8 h), et pas avant 6 h après un échec (`jarvis/core/enedis.py`, 10 s de délai, une tentative, réponse bornée : 0 à 500 kWh/jour, jours hors fenêtre ignorés). Jeton `med_token` et PDL `med_pdl` dans le coffre (`python -m jarvis secret set med_token`), jamais dans un fichier. Source absente ou en panne : « donnée indisponible », rien n'est estimé ni écrit. Une ligne `conso_enedis_fetch` au journal à chaque changement d'état, sans valeur. Totaux quotidiens seulement (pas de courbe 30 min), 65 jours gardés.
 
-## voyage_destination (`jarvis/tools/voyages.py`)
+## adguard_stats / adguard_pause (`jarvis/tools/adguard.py`, `jarvis/core/adguard.py`)
+
+- **Description** : AdGuard Home du mini-PC (DNS anti-pub de la TV, docs/TV_NETTOYAGE.md §6). `adguard_stats` : requêtes DNS, part bloquée et 3 domaines les plus bloqués. `adguard_pause` : coupe le blocage `minutes` minutes ; AdGuard le réactive seul (paramètre `duration` de `/control/protection`), même si le Core s'arrête.
+- **Niveau** : `adguard_stats` N0, `external` (les noms de domaine sont des données). `adguard_pause` N1, `minutes` entier de 1 à 15 (autre valeur : refusée avant tout appel réseau), `taint_blocked` (refusée au LLM après la lecture d'un contenu externe). Noms de domaine filtrés (`[A-Za-z0-9.-]`, 80 caractères).
+- **Configuration** : `JARVIS_ADGUARD_URL` (`.env` du mini-PC, `http://<ip-tailscale>` uniquement (l'authentification Basic part en clair), sans identifiants ; absente = outils en erreur) et secret `adguard_auth` = `utilisateur:mot_de_passe` (`python -m jarvis secret set adguard_auth`, identifiants systemd chiffrés sur le mini-PC). Un compte AdGuard dédié à JARVIS, distinct de l'administrateur.
+- **Garde-fous** : ni proxy ni redirection (les identifiants ne partent que vers l'URL configurée), délai 5 s, réponse bornée à 1 Mo, erreurs à message fixe sans identifiants. **Exemple** : « Jarvis, coupe les pubs 5 minutes » → blocage coupé 5 min.
 
 - **Description** : change la destination suivie par flight-price-tracker : nouvelle recherche en tête de `searches` dans `config.yaml`, les recherches actives commentées (en pause, historique gardé), commit `config : …` puis push sur `main`.
 - **Niveau** : N2 (confirmation), `taint_blocked`. Refusé à la voix (plafond N1).

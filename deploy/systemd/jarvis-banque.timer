@@ -2,10 +2,10 @@
 Description=JARVIS récupération bancaire quotidienne
 
 [Timer]
-OnCalendar=*-*-* 07:00
-# Relances : seulement les banques en échec le matin (Trade Republic répond souvent 429 vers 7 h)
-OnCalendar=*-*-* 13:00
-OnCalendar=*-*-* 19:00
+OnCalendar=*-*-* 10:30
+# Relances : seulement les banques en échec (Trade Republic a répondu 429 chaque jour à 7 h du 22 au 28/10)
+OnCalendar=*-*-* 14:00
+OnCalendar=*-*-* 20:00
 Persistent=true
 
 [Install]

@@ -18,6 +18,7 @@ import jarvis.tools.home  # noqa: F401  (enregistre les outils domotique)
 import jarvis.tools.mail  # noqa: F401  (enregistre le connecteur mail)
 import jarvis.tools.voyages  # noqa: F401  (enregistre le changement de destination)
 import jarvis.tools.conso  # noqa: F401  (enregistre conso_pc)
+import jarvis.tools.adguard  # noqa: F401  (enregistre les outils AdGuard Home)
 from jarvis.core.agentlink import AgentError
 from jarvis.core.audit import Audit
 from jarvis.core import levels, memory, reminders

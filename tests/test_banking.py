@@ -169,16 +169,40 @@ class FetchTest(BankBase):
         banking.fetch()
         self.assertEqual(sum(c[1].endswith("transactions") for c in self.calls), banking.MAX_PAGES)
 
-    def test_banque_en_echec_signalee_sans_ecraser_le_cache(self):
-        banking.fetch()
-        before = banking.CACHE.read_bytes()
+    def test_banque_en_echec_signalee_sans_perdre_les_operations(self):
+        banking.fetch(date(2026, 10, 9))
 
         def expired(q):
             raise banking.BankError("accès refusé")
         self.routes[("GET", "/accounts/u1/transactions")] = expired
-        r = banking.fetch()
-        self.assertEqual((r["accounts"], r["errors"]), (0, ["Crédit Mutuel : accès refusé"]))
-        self.assertEqual(banking.CACHE.read_bytes(), before)
+        r = banking.fetch(date(2026, 10, 9))
+        self.assertEqual(r["errors"], ["Crédit Mutuel : accès refusé"])
+        data = banking._load(banking.CACHE, None)
+        self.assertEqual((len(data["accounts"][0]["transactions"]), data["failed"]), (2, ["Crédit Mutuel"]))
+
+    def test_429_garde_le_solde_lu_et_les_operations_du_cache(self):
+        banking.fetch(date(2026, 10, 9))
+        self.routes[("GET", "/accounts/u1/balances")] = {"balances": [{"balance_type": "CLBD", "balance_amount": {"amount": "99"}}]}
+
+        def limit(q):
+            raise banking.BankError("trop de requêtes")
+        self.routes[("GET", "/accounts/u1/transactions")] = limit
+        banking.fetch(date(2026, 10, 9))
+        acc = banking._load(banking.CACHE, None)["accounts"][0]
+        self.assertEqual((acc["balance"], len(acc["transactions"])), (99.0, 2))
+
+    def test_relecture_incrementale_fusionne_avec_le_cache(self):
+        banking.fetch(date(2026, 10, 9))
+        self.routes[("GET", "/accounts/u1/transactions")] = {"transactions": [
+            {"transaction_amount": {"amount": "3"}, "credit_debit_indicator": "DBIT", "booking_date": "2026-10-08",
+             "creditor": {"name": "Café"}}], "continuation_key": "suite"}
+        self.calls.clear()
+        banking.fetch(date(2026, 10, 9))
+        tx_calls = [c for c in self.calls if c[1].endswith("transactions")]
+        self.assertEqual((tx_calls[0][3]["date_from"], len(tx_calls)), ("2026-10-02", banking.INCR_PAGES))
+        labels = [t["label"] for t in banking._load(banking.CACHE, None)["accounts"][0]["transactions"]]
+        self.assertIn("Boulangerie", labels)  # 2026-10-01, avant la fenêtre relue : conservée
+        self.assertNotIn("SALAIRE", labels)  # 2026-10-05, dans la fenêtre relue : remplacée par la lecture fraîche
 
     def test_banque_en_echec_garde_ses_comptes_quand_une_autre_reussit(self):
         store = banking._load(banking.STORE, None)
@@ -194,7 +218,7 @@ class FetchTest(BankBase):
             raise banking.BankError("accès refusé")
         self.routes[("GET", "/accounts/u2/transactions")] = expired
         r = banking.fetch()
-        self.assertEqual((r["accounts"], r["errors"]), (1, ["Trade Republic : accès refusé"]))
+        self.assertEqual((r["accounts"], r["errors"]), (2, ["Trade Republic : accès refusé"]))
         tr = [a for a in banking._load(banking.CACHE, None)["accounts"] if a["bank"] == "Trade Republic"]
         self.assertEqual([(a["balance"], len(a["transactions"])) for a in tr], [(50.0, 1)])
         self.assertEqual(banking._load(banking.CACHE, None)["failed"], ["Trade Republic"])

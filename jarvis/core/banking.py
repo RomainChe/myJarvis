@@ -30,6 +30,7 @@ API = "https://api.enablebanking.com"
 STORE = Path.home() / ".jarvis" / "bank.enc"
 CACHE = Path.home() / ".jarvis" / "bank-data.enc"
 TIMEOUT, MAX_BYTES, MAX_PAGES, MAX_TX = 20, 5_000_000, 20, 2000
+INCR_DAYS, INCR_PAGES = 7, 2  # relecture incrémentale : 7 derniers jours, 2 pages (quota Trade Republic)
 DAYS = 90  # historique lu, et durée de consentement demandée (Trade Republic plafonne à 90 j)
 JWT_TTL = 3600  # s (Enable Banking refuse > 24 h)
 
@@ -243,7 +244,14 @@ def fetch(today: date | None = None, banks: list[str] | None = None) -> dict:
     store = _load(STORE, None)
     if not store or not store.get("sessions"):
         raise BankError("aucune banque liée : python -m jarvis bank link \"<banque>\"")
-    since = ((today or date.today()) - timedelta(days=DAYS)).isoformat()
+    day = today or date.today()
+    floor = (day - timedelta(days=DAYS)).isoformat()
+    old = {}
+    try:  # un cache illisible ne doit pas empêcher d'écrire les données fraîches
+        old = _load(CACHE, None) or {}
+    except (BankError, keyring.errors.KeyringError):
+        pass
+    cached = {(a.get("bank"), a.get("name")): a for a in old.get("accounts", [])}
     accounts, errors, failed = [], [], set()
     sessions = [s for s in store["sessions"] if banks is None or s["bank"] in banks]
     for s in sessions:
@@ -252,14 +260,22 @@ def fetch(today: date | None = None, banks: list[str] | None = None) -> dict:
             for a in s["accounts"]:
                 bal = _call(store, "GET", f"/accounts/{a['uid']}/balances").get("balances")
                 bal = bal if isinstance(bal, list) else []
+                prev = (cached.get((s["bank"], a["name"])) or {}).get("transactions") or []
+                since = (day - timedelta(days=INCR_DAYS)).isoformat() if prev else floor  # cache présent : on ne relit que la fin
                 txs, key = [], None
-                for _ in range(MAX_PAGES):  # ponytail: pages bornées, MAX_PAGES × page banque suffit pour 90 j de compte perso
-                    r = _call(store, "GET", f"/accounts/{a['uid']}/transactions", query={"date_from": since, **({"continuation_key": key} if key else {})})
-                    page = r.get("transactions")
-                    txs += [x for x in map(_tx, page if isinstance(page, list) else []) if x]
-                    key = r.get("continuation_key")
-                    if not key or len(txs) >= MAX_TX:
-                        break
+                try:
+                    for _ in range(INCR_PAGES if prev else MAX_PAGES):  # ponytail: pages bornées, MAX_PAGES × page banque suffit pour 90 j de compte perso
+                        r = _call(store, "GET", f"/accounts/{a['uid']}/transactions", query={"date_from": since, **({"continuation_key": key} if key else {})})
+                        page = r.get("transactions")
+                        txs += [x for x in map(_tx, page if isinstance(page, list) else []) if x]
+                        key = r.get("continuation_key")
+                        if not key or len(txs) >= MAX_TX:
+                            break
+                    txs += [t for t in prev if floor <= t["date"] < since]
+                except BankError as e:  # 429 en cours de lecture : le solde déjà lu est gardé, les opérations viennent du cache
+                    errors.append(f"{s['bank']} : {e}")
+                    failed.add(s["bank"])
+                    txs = prev
                 got.append({"bank": s["bank"], "name": a["name"], "currency": a["currency"], "balance": _balance(bal),
                             "transactions": sorted(txs[:MAX_TX], key=lambda x: x["date"], reverse=True)})
             accounts += got
@@ -267,12 +283,6 @@ def fetch(today: date | None = None, banks: list[str] | None = None) -> dict:
             errors.append(f"{s['bank']} : {e}")
             failed.add(s["bank"])
     if accounts:  # une banque en échec ou non relue garde ses comptes du cache précédent au lieu de disparaître de l'onglet
-        old = {}
-        if failed or len(sessions) < len(store["sessions"]):
-            try:  # un cache illisible ne doit pas empêcher d'écrire les données fraîches
-                old = _load(CACHE, None) or {}
-            except (BankError, keyring.errors.KeyringError):
-                pass
         stale = {s["bank"] for s in store["sessions"]} - {a["bank"] for a in accounts}
         kept = [a for a in old.get("accounts", []) if a.get("bank") in stale]
         failed |= set(old.get("failed", [])) & stale - {s["bank"] for s in sessions}

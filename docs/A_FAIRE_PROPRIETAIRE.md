@@ -12,6 +12,11 @@ Sans cela, `finance fetch` et `veille fetch` ignorent les mails.
 - [ ] `python -m jarvis secret set mail_sig_key` (longue chaîne aléatoire).
 - [ ] Projets « Rapport hebdo dépenses » et veille-ia : avant l'envoi, en-tête `X-Jarvis-Sig` = HMAC-SHA256 hexadécimal de `<Subject>\n<Date>` (clé dans le secret du dépôt du projet, `Date` posé avant le calcul, un seul en-tête). Essai : mail de test puis `finance fetch` / `veille fetch` (le non signé est ignoré).
 
+## 2 bis. Comparatif des IA (clé gratuite Artificial Analysis)
+- [ ] Créer la clé sur artificialanalysis.ai (offre Free), puis sur le mini-PC, après la fusion (clé collée sans écho) :
+  `d=$(mktemp -d) && read -rs k && printf %s "$k" > "$d/aa_api_key" && unset k && ~/jarvis/deploy/creds.sh import "$d" && systemctl --user restart jarvis-core`
+- [ ] Ajuster les badges Claude Code / Copilot et la liste des modèles dans `jarvis/ia_models.json` si besoin.
+
 ## 3. Tests manuels sur le téléphone (D10)
 - [ ] **C5 fenêtre expirée** : `python -m jarvis passkey add <id>`, attendre > 2 min, Réglages > Enregistrer une clé d'accès. Attendu : « Sur le PC, lancez … passkey add ».
 - [ ] **F6 révocation** : notifications actives, `python -m jarvis device revoke <id>`. Attendu : `push test <id>` « Non remise », la PWA retombe sur l'association (l'appareil devra être ré-enrôlé).

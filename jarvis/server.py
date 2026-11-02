@@ -35,6 +35,7 @@ from jarvis.core.crypto import view as crypto_view
 from jarvis.core.portfolio import view as portfolio_view
 from jarvis.core.finance import snapshot as finance_snapshot
 from jarvis.core.veille import snapshot as veille_snapshot
+from jarvis.core.iacompare import snapshot as iacompare_snapshot
 from jarvis.core import bienetre as bienetre_core
 from jarvis.core import conseils
 from jarvis.core import conso as conso_core
@@ -710,6 +711,18 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
             return auth
         log_read(auth[0], "veille_read", "veille IA lue")
         return veille_snapshot()
+
+    @app.get("/api/ia-compare")
+    def iacompare_state(request: Request):
+        """Comparatif des IA (section de Veille IA) : lecture de la base locale, jamais d'appel réseau ici."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        log_read(auth[0], "iacompare_read", "comparatif des IA lu")
+        try:
+            return iacompare_snapshot()
+        except Exception:  # noqa: BLE001 (base ou catalogue illisible)
+            return reply(503, "indisponible")
 
     @app.get("/api/resume")
     def resume_state(request: Request):
