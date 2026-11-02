@@ -42,7 +42,8 @@ SOURCES = {
     "arena": {"name": "LMArena", "url": "https://lmarena.ai/leaderboard", "licence": "CC BY 4.0"},
     "aa": {"name": "Artificial Analysis", "url": "https://artificialanalysis.ai", "licence": "usage personnel, source citée"},
 }
-DOMAINS = [{"id": "code", "label": "Code"}, {"id": "general", "label": "Général"}]
+DOMAINS = [{"id": "code", "label": "Code"}, {"id": "general", "label": "Général"}, {"id": "reason", "label": "Raisonnement"},
+           {"id": "math", "label": "Maths"}, {"id": "agents", "label": "Agents"}, {"id": "writing", "label": "Écriture"}]
 
 # Tests retenus. kind « pct » = pourcentage (0–1 multiplié par 100) ; « rel » = échelle libre (Elo, ECI) ramenée sur 100 :
 # médiane de toute la population de la source = 50, meilleur = 100.
@@ -52,6 +53,16 @@ EPOCH_TESTS = [
      "cols": ("mean_score", "Best score (across scorers)", "Score")},
     {"id": "terminal_bench", "label": "Terminal-Bench", "domain": "code", "kind": "pct",
      "file": re.compile(r"^terminal[_-]?bench.*\.csv$", re.I), "cols": ("Accuracy mean", "mean_score", "Score")},
+    {"id": "deepswe", "label": "DeepSWE", "domain": "code", "kind": "pct",
+     "file": re.compile(r"^deepswe_external\.csv$", re.I), "cols": ("Pass@1",)},
+    {"id": "hle", "label": "Humanity's Last Exam", "domain": "reason", "kind": "pct",
+     "file": re.compile(r"^hle_external\.csv$", re.I), "cols": ("Accuracy",)},
+    {"id": "arc_agi_2", "label": "ARC-AGI-2", "domain": "reason", "kind": "pct",
+     "file": re.compile(r"^arc_agi_2_external\.csv$", re.I), "cols": ("Score",)},
+    {"id": "frontiermath", "label": "FrontierMath (niveaux 1-3)", "domain": "math", "kind": "pct",
+     "file": re.compile(r"^frontiermath_tiers_1_3(_v\d+)?\.csv$", re.I), "cols": ("mean_score", "Best score (across scorers)")},
+    {"id": "apex_agents", "label": "APEX-Agents", "domain": "agents", "kind": "pct",
+     "file": re.compile(r"^apex_agents_external\.csv$", re.I), "cols": ("Pass@1 score", "Mean score")},
     {"id": "gpqa", "label": "GPQA Diamond", "domain": "general", "kind": "pct",
      "file": re.compile(r"^gpqa[_-]?diamond.*\.csv$", re.I), "cols": ("mean_score", "Best score (across scorers)", "Score")},
     {"id": "eci", "label": "Epoch Capabilities Index", "domain": "general", "kind": "rel",
@@ -62,6 +73,8 @@ ARENA_TESTS = [  # (config, catégorie)
     {"id": "arena_coding", "label": "LMArena, code", "domain": "code", "config": "text", "category": "coding"},
     {"id": "arena_webdev", "label": "LMArena, WebDev", "domain": "code", "config": "webdev", "category": "overall"},
     {"id": "arena_overall", "label": "LMArena, général", "domain": "general", "config": "text", "category": "overall"},
+    {"id": "arena_math", "label": "LMArena, maths", "domain": "math", "config": "text", "category": "math"},
+    {"id": "arena_creative", "label": "LMArena, écriture créative", "domain": "writing", "config": "text", "category": "creative_writing"},
 ]
 ARENA_PAGES = 6  # 100 lignes par page ; ~420 modèles par catégorie
 AA_PAGES = 10
@@ -218,7 +231,10 @@ def arena_rows(config: str, category: str, get=_get) -> list[dict]:
 def fetch_arena(catalog, get=_get) -> dict:
     tests, unmatched = {}, []
     for t in ARENA_TESTS:
-        rows = arena_rows(t["config"], t["category"], get)
+        try:
+            rows = arena_rows(t["config"], t["category"], get)
+        except Exception:  # noqa: BLE001 (catégorie absente ou source capricieuse : les autres tests restent valables)
+            continue
         vals, pop = best_per_model(((str(r.get("model_name") or ""), _num(r.get("rating"))) for r in rows), catalog)
         if scaled := scale("rel", vals, pop):
             tests[t["id"]] = scaled
@@ -246,14 +262,19 @@ def fetch_aa(catalog, key: str, get=_get) -> dict:
         if not (_pick(data, "pagination", "has_more") is True):
             break
     pop, vals, extra = [], {}, {}
+    sub = {t["id"]: ([], {}) for t in AA_TESTS}  # id : (population, valeurs par modèle suivi)
     for r in rows:
         name = str(r.get("name") or r.get("slug") or "")
         mid = match_model(name, catalog) or match_model(str(r.get("slug") or ""), catalog)
+        for t in AA_TESTS:
+            v = _num(_pick(r, "evaluations", t["field"]))
+            if v is not None and 0 <= v <= 100:
+                sub[t["id"]][0].append(v)
+                if mid:
+                    sub[t["id"]][1][mid] = max(v, sub[t["id"]][1].get(mid, v))
         idx = _num(_pick(r, "evaluations", "artificial_analysis_intelligence_index"))
         if idx is not None and 0 <= idx <= 100:
             pop.append(idx)
-            if mid:
-                vals[mid] = max(idx, vals.get(mid, idx))
         if mid:
             perf = r.get("performance") if isinstance(r.get("performance"), dict) else r
             info = {"price_in": _num(_pick(r, "pricing", "price_1m_input_tokens")),
@@ -273,12 +294,14 @@ def fetch_aa(catalog, key: str, get=_get) -> dict:
         if (name and idx is not None and floor <= idx <= 100 and match_model(name, catalog) is None
                 and match_model(str(r.get("slug") or ""), catalog) is None):
             unmatched.append(name)
-    tests = {"aa_index": scale("pct", vals, pop)} if vals else {}
+    tests = {tid: sc for tid, (p, v) in sub.items() if (sc := scale("pct", v, p))}
     return {"tests": tests, "extra": extra, "unmatched": unmatched[:8]}
 
 
-AA_TEST = {"id": "aa_index", "label": "Artificial Analysis, note globale", "domain": "general"}
-TESTS = {t["id"]: {**t, "source": s} for s, ts in (("epoch", EPOCH_TESTS), ("arena", ARENA_TESTS), ("aa", [AA_TEST])) for t in ts}
+AA_TESTS = [{"id": "aa_index", "label": "Artificial Analysis, note globale", "domain": "general", "field": "artificial_analysis_intelligence_index"},
+            {"id": "aa_coding", "label": "Artificial Analysis, code", "domain": "code", "field": "artificial_analysis_coding_index"},
+            {"id": "aa_math", "label": "Artificial Analysis, maths", "domain": "math", "field": "artificial_analysis_math_index"}]
+TESTS = {t["id"]: {**t, "source": s} for s, ts in (("epoch", EPOCH_TESTS), ("arena", ARENA_TESTS), ("aa", AA_TESTS)) for t in ts}
 
 
 # ---- Stockage et assemblage ---------------------------------------------------------------------------------------------

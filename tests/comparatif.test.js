@@ -7,8 +7,8 @@ const vm = require('node:vm');
 
 const ctx = {};
 vm.runInNewContext(`${fs.readFileSync(`${__dirname}/../jarvis/web/comparatif.js`, 'utf8')}
-this.api = { iacAvg, iacValue, iacRanked, iacDuelDomains };`, ctx);
-const { iacAvg, iacValue, iacRanked, iacDuelDomains } = ctx.api;
+this.api = { iacAvg, iacValue, iacRanked };`, ctx);
+const { iacAvg, iacValue, iacRanked } = ctx.api;
 
 const s = (code, general) => ({ ...(code === undefined ? {} : { code: { score: code, n: 2 } }), ...(general === undefined ? {} : { general: { score: general, n: 2 } }) });
 const M = (id, code, general, extra = {}) => ({ id, name: id, gen: 'current', scores: s(code, general), ...extra });
@@ -38,7 +38,18 @@ test('modèles loin du top 5 masqués, sauf bon rapport qualité/prix ou « tous
   assert.strictEqual(iacRanked(models, ['code'], { old: true, all: false }).rows[0].m.id, 'vieux');
 });
 
-test('duel : domaines notés pour tous les modèles choisis', () => {
-  assert.deepStrictEqual(iacDuelDomains([M('a', 80, 60), M('b', 70)], ['code', 'general']), ['code']);
-  assert.deepStrictEqual(iacDuelDomains([M('a', 80, 60), M('b', 70, 50)], ['code', 'general']), ['code', 'general']);
+test('une version précédente plus forte que sa suivante reste visible, signalée par `beats`', () => {
+  const models = [M('sol', 80, 80, { prev: 'astra' }), { ...M('astra', 90, 90), gen: 'previous' }, { ...M('vieux', 99, 99), gen: 'previous' }, { ...M('peu', 99), gen: 'previous' }, M('autre', 70, 70, { prev: 'peu' })];
+  const r = iacRanked(models, ['code', 'general'], { old: false, all: true });
+  assert.deepStrictEqual(r.rows.map((x) => x.m.id), ['astra', 'sol', 'autre']); // « peu » : un seul domaine commun, pas de comparaison
+  assert.strictEqual(r.rows[0].beats.id, 'sol');
+  assert.strictEqual(r.rows[1].beats, null);
+  assert.ok(r.rows.every((x) => x.m.id !== 'peu'));
+});
+
+test('deux notes égales : le modèle aux plus nombreux tests passe devant', () => {
+  const few = { ...M('few', 80), scores: { code: { score: 80, n: 1 } } }, many = { ...M('many', 80), scores: { code: { score: 80, n: 4 } } };
+  const r = iacRanked([few, many], ['code'], { old: false, all: true });
+  assert.deepStrictEqual(r.rows.map((x) => x.m.id), ['many', 'few']);
+  assert.deepStrictEqual(r.rows.map((x) => x.n), [4, 1]);
 });

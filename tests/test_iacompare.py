@@ -86,7 +86,7 @@ class MatchTest(unittest.TestCase):
         for m in CAT:
             for k in m["keys"]:
                 self.assertEqual(k, ia.norm(k), k)
-            if m["gen"] == "current":
+            if m["prev"]:  # une famille à un seul modèle (GPT Astra) n'a pas de version précédente
                 self.assertIn(m["prev"], ids)
             for b in m["badges"]:
                 self.assertIn(b, ("claude_code", "copilot"))
@@ -157,6 +157,29 @@ class SourcesTest(unittest.TestCase):
         self.assertEqual(out["extra"]["claude-opus-5-5"], {"price_in": 5.0, "price_out": 25.0, "tps": 80.12})
         self.assertEqual(out["unmatched"], [])  # « Autre » : note hors bornes
         self.assertEqual([h for _, h in seen], [{"x-api-key": "CLE"}] * 2)
+
+    def test_aa_indices_code_et_maths_par_domaine(self):
+        rows = [{"name": "Claude Opus 5.5", "evaluations": {"artificial_analysis_intelligence_index": 70,
+                                                           "artificial_analysis_coding_index": 64, "artificial_analysis_math_index": 90}},
+                {"name": "Autre", "evaluations": {"artificial_analysis_intelligence_index": 50, "artificial_analysis_coding_index": 30}}]
+        out = ia.fetch_aa(CAT, "k", lambda *a, **k: json.dumps({"data": rows}).encode())
+        self.assertEqual(out["tests"]["aa_coding"], {"claude-opus-5-5": 64.0})
+        self.assertEqual(out["tests"]["aa_math"], {"claude-opus-5-5": 90.0})
+        self.assertEqual({t["domain"] for t in ia.AA_TESTS} - {d["id"] for d in ia.DOMAINS}, set())
+
+    def test_arena_categorie_en_echec_ne_bloque_pas_les_autres(self):
+        def get(url, limit, headers=None, opener=None):
+            if "creative_writing" in url:
+                raise OSError("réseau")
+            return json.dumps({"rows": [{"row": {"model_name": "claude-opus-5-5", "rating": 1500, "rank": 1}},
+                                        {"row": {"model_name": "x", "rating": 1000, "rank": 2}}], "num_rows_total": 2}).encode()
+        out = ia.fetch_arena(CAT, get)
+        self.assertIn("arena_overall", out["tests"])
+        self.assertNotIn("arena_creative", out["tests"])
+
+    def test_tests_epoch_dans_des_domaines_connus(self):
+        for t in ia.TESTS.values():
+            self.assertIn(t["domain"], {d["id"] for d in ia.DOMAINS})
 
     def test_aa_nouveau_modele_proche_du_top5_signale(self):
         rows = [{"name": f"Fort {i}", "evaluations": {"artificial_analysis_intelligence_index": 70 + i}} for i in range(5)]

@@ -5,9 +5,12 @@
     {"family": "Claude Sonnet", "lab": "Anthropic", "badges": ["claude_code", "copilot"], "models": [{"id": "claude-sonnet-5-5", "name": "Claude Sonnet 5.5", "keys": ["claude-sonnet-5-5"]}, {"id": "claude-sonnet-5", "name": "Claude Sonnet 5", "keys": ["claude-sonnet-5"]}]},
     {"family": "Claude Fable", "lab": "Anthropic", "badges": ["claude_code"], "models": [{"id": "claude-fable-5-1", "name": "Claude Fable 5.1", "keys": ["claude-fable-5-1"]}, {"id": "claude-fable-5", "name": "Claude Fable 5", "keys": ["claude-fable-5"]}]},
     {"family": "Claude Haiku", "lab": "Anthropic", "badges": ["claude_code", "copilot"], "models": [{"id": "claude-haiku-5-5", "name": "Claude Haiku 5.5", "keys": ["claude-haiku-5-5"]}, {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "keys": ["claude-haiku-4-5"]}]},
-    {"family": "GPT", "lab": "OpenAI", "badges": ["copilot"], "models": [{"id": "gpt-6-1-sol", "name": "GPT-6.1 Sol", "keys": ["gpt-6-1-sol"]}, {"id": "gpt-6-astra", "name": "GPT-6 Astra", "keys": ["gpt-6-astra"]}]},
+    {"family": "GPT Astra", "lab": "OpenAI", "badges": ["copilot"], "models": [{"id": "gpt-6-astra", "name": "GPT-6 Astra", "keys": ["gpt-6-astra"]}]},
+    {"family": "GPT Sol", "lab": "OpenAI", "badges": ["copilot"], "models": [{"id": "gpt-6-1-sol", "name": "GPT-6.1 Sol", "keys": ["gpt-6-1-sol"]}, {"id": "gpt-6-sol", "name": "GPT-6 Sol", "keys": ["gpt-6-sol"]}]},
+    {"family": "GPT Terra", "lab": "OpenAI", "badges": ["copilot"], "models": [{"id": "gpt-6-1-terra", "name": "GPT-6.1 Terra", "keys": ["gpt-6-1-terra"]}, {"id": "gpt-5-6-terra", "name": "GPT-5.6 Terra", "keys": ["gpt-5-6-terra"]}]},
     {"family": "GPT mini", "lab": "OpenAI", "badges": ["copilot"], "models": [{"id": "gpt-5-4-mini", "name": "GPT-5.4 mini", "keys": ["gpt-5-4-mini"]}, {"id": "gpt-5-mini", "name": "GPT-5 mini", "keys": ["gpt-5-mini"]}]},
     {"family": "Gemini", "lab": "Google", "badges": ["copilot"], "models": [{"id": "gemini-4-argon", "name": "Gemini 4 Argon", "keys": ["gemini-4-argon"]}, {"id": "gemini-3-1-pro", "name": "Gemini 3.1 Pro", "keys": ["gemini-3-1-pro"]}]},
+    {"family": "Gemini Carbon", "lab": "Google", "badges": ["copilot"], "models": [{"id": "gemini-4-carbon", "name": "Gemini 4 Carbon", "keys": ["gemini-4-carbon"]}]},
     {"family": "Gemini Flash", "lab": "Google", "badges": [], "models": [{"id": "gemini-3-8-flash", "name": "Gemini 3.8 Flash", "keys": ["gemini-3-8-flash"]}, {"id": "gemini-3-7-flash", "name": "Gemini 3.7 Flash", "keys": ["gemini-3-7-flash"]}]},
     {"family": "Grok", "lab": "xAI", "badges": [], "models": [{"id": "grok-4-7", "name": "Grok 4.7", "keys": ["grok-4-7"]}, {"id": "grok-4-6", "name": "Grok 4.6", "keys": ["grok-4-6"]}]},
     {"family": "Muse", "lab": "Meta", "badges": [], "models": [{"id": "muse-wonder", "name": "Muse Wonder", "keys": ["muse-wonder"]}, {"id": "muse-spark-1-3", "name": "Muse Spark 1.3", "keys": ["muse-spark-1-3"]}]},
@@ -15,7 +18,7 @@
     {"family": "Qwen", "lab": "Alibaba", "badges": [], "models": [{"id": "qwen3-8-max", "name": "Qwen 3.8 Max", "keys": ["qwen3-8-max"]}, {"id": "qwen3-7-max", "name": "Qwen 3.7 Max", "keys": ["qwen3-7-max"]}]},
     {"family": "Mistral Large", "lab": "Mistral", "badges": [], "models": [{"id": "mistral-large-4", "name": "Mistral Large 4", "keys": ["mistral-large-4"]}, {"id": "mistral-large-3", "name": "Mistral Large 3", "keys": ["mistral-large-3"]}]},
     {"family": "Mistral Medium", "lab": "Mistral", "badges": [], "models": [{"id": "mistral-medium-3-5", "name": "Mistral Medium 3.5", "keys": ["mistral-medium-3-5"]}, {"id": "mistral-medium-3-1", "name": "Mistral Medium 3.1", "keys": ["mistral-medium-3-1"]}]},
-    {"family": "Kimi", "lab": "Moonshot", "badges": [], "models": [{"id": "kimi-k3", "name": "Kimi K3", "keys": ["kimi-k3"]}, {"id": "kimi-k2-6", "name": "Kimi K2.6", "keys": ["kimi-k2-6"]}]},
+    {"family": "Kimi", "lab": "Moonshot", "badges": [], "models": [{"id": "kimi-k3-1-pro", "name": "Kimi K3.1 Pro", "keys": ["kimi-k3-1-pro"]}, {"id": "kimi-k3", "name": "Kimi K3", "keys": ["kimi-k3"]}]},
     {"family": "GLM", "lab": "Z.ai", "badges": [], "models": [{"id": "glm-5-3", "name": "GLM-5.3", "keys": ["glm-5-3"]}, {"id": "glm-5-2", "name": "GLM-5.2", "keys": ["glm-5-2"]}]}
   ]
 }
