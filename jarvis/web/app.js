@@ -68,7 +68,7 @@ const clip = (s, n) => { const t = String(s ?? ''); return t.length > n ? `${t.s
 
 // ---- Appels API ------------------------------------------------------------------------------
 // Dernières lectures réussies, en mémoire seulement (jamais sur disque) : PC injoignable = on montre ces données, grisées.
-const CACHEABLE = /^\/api\/(dashboard|social|voyages|finance|finance\/bank|bienetre|drivers|veille|audit|devices|levels|memory|reminders)$/;
+const CACHEABLE = /^\/api\/(dashboard|social|voyages|finance|finance\/bank|bienetre|drivers|veille|ia-compare|audit|devices|levels|memory|reminders)$/;
 const lastRead = new Map();
 const hhmm = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 async function api(path, { method = 'GET', body, auth = true, retried = false } = {}) {
@@ -192,7 +192,7 @@ function show(name) {
   if (name === 'settings') loadSettings();
   if (name === 'social') loadSocial();
   if (name === 'finance') loadFinance(); else clearFinance();
-  if (name === 'veille') loadVeille();
+  if (name === 'veille') { loadIacompare(); loadVeille(); }
   if (name === 'voyages') loadVoyages();
   if (name === 'conso') loadConso();
   if (name === 'bienetre') loadBienetre(); else clearTimeout(bienetreTimer);

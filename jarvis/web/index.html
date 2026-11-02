@@ -237,6 +237,14 @@
   </section>
   <section id="view-veille" class="view" aria-labelledby="t-veille" hidden>
     <h1 id="t-veille" class="title">Veille IA</h1>
+    <section id="iac" class="panel iac" aria-labelledby="iac-title">
+      <h2 id="iac-title">Comparatif des IA</h2>
+      <p id="iac-error" class="error" hidden></p>
+      <p id="iac-state" class="muted" role="status">Chargement…</p>
+      <div id="iac-filters" class="iac-filters"></div>
+      <div id="iac-body" class="iac-body"></div>
+      <div id="iac-foot" class="iac-foot muted"></div>
+    </section>
     <p id="veille-error" class="error" hidden></p>
     <p id="veille-state" class="muted" role="status">Chargement…</p>
     <div id="veille-list" class="veille"></div>
@@ -378,6 +386,7 @@
 <script defer src="/reseaux.js"></script>
 <script defer src="/finances.js"></script>
 <script defer src="/veille.js"></script>
+<script defer src="/comparatif.js"></script>
 <script defer src="/bienetre.js"></script>
 <script defer src="/pilotes.js"></script>
 <script defer src="/conso.js"></script>
