@@ -17,6 +17,7 @@ Règle : cette section reste sous ~2 Ko. Une tâche finie se résume en une lign
 - **Bien-être + DriverWatch** (`feat/bienetre-pilotes`) : l'onglet ajoute un point « Pilotes » (dernier relevé DriverWatch ; relance `check` si périmé). Reste : essai sur le PC.
 - **Onglet Bien-être** (`feat/bienetre-ui`) : même présentation que Pilotes (jauge de santé, icônes, vert sur « en bon état »). Reste : contrôle visuel 375/1280 px.
 - **Bien-être** : push « N point(s) en problème » quand un bilan relancé par le Core du PC fait passer un point en problème (idée #33, `feat/bienetre-alerte`). Pas d'alerte sur le Core du mini-PC (relance faite par l'agent PC).
+- **Comparatif des IA** (Veille IA, v1 codée, branche `claude/project-thread-8jqxqe`) : reste revue Sécurité (intégration externe), clé `aa_api_key` sur le mini-PC, vérifier le 1er relevé Epoch ; puis v2/v3 (docs/HISTORIQUE.md).
 - **Essais réels en attente** : bouton « parler » et onglets UI v2/Conso sur le téléphone (375/1280 px), tuile Mini-PC, rappels/briefing, outil Claude Code, `voyage_recherche`.
 - **Propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md ; droits TikTok ; Swile, Ledger.
 - **Décisions en attente** : sauvegardes hors mini-PC, consignes des clims, texte du rappel push, pistes Phase 7, règles Conso nocturnes, 4 erreurs CI (`RUNNER~1` refusé par `system.py`).
