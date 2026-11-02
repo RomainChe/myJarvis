@@ -1,5 +1,5 @@
 'use strict';
-// Lancé par tests/test_iacompare.py (node --test) : moyenne, qualité/prix, modèles masqués et duel du comparatif des IA.
+// Lancé par tests/test_iacompare.py (node --test) : moyenne, taux d'erreur, classement, verdict prix et vitesse du comparatif des IA.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -7,8 +7,8 @@ const vm = require('node:vm');
 
 const ctx = {};
 vm.runInNewContext(`${fs.readFileSync(`${__dirname}/../jarvis/web/comparatif.js`, 'utf8')}
-this.api = { iacAvg, iacValue, iacRanked };`, ctx);
-const { iacAvg, iacValue, iacRanked } = ctx.api;
+this.api = { iacAvg, iacRanked, iacVerdicts, iacErr, iacErrX };`, ctx);
+const { iacAvg, iacRanked, iacVerdicts, iacErr, iacErrX } = ctx.api;
 
 const s = (code, general) => ({ ...(code === undefined ? {} : { code: { score: code, n: 2 } }), ...(general === undefined ? {} : { general: { score: general, n: 2 } }) });
 const M = (id, code, general, extra = {}) => ({ id, name: id, gen: 'current', scores: s(code, general), ...extra });
@@ -19,32 +19,25 @@ test('moyenne des domaines cochés disponibles', () => {
   assert.strictEqual(iacAvg(M('a', 80), ['general']), null);
 });
 
-test('qualité/prix : meilleur = 100, sans prix = absent', () => {
-  const v = iacValue([M('opus', 90, 90, { price_mix: 10 }), M('haiku', 60, 60, { price_mix: 2 }), M('sans', 70, 70)], ['code']);
-  assert.strictEqual(v.get('haiku'), 100);
-  assert.strictEqual(v.get('opus'), 30);
-  assert.strictEqual(v.has('sans'), false);
+test("taux d'erreur = 100 − note, multiple d'erreurs par rapport au meilleur", () => {
+  assert.strictEqual(iacErr(82.6), 17.4);
+  assert.strictEqual(iacErrX(70.6, 82.6), 1.7); // Haiku : 29,4 % d'erreurs contre 17,4 %
+  assert.strictEqual(iacErrX(82.6, 82.6), 1);
+  assert.strictEqual(iacErrX(90, 100), null); // meilleur parfait : pas de multiple
 });
 
-test('modèles loin du top 5 masqués, sauf bon rapport qualité/prix ou « tous »', () => {
-  const models = [90, 88, 86, 84, 82].map((x, i) => M(`top${i}`, x, undefined, { price_mix: 20 }))
-    .concat([M('loin', 40), M('pascher', 55, undefined, { price_mix: 0.5 }), M('vieux', 95, undefined, { gen: 'previous' })]);
+test('classement : versions actuelles seulement, les précédentes avec « anciennes versions »', () => {
+  const models = [M('nouveau', 80, 80), { ...M('ancien', 95, 95), gen: 'previous' }];
+  assert.deepStrictEqual(iacRanked(models, ['code'], { old: false, all: true }).rows.map((x) => x.m.id), ['nouveau']);
+  assert.deepStrictEqual(iacRanked(models, ['code'], { old: true, all: true }).rows.map((x) => x.m.id), ['ancien', 'nouveau']);
+});
+
+test('modèles loin du top 5 masqués, sauf « tous »', () => {
+  const models = [90, 88, 86, 84, 82].map((x, i) => M(`top${i}`, x, undefined, { price_mix: 20 })).concat([M('loin', 40), M('pascher', 55, undefined, { price_mix: 0.5 })]);
   const r = iacRanked(models, ['code'], { old: false, all: false });
-  const ids = r.rows.map((x) => x.m.id);
-  assert.deepStrictEqual(ids, ['top0', 'top1', 'top2', 'top3', 'top4', 'pascher']);
-  assert.strictEqual(r.hidden, 1);
-  assert.ok(r.bestValue.has('pascher'));
+  assert.deepStrictEqual(r.rows.map((x) => x.m.id), ['top0', 'top1', 'top2', 'top3', 'top4']);
+  assert.strictEqual(r.hidden, 2);
   assert.strictEqual(iacRanked(models, ['code'], { old: false, all: true }).rows.length, 7);
-  assert.strictEqual(iacRanked(models, ['code'], { old: true, all: false }).rows[0].m.id, 'vieux');
-});
-
-test('une version précédente plus forte que sa suivante reste visible, signalée par `beats`', () => {
-  const models = [M('sol', 80, 80, { prev: 'astra' }), { ...M('astra', 90, 90), gen: 'previous' }, { ...M('vieux', 99, 99), gen: 'previous' }, { ...M('peu', 99), gen: 'previous' }, M('autre', 70, 70, { prev: 'peu' })];
-  const r = iacRanked(models, ['code', 'general'], { old: false, all: true });
-  assert.deepStrictEqual(r.rows.map((x) => x.m.id), ['astra', 'sol', 'autre']); // « peu » : un seul domaine commun, pas de comparaison
-  assert.strictEqual(r.rows[0].beats.id, 'sol');
-  assert.strictEqual(r.rows[1].beats, null);
-  assert.ok(r.rows.every((x) => x.m.id !== 'peu'));
 });
 
 test('deux notes égales : le modèle aux plus nombreux tests passe devant', () => {
@@ -52,4 +45,38 @@ test('deux notes égales : le modèle aux plus nombreux tests passe devant', () 
   const r = iacRanked([few, many], ['code'], { old: false, all: true });
   assert.deepStrictEqual(r.rows.map((x) => x.m.id), ['many', 'few']);
   assert.deepStrictEqual(r.rows.map((x) => x.n), [4, 1]);
+});
+
+// Cas réel : Haiku est très bon marché mais fait beaucoup plus d'erreurs qu'Opus.
+const P = (id, g, price, tps, extra = {}) => M(id, undefined, g, { price_mix: price, tps, ...extra });
+const FLOTTE = [P('opus', 82.6, 8, 96), P('sol', 82.6, 4, 77), P('haiku', 70.6, 0.2, 181), P('mini', 77.3, 1.69, 248), { ...P('vieux', 95, 0.1, 500), gen: 'previous' }];
+const prefs = (over = {}) => ({ profile: 'safe', budget: null, minSpeed: null, ...over });
+
+test("profil « fiabilité d'abord » : Haiku n'est ni meilleur choix, ni moins cher, ni plus rapide", () => {
+  const v = iacVerdicts(FLOTTE, ['general'], prefs());
+  assert.strictEqual(v.ref.id, 'opus');
+  assert.strictEqual(v.gap, 5);
+  assert.deepStrictEqual([...v.pool].sort(), ['opus', 'sol']);
+  assert.strictEqual(v.pick.id, 'sol');
+  assert.strictEqual(v.cheapest.id, 'sol');
+  assert.strictEqual(v.fastest.id, 'opus');
+  assert.strictEqual(v.cheapestAny.id, 'haiku'); // signalé comme écarté, pas gagnant
+  assert.strictEqual(v.fastestAny.id, 'mini');
+});
+
+test('profil « économie » : Haiku redevient éligible ; la version précédente ne gagne jamais', () => {
+  const v = iacVerdicts(FLOTTE, ['general'], prefs({ profile: 'eco' }));
+  assert.strictEqual(v.cheapest.id, 'haiku');
+  assert.strictEqual(v.fastest.id, 'mini');
+  assert.ok(!v.pool.has('vieux'));
+});
+
+test('budget et vitesse minimale restreignent le verdict ; aucun modèle = verdict vide', () => {
+  const v = iacVerdicts(FLOTTE, ['general'], prefs({ profile: 'balanced', budget: 5, minSpeed: 100 }));
+  assert.deepStrictEqual([...v.pool], ['mini']);
+  assert.strictEqual(v.pick.id, 'mini');
+  const none = iacVerdicts(FLOTTE, ['general'], prefs({ budget: 1, minSpeed: 100 }));
+  assert.strictEqual(none.pool.size, 0);
+  assert.strictEqual(none.pick, null);
+  assert.strictEqual(iacVerdicts([], ['general'], prefs()), null);
 });
