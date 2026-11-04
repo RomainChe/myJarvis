@@ -1,0 +1,15 @@
+[Unit]
+Description=JARVIS maintenance du mini-PC : mises à jour apt, puis redémarrage si requis
+# Unité système (root), à installer dans /etc/systemd/system. Lancée seulement par le Core (outil minipc_update, N2)
+# grâce à deploy/polkit/50-jarvis-maintenance.rules : aucune commande ni argument ne vient de l'appelant.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+TimeoutStartSec=30min
+Environment=DEBIAN_FRONTEND=noninteractive
+ExecStartPre=/usr/bin/apt-get update -q
+ExecStart=/usr/bin/apt-get -y -q -o Dpkg::Options::=--force-confold dist-upgrade
+# 1 min de marge : le Core a le temps de répondre « lancé » avant de s'arrêter.
+ExecStartPost=/bin/sh -c '[ ! -e /var/run/reboot-required ] || /usr/sbin/shutdown -r +1 "JARVIS : redemarrage apres mise a jour"'

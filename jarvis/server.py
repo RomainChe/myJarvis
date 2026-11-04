@@ -704,6 +704,15 @@ def create_app(devices: Devices, audit: Audit, port: int, chat: Chat | None = No
         job = chat.start(auth[0], "driverwatch_update_one", ("driverwatch_update_one", {"driver_id": body.id}))
         return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
 
+    @app.post("/api/minipc/update", status_code=202)
+    def minipc_update(request: Request):
+        """Bouton de la tuile Mini-PC : même chemin qu'une phrase, donc confirmation N2 dans la PWA."""
+        auth = authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        job = chat.start(auth[0], "minipc_update", ("minipc_update", {}))
+        return reply(429, "une demande est déjà en cours") if job is None else {"job": job}
+
     @app.get("/api/veille")
     def veille_state(request: Request):
         auth = authenticate(request)

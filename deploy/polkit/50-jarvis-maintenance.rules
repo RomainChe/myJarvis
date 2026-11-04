@@ -1,0 +1,9 @@
+// Le compte « jarvis » (Core) peut démarrer UNE unité système, rien d'autre : pas de sudo, compatible NoNewPrivileges.
+polkit.addRule(function (action, subject) {
+  if (action.id === "org.freedesktop.systemd1.manage-units" &&
+      action.lookup("unit") === "jarvis-maintenance.service" &&
+      action.lookup("verb") === "start" &&
+      subject.user === "jarvis") {
+    return polkit.Result.YES;
+  }
+});

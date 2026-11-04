@@ -84,6 +84,7 @@ async function loadDigest() {
       return li;
     }));
   }
+  $('dg-mp-update').hidden = !(m && (m.updates?.count || m.reboot)); // action N2 : la PWA demande la confirmation
   const next = so.value?.scheduled?.[0];
   if (next) $('dg-social').textContent += ` · prochaine : ${fmtDate(next.at)}`;
   const issue = ve.value?.issues?.[0];
@@ -101,3 +102,20 @@ async function loadDigest() {
   }));
 }
 wide.addEventListener('change', () => { if (!views.chat.hidden) loadDigest(); });
+$('dg-mp-update').addEventListener('click', async (e) => {
+  if (busy) { toast('Jarvis est occupé avec une autre demande.'); return; }
+  const btn = e.currentTarget;
+  setBusy(true);
+  btn.disabled = true;
+  try {
+    const r = await api('/api/minipc/update', { method: 'POST', body: {} });
+    if (r.status === 429) toast('Jarvis est occupé avec une autre demande.');
+    else if (!r.ok || !r.data || !r.data.job) toast('Demande refusée.');
+    else await pollJob(r.data.job, (kind, text) => { if (kind !== 'note') toast(text); });
+  } catch (err) {
+    if (err.message === 'network') toast('Mini-PC injoignable (peut-être en redémarrage).');
+  } finally {
+    setBusy(false);
+    btn.disabled = false;
+  }
+});

@@ -13,6 +13,7 @@ from .tools import REGISTRY, Level, Tool
 FLOORS = {name: Level.N1 for name in ("power", "delete_file", "move_file", "kill_process", "run_script")}
 # Pousse sur un dépôt public avec la seule confirmation de l'appareil : jamais sous N2 (revue Sécurité Voyages, M1).
 FLOORS["voyage_destination"] = Level.N2
+FLOORS["minipc_update"] = Level.N2  # coupe Home Assistant et redémarre le serveur : confirmation de l'appareil exigée
 SCHEMA = "CREATE TABLE IF NOT EXISTS levels (tool TEXT PRIMARY KEY, level INTEGER NOT NULL CHECK (level BETWEEN 0 AND 3))"
 
 _audit: Audit | None = None
@@ -101,6 +102,7 @@ LABELS = {
     "voyage_destination": ("Changer de destination", "Nouvelle recherche de vols suivie par flight-price-tracker (push sur GitHub)."),
     "adguard_stats": ("Statistiques AdGuard", "Requêtes DNS, part bloquée et domaines les plus bloqués (pubs et pistage de la TV)."),
     "adguard_pause": ("Pause du blocage de pubs", "Coupe AdGuard Home 1 à 15 minutes ; le blocage revient seul."),
+    "minipc_update": ("Mettre à jour le mini-PC", "Installe les mises à jour système (apt) et redémarre le mini-PC dans 1 min si nécessaire."),
     "tv_status": ("État de la TV", "Allumée, appli en cours, volume."),
     "tv_on": ("Allumer la TV", "TV du salon."),
     "tv_off": ("Éteindre la TV", "La barre de son suit."),

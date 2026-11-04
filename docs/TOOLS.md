@@ -435,6 +435,13 @@ Table `reminders` dans la base du journal. À l'échéance : annonce Piper sur l
 - **Exemple** : onglet Voyages → « Changer de destination » (route `POST /api/voyages/destination`, confirmation N2 dans la PWA).
 - **Notes** : `git fetch`, puis `config.yaml` lu dans `origin/main` ; commit par la plomberie (`hash-object`, index temporaire, `commit-tree`) et `push origin <sha>:refs/heads/main` sans `--force` : ni la copie de travail ni la branche locale du propriétaire ne bougent. Validation avant le commit par le `load_config` du projet (son `.venv`) : départs hors France/Barcelone et destinations inconnues refusés avec le message du projet. Champs bornés par des motifs (lettres, espaces, tirets, apostrophes) : ni e-mail ni secret dans le dépôt public ; valeurs écrites en chaînes JSON (YAML entre guillemets). Push refusé (le workflow a commité entre-temps) : une seconde tentative sur le nouvel `origin/main`. Ne recopie pas les filtres de l'ancienne recherche (escales, durée des escales).
 
+## minipc_update (`jarvis/tools/minipc.py`, `jarvis/core/minipc.py`)
+
+- **Description** : bouton « Mettre à jour et redémarrer » de la tuile Mini-PC (visible s'il y a des mises à jour ou un redémarrage requis). Lance l'unité système `jarvis-maintenance` : `apt-get update`, `dist-upgrade -y` (configs locales conservées), puis `shutdown -r +1` si `/var/run/reboot-required` existe. JARVIS et Home Assistant sont coupés quelques minutes.
+- **Niveau** : N2 (plancher N2 : jamais abaissé), `taint_blocked`, aucun paramètre. Route `POST /api/minipc/update` (confirmation N2 dans la PWA, comme « Go » des Pilotes). Refusé hors du Core du mini-PC.
+- **Garde-fous** : pas de `sudo` (le Core garde `NoNewPrivileges`). Une règle polkit (`deploy/polkit/50-jarvis-maintenance.rules`) autorise le compte `jarvis` à démarrer cette seule unité ; aucune commande ni argument ne vient du Core ni du LLM. Erreurs à message fixe.
+- **Installation (une fois, sur le mini-PC)** : `docs/MINIPC_COMMANDES.md` § Mises à jour depuis JARVIS. **Exemple** : tuile Mini-PC → bouton → confirmer.
+
 ## voyage_recherche (`jarvis/tools/voyages.py`)
 
 - **Description** : recherche de vols ponctuelle : lance le workflow `search.yml` de flight-price-tracker (`gh workflow run`), qui envoie le résultat par e-mail. Ni `config.yaml` ni l'historique ne sont touchés : le suivi en cours ne change pas.

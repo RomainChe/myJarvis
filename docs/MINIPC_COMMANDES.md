@@ -45,6 +45,20 @@ uptime
 sudo apt update && sudo apt full-upgrade -y     # mises à jour manuelles (les correctifs de sécurité sont automatiques)
 ```
 
+## Mises à jour depuis JARVIS (bouton de la tuile Mini-PC)
+
+À installer une fois, depuis le dépôt `~/jarvis` du mini-PC :
+
+```bash
+sudo cp ~/jarvis/deploy/systemd-system/jarvis-maintenance.service /etc/systemd/system/
+sudo cp ~/jarvis/deploy/polkit/50-jarvis-maintenance.rules /etc/polkit-1/rules.d/
+sudo systemctl daemon-reload
+systemctl start --no-block jarvis-maintenance.service   # test sans sudo, en tant que jarvis : lance la vraie mise à jour
+journalctl -u jarvis-maintenance -n 20 --no-pager
+```
+
+Si `systemctl start` demande un mot de passe : la règle polkit n'est pas prise en compte (`sudo systemctl restart polkit`).
+
 ## Copier un fichier
 
 Depuis le PC : `scp "<fichier-local>" jarvis@<IP-minipc>:<dossier>/`.

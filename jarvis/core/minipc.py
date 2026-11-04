@@ -1,7 +1,7 @@
-"""Tuile « Mini-PC » du dashboard (N0, lecture seule, pas de ligne d'audit) : santé du serveur qui fait tourner le Core.
+"""Tuile « Mini-PC » du dashboard (N0, lecture seule, pas de ligne d'audit ; seule `start_update` agit) : santé du serveur qui fait tourner le Core.
 
 Contrôles = ceux de `doctor.report` (Core, journal, Ollama, Home Assistant, sauvegarde, disque, modèles). S'y ajoutent les
-mises à jour en attente (`apt-get -s dist-upgrade`, simulation sans droits root), le redémarrage requis, la température, la
+mises à jour en attente (`apt-get -s dist-upgrade`, simulation sans droits root ; `start_update` lance la vraie mise à jour, N2), le redémarrage requis, la température, la
 RAM, l'âge de la dernière sauvegarde et la dernière relance du Core par le garde-fou. Seuls des nombres et des noms de
 contrôle sortent. Mesures Linux : sur un autre système le champ vaut None et la tuile l'omet.
 """
@@ -17,6 +17,8 @@ from jarvis.core import doctor
 from jarvis.core.dashboard import uptime_s
 
 APT = "/usr/bin/apt-get"
+SYSTEMCTL = "/usr/bin/systemctl"
+UNIT = "jarvis-maintenance.service"  # deploy/systemd-system/ ; démarrable par le Core via deploy/polkit/
 REBOOT_FLAG = Path("/var/run/reboot-required")
 THERMAL = "/sys/class/thermal/thermal_zone*/temp"
 STATUS_TTL_S, APT_TTL_S, RESTART_SHOWN_S = 60, 3600, 7 * 86400
@@ -74,6 +76,18 @@ def _backup_age_h(backup_dir: Path) -> int | None:
 def _restart_at(state: Path = doctor.STATE, now=time.time) -> float | None:
     at = doctor._load(state).get("restart")
     return at if isinstance(at, (int, float)) and 0 < now() - at < RESTART_SHOWN_S else None
+
+
+def start_update() -> None:
+    """Lance la maintenance (apt dist-upgrade, puis redémarrage dans 1 min si requis) sans attendre sa fin."""
+    if sys.platform == "win32" or not os.path.exists(SYSTEMCTL):
+        raise RuntimeError("Mise à jour possible seulement depuis le Core du mini-PC.")
+    try:
+        subprocess.run([SYSTEMCTL, "start", "--no-block", UNIT], capture_output=True, timeout=15, check=True)
+    except (subprocess.SubprocessError, OSError):
+        raise RuntimeError("Lancement refusé : unité jarvis-maintenance ou règle polkit absente (docs/MINIPC_COMMANDES.md).") from None
+    with _guard:
+        _cache.pop("apt", None)  # la tuile recompte les mises à jour au prochain relevé
 
 
 def status(audit, port: int, backup_dir: Path | None = None) -> dict:

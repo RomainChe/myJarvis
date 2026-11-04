@@ -17,6 +17,7 @@ Règle : cette section reste sous ~2 Ko. Une tâche finie se résume en une lign
 - **Bien-être + DriverWatch** (`feat/bienetre-pilotes`) : l'onglet ajoute un point « Pilotes » (dernier relevé DriverWatch ; relance `check` si périmé). Reste : essai sur le PC.
 - **Onglet Bien-être** (`feat/bienetre-ui`) : même présentation que Pilotes (jauge de santé, icônes, vert sur « en bon état »). Reste : contrôle visuel 375/1280 px.
 - **Bien-être** : push « N point(s) en problème » quand un bilan relancé par le Core du PC fait passer un point en problème (idée #33, `feat/bienetre-alerte`). Pas d'alerte sur le Core du mini-PC (relance faite par l'agent PC).
+- **Mini-PC** : bouton « Mettre à jour et redémarrer » de la tuile (`minipc_update` N2, unité système + règle polkit, `feat/minipc-maj`). Reste : revue Sécurité, installation (MINIPC_COMMANDES) et essai sur le mini-PC.
 - **Comparatif des IA** (Veille IA, v1 + retouches `feat/comparatif-v2`) : revue Sécurité faite (feu vert), clé `aa_api_key` sur le mini-PC, vérifier le 1er relevé (6 domaines, noms AA des indices code/maths et catégories LMArena maths/écriture non vérifiés) ; refonte « B1 » faite (tableau coloré, verdict par profil de fiabilité, taux d'erreur ; HISTORIQUE) ; essai 375 px à faire.
 - **Essais réels en attente** : bouton « parler » et onglets UI v2/Conso sur le téléphone (375/1280 px), tuile Mini-PC, rappels/briefing, outil Claude Code, `voyage_recherche`.
 - **Propriétaire** : docs/A_FAIRE_PROPRIETAIRE.md ; droits TikTok ; Swile, Ledger.
