@@ -57,6 +57,8 @@ systemctl start --no-block jarvis-maintenance.service   # test sans sudo, en tan
 journalctl -u jarvis-maintenance -n 20 --no-pager
 ```
 
+Les deux fichiers doivent appartenir à `root:root` (0644) et rester hors d'écriture pour `jarvis`, sinon `jarvis` pourrait modifier l'unité et obtenir root : `sudo chown root:root` puis `sudo chmod 644` sur les deux copies. Le nom `jarvis` de la règle est le compte du Core (§ « Ton compte est `jarvis` »). Risque résiduel : tout processus du compte `jarvis` peut démarrer cette unité sans confirmation (mise à jour apt et redémarrage seulement, pas d'exécution arbitraire). Le résultat réel de la maintenance se lit dans `journalctl -u jarvis-maintenance`, l'audit ne note que « lancé ».
+
 Si `systemctl start` demande un mot de passe : la règle polkit n'est pas prise en compte (`sudo systemctl restart polkit`).
 
 ## Copier un fichier
