@@ -50,14 +50,17 @@ sudo apt update && sudo apt full-upgrade -y     # mises à jour manuelles (les c
 À installer une fois, depuis le dépôt `~/jarvis` du mini-PC :
 
 ```bash
-sudo cp ~/jarvis/deploy/systemd-system/jarvis-maintenance.service /etc/systemd/system/
-sudo cp ~/jarvis/deploy/polkit/50-jarvis-maintenance.rules /etc/polkit-1/rules.d/
-sudo systemctl daemon-reload
+sudo apt install -y polkitd                  # absent d'une Debian minimale ; sans lui, pas de dossier rules.d
+sudo mkdir -p /etc/polkit-1/rules.d
+sudo install -o root -g root -m 644 ~/jarvis/deploy/systemd-system/jarvis-maintenance.service /etc/systemd/system/
+sudo install -o root -g root -m 644 ~/jarvis/deploy/polkit/50-jarvis-maintenance.rules /etc/polkit-1/rules.d/
+sudo systemctl daemon-reload && sudo systemctl restart polkit
 systemctl start --no-block jarvis-maintenance.service   # test sans sudo, en tant que jarvis : lance la vraie mise à jour
-journalctl -u jarvis-maintenance -n 20 --no-pager
+sudo journalctl -u jarvis-maintenance -n 20 --no-pager   # sudo : jarvis ne lit pas les journaux système
+systemctl status jarvis-maintenance --no-pager           # état sans sudo
 ```
 
-Les deux fichiers doivent appartenir à `root:root` (0644) et rester hors d'écriture pour `jarvis`, sinon `jarvis` pourrait modifier l'unité et obtenir root : `sudo chown root:root` puis `sudo chmod 644` sur les deux copies. Le nom `jarvis` de la règle est le compte du Core (§ « Ton compte est `jarvis` »). Risque résiduel : tout processus du compte `jarvis` peut démarrer cette unité sans confirmation (mise à jour apt et redémarrage seulement, pas d'exécution arbitraire). Le résultat réel de la maintenance se lit dans `journalctl -u jarvis-maintenance`, l'audit ne note que « lancé ».
+Les deux fichiers doivent appartenir à `root:root` (0644) et rester hors d'écriture pour `jarvis`, sinon `jarvis` pourrait modifier l'unité et obtenir root : `sudo chown root:root` puis `sudo chmod 644` sur les deux copies. Le nom `jarvis` de la règle est le compte du Core (§ « Ton compte est `jarvis` »). Risque résiduel : tout processus du compte `jarvis` peut démarrer cette unité sans confirmation (mise à jour apt et redémarrage seulement, pas d'exécution arbitraire). Le résultat réel de la maintenance se lit dans `sudo journalctl -u jarvis-maintenance`, l'audit ne note que « lancé ».
 
 Si `systemctl start` demande un mot de passe : la règle polkit n'est pas prise en compte (`sudo systemctl restart polkit`).
 
