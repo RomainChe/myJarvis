@@ -95,6 +95,12 @@ class PortfolioTest(unittest.TestCase):
         self.assertEqual((cto["value"], cto["invested"]), (330.0, 231.0))
         self.assertEqual((pea["value"], pea["invested"]), (149.0, 119.0))
 
+    def test_savings_repeated_by_the_bank_count_once(self):
+        sav = [{"date": "2026-03-05", "amount": 10.0, "account": "Compte-titres"}] * 5
+        with tempfile.TemporaryDirectory() as d:
+            data = portfolio.view(self.write(d), fake_get, savings=sav, base_path=Path(d) / "base.json")
+        self.assertEqual(data["accounts"][0]["invested"], 231.0)
+
     def test_base_follows_market_and_later_savings(self):
         with tempfile.TemporaryDirectory() as d:
             path, base = self.write(d), Path(d) / "base.json"

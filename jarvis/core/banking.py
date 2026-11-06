@@ -262,12 +262,15 @@ def fetch(today: date | None = None, banks: list[str] | None = None) -> dict:
                 bal = bal if isinstance(bal, list) else []
                 prev = (cached.get((s["bank"], a["name"])) or {}).get("transactions") or []
                 since = (day - timedelta(days=INCR_DAYS)).isoformat() if prev else floor  # cache présent : on ne relit que la fin
-                txs, key = [], None
+                txs, key, last_page = [], None, None
                 try:
                     for _ in range(INCR_PAGES if prev else MAX_PAGES):  # ponytail: pages bornées, MAX_PAGES × page banque suffit pour 90 j de compte perso
                         r = _call(store, "GET", f"/accounts/{a['uid']}/transactions", query={"date_from": since, **({"continuation_key": key} if key else {})})
                         page = r.get("transactions")
-                        txs += [x for x in map(_tx, page if isinstance(page, list) else []) if x]
+                        got_page = [x for x in map(_tx, page if isinstance(page, list) else []) if x]
+                        if got_page and got_page == last_page:  # Trade Republic renvoie parfois la même page en boucle : on s'arrête
+                            break
+                        txs, last_page = txs + got_page, got_page
                         key = r.get("continuation_key")
                         if not key or len(txs) >= MAX_TX:
                             break
