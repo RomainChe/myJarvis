@@ -151,7 +151,7 @@ class RouterTest(unittest.TestCase):
     def test_qa_slot_nom_de_fichier_preserve(self):
         """QA-R3 : la normalisation abîme le slot : « l'été.txt » -> « l ete.txt », « (1).pdf » -> « 1 pdf »."""
         from jarvis.tools.pc.system import search_files
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(Path, "home", return_value=Path(tmp)):
             for name in ("l'été.txt", "rapport (1).pdf"):
                 Path(tmp, name).write_text("x")
                 _, args = self.router.route(f"cherche le fichier {name}")

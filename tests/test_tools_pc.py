@@ -82,6 +82,10 @@ class SearchFilesTest(PcToolTest):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
+        # CI : TEMP en nom court (RUNNER~1) hors du « home » long ; on ancre le home sur le dossier de test.
+        patcher = mock.patch.object(Path, "home", return_value=root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         (root / "sous").mkdir()
         for name in ("Rapport-2026.pdf", "sous/rapport_final.docx", "sous/Écran.png", "autre.txt"):
             (root / name).write_text("x")
