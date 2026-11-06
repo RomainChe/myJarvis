@@ -3,6 +3,7 @@
 // Données des sources publiques (Epoch AI, LMArena, Artificial Analysis) : nombres et noms affichés en texte seul.
 const IAC_BADGES = { claude_code: 'Claude Code', copilot: 'Copilot' };
 const IAC_GAP = 20; // points sous la moyenne du top 5 : au-delà, un modèle est masqué (sauf « tous les modèles »)
+function iacHelp(text) { const d = el('details', 'iac-help'); d.append(el('summary', '', 'Comment lire ce tableau'), el('p', 'muted', text)); return d; }
 const IAC_VIEWS = [['rank', 'Classement'], ['duel', 'Duel'], ['price', 'Prix et vitesse']];
 const IAC_OPTS = [['delta', 'Écart de version'], ['price', 'Prix'], ['speed', 'Vitesse'], ['old', 'Anciennes versions'], ['all', 'Tous les modèles']];
 // Profil du verdict : écart de note maximal toléré avec le meilleur modèle actuel (le taux d'erreur d'un modèle = 100 − sa note).
@@ -105,7 +106,9 @@ function iacFilters() {
     doms.append(b);
   }
   for (const [k, label] of IAC_OPTS) opts.append(iacToggle(label, iac.prefs[k], () => { iac.prefs[k] = !iac.prefs[k]; iacSave(); iacRender(); }));
-  box.replaceChildren(seg, doms, opts);
+  const nDom = iacDoms().length, set = el('details', 'iac-opts'), sum = el('summary', '', `Réglages · ${nDom} domaine${nDom > 1 ? 's' : ''} comparé${nDom > 1 ? 's' : ''}`);
+  set.append(sum, el('span', 'iac-glabel', 'Domaines comparés'), doms, el('span', 'iac-glabel', 'Affichage'), opts);
+  box.replaceChildren(seg, set);
 }
 
 const iacDomLabel = (id) => iac.data.domains.find((d) => d.id === id)?.label ?? id;
@@ -140,9 +143,9 @@ function iacRank() {
   const doms = iacDoms(), byId = new Map(iac.data.models.map((m) => [m.id, m])), p = iac.prefs;
   const { rows, hidden } = iacRanked(iac.data.models, doms, p);
   const top = Math.max(0, ...rows.filter((x) => x.m.gen === 'current').map((x) => x.avg));
-  const cols = ['', 'Modèle', 'Note /100', ...(p.price ? ['Prix $/M'] : []), ...(p.speed ? ['Tokens/s'] : []), ...(p.delta ? ['Écart de version'] : [])];
+  const cols = ['', 'Modèle', 'Note /100', ...(p.price || p.speed ? ['Coût · vitesse'] : [])];
   const head = el('tr'), body = el('tbody');
-  cols.forEach((c, i) => head.append(el('th', i > 2 && c !== 'Écart de version' ? 'num' : '', c)));
+  cols.forEach((c, i) => head.append(el('th', i > 2 ? 'num' : '', c)));
   let pos = 0, last = null;
   rows.forEach(({ m, avg, n }, i) => {
     if (avg !== last) pos = i + 1; // ex æquo : même rang
@@ -163,27 +166,26 @@ function iacRank() {
     const inner = el('div', 'iac-sc-in');
     inner.append(bar, chip); cs.append(inner);
     tr.append(cp, cn, cs);
-    if (p.price) tr.append(el('td', 'num', fmtUsd(m.price_mix)));
-    if (p.speed) tr.append(el('td', 'num', fmtNum(m.tps, 0)));
-    if (p.delta) {
-      const prev = m.prev && byId.get(m.prev), td = el('td');
-      const ds = prev ? doms.filter((x) => typeof m.delta?.[x] === 'number').map((x) => `${iacDomLabel(x)} ${m.delta[x] > 0 ? '+' : ''}${fmtNum(m.delta[x])}`) : [];
-      if (ds.length) {
-        td.append(el('span', '', `vs ${prev.name} : ${ds.join(' · ')}`));
-        if (iacTests(prev, doms) !== n) td.append(el('span', 'badge d-warn', 'tests différents'));
-      } else td.textContent = '—';
+    if (p.price || p.speed) {
+      const td = el('td', 'num');
+      if (p.price) td.append(el('span', '', `${fmtUsd(m.price_mix)} /M`));
+      if (p.speed) td.append(el('small', 'iac-sub', `${fmtNum(m.tps, 0)} tokens/s`));
       tr.append(td);
     }
+    const prev = p.delta && m.prev && byId.get(m.prev);
+    const ds = prev ? doms.filter((x) => typeof m.delta?.[x] === 'number').map((x) => `${iacDomLabel(x)} ${m.delta[x] > 0 ? '+' : ''}${fmtNum(m.delta[x])}`) : [];
     const meters = el('ul', 'meters iac-meters');
     for (const dm of iac.data.domains.filter((x) => doms.includes(x.id))) meters.append(iacMeter(dm.label, m.scores?.[dm.id]));
     dc.append(meters, iacDetail(m, doms));
+    if (ds.length) { const dl = el('p', 'iac-note', `Écart avec ${prev.name} : ${ds.join(' · ')}`); if (iacTests(prev, doms) !== n) dl.append(el('span', 'badge d-warn', 'tests différents')); dc.append(dl); }
     det.append(dc);
     btn.addEventListener('click', () => { det.hidden = !det.hidden; btn.setAttribute('aria-expanded', String(!det.hidden)); });
     body.append(tr, det);
   });
-  const out = [el('p', 'muted iac-note', 'Note sur 100 = moyenne des domaines cochés (tests publics : SWE-bench, GPQA, ARC-AGI…) ; 100 − note = taux d\'erreur. Version actuelle de chaque IA seulement : « Anciennes versions » affiche les précédentes, notées sur d\'autres tests. Ouvrir une ligne pour le détail.')];
+  const help = iacHelp('Note sur 100 = moyenne des domaines cochés (tests publics : SWE-bench, GPQA, ARC-AGI…) ; 100 − note = taux d\'erreur. Version actuelle de chaque IA seulement : « Anciennes versions » affiche les précédentes, notées sur d\'autres tests. Ouvrir une ligne pour le détail.'), out = [];
   out.push(rows.length ? iacTable(head, body) : el('p', 'muted', 'Aucune note pour ces domaines.'));
   if (hidden && !p.all) out.push(el('p', 'muted iac-note', `${hidden} modèle${hidden > 1 ? 's' : ''} masqué${hidden > 1 ? 's' : ''} : à plus de ${IAC_GAP} points du top 5.`));
+  out.push(help);
   return out;
 }
 
@@ -337,11 +339,9 @@ function iacPrice() {
     out.push(el('p', 'iac-warn', `${any.name} est ${what} (${val(any)}) mais fait ${x ? `${fmtNum(x)}× plus d'erreurs` : 'plus d\'erreurs'} que ${v.ref.name} : écarté par ce profil.`));
   }
   // Tableau
-  const cols = [['Modèle', '', null], ['Note /100', 'num', 'avg'], ['Erreurs', 'num', null], [`× ${v.ref.name}`, 'num', null]];
-  if (p.price) cols.push(['Prix mixte ($/M)', 'num', 'price'], ['Entrée', 'num', null], ['Sortie', 'num', null]);
-  cols.push(['Tokens/s', 'num', 'tps']);
-  if (p.speed) cols.push(['1er token (s)', 'num', null]);
-  cols.push(['Verdict', '', null]);
+  const cols = [['Modèle', '', null], ['Note /100', 'num', 'avg'], [`Erreurs (× ${v.ref.name})`, 'num', null]];
+  if (p.price) cols.push(['Prix mixte $/M', 'num', 'price']);
+  cols.push(['Tokens/s', 'num', 'tps'], ['Verdict', '', null]);
   const head = el('tr'), body = el('tbody');
   for (const [c, cls, k] of cols) {
     const th = el('th', cls);
@@ -357,14 +357,16 @@ function iacPrice() {
     const avg = iacAvg(m, doms), x = iacErrX(avg, v.refAvg), tr = el('tr'), name = el('th'), tags = el('td');
     name.append(el('span', 'iac-nm', ''));
     name.firstChild.append(brandMark(`${m.name} ${m.lab}`), document.createTextNode(m.name));
-    tr.append(name, iacHeat(el('td', 'num', fmtNum(avg)), (avg - (v.refAvg - 25)) / 25),
-      iacHeat(el('td', 'num', `${fmtNum(iacErr(avg))} %`), (avg - (v.refAvg - 25)) / 25),
-      x === null ? el('td', 'num', '—') : iacHeat(el('td', 'num', `${fmtNum(x)}×`), 1 - (x - 1) / 3));
+    const sub = (td, t) => { if (t) td.append(el('small', 'iac-sub muted', t)); return td; };
+    const hue = (avg - (v.refAvg - 25)) / 25, errTd = iacHeat(el('td', 'num', `${fmtNum(iacErr(avg))} %`), hue);
+    if (x !== null && x > 1) errTd.append(el('small', 'iac-sub', `${fmtNum(x)}×`));
+    tr.append(name, iacHeat(el('td', 'num', fmtNum(avg)), hue), errTd);
     if (p.price) {
-      tr.append(typeof m.price_mix === 'number' ? iacHeat(el('td', 'num', fmtUsd(m.price_mix)), iacHuePrice(m.price_mix)) : el('td', 'num', '—'), el('td', 'num', fmtUsd(m.price_in)), el('td', 'num', fmtUsd(m.price_out)));
+      const td = typeof m.price_mix === 'number' ? iacHeat(el('td', 'num', fmtUsd(m.price_mix)), iacHuePrice(m.price_mix)) : el('td', 'num', '—');
+      tr.append(sub(td, `${fmtUsd(m.price_in)} entrée · ${fmtUsd(m.price_out)} sortie`));
     }
-    tr.append(typeof m.tps === 'number' ? iacHeat(el('td', 'num', fmtNum(m.tps, 0)), iacHueSpeed(m.tps)) : el('td', 'num', '—'));
-    if (p.speed) tr.append(el('td', 'num', fmtNum(m.ttft, 2)));
+    const sp = typeof m.tps === 'number' ? iacHeat(el('td', 'num', fmtNum(m.tps, 0)), iacHueSpeed(m.tps)) : el('td', 'num', '—');
+    tr.append(p.speed && typeof m.ttft === 'number' ? sub(sp, `1er token ${fmtNum(m.ttft, 2)} s`) : sp);
     if (m.gen !== 'current') tags.append(el('span', 'badge d-neutral', 'version précédente'));
     else {
       if (m.id === v.pick?.id) tags.append(el('span', 'badge d-ok', 'meilleur choix'));
@@ -375,7 +377,7 @@ function iacPrice() {
     tr.append(tags);
     body.append(tr);
   }
-  out.push(iacTable(head, body), el('p', 'muted iac-note', 'Erreurs = 100 − note. Vert = bon, rouge = mauvais (prix : le moins cher est vert). Prix mixte : 3 tokens lus pour 1 écrit, en $ par million de tokens. Cliquer un titre pour trier.'));
+  out.push(iacTable(head, body), iacHelp('Erreurs = 100 − note. Vert = bon, rouge = mauvais (prix : le moins cher est vert). Prix mixte : 3 tokens lus pour 1 écrit, en $ par million de tokens. Cliquer un titre pour trier.'));
   return out;
 }
 function iacFoot() {
