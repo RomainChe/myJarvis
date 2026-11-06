@@ -155,7 +155,9 @@ def _market(path: Path, get) -> list[dict]:
 
 
 def _added(savings, name: str, after: str, until: str = "9999") -> float:
-    return sum(s["amount"] for s in savings if s["account"] == name and after < s["date"] <= until)
+    """Somme de l'épargne entre deux dates. Même jour, même montant, même compte = une seule opération : une lecture
+    bancaire qui répète une page ne doit pas gonfler l'investi."""
+    return sum(a for d, a in {(s["date"], s["amount"]) for s in savings if s["account"] == name and after < s["date"] <= until})
 
 
 def _perf(a: dict, b: dict) -> float:

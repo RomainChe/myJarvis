@@ -204,6 +204,14 @@ class FetchTest(BankBase):
         self.assertIn("Boulangerie", labels)  # 2026-10-01, avant la fenêtre relue : conservée
         self.assertNotIn("SALAIRE", labels)  # 2026-10-05, dans la fenêtre relue : remplacée par la lecture fraîche
 
+    def test_page_repetee_par_la_banque_nest_lue_qu_une_fois(self):
+        self.routes[("GET", "/accounts/u1/transactions")] = {"transactions": [
+            {"transaction_amount": {"amount": "3"}, "credit_debit_indicator": "DBIT", "booking_date": "2026-10-08",
+             "creditor": {"name": "Café"}}], "continuation_key": "suite"}
+        banking.fetch(date(2026, 10, 9))
+        labels = [t["label"] for t in banking._load(banking.CACHE, None)["accounts"][0]["transactions"]]
+        self.assertEqual(labels.count("Café"), 1)
+
     def test_banque_en_echec_garde_ses_comptes_quand_une_autre_reussit(self):
         store = banking._load(banking.STORE, None)
         store["sessions"].append({"id": "t", "bank": "Trade Republic", "country": "DE", "valid_until": None,
