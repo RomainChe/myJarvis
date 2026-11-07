@@ -202,3 +202,6 @@ Ordre proposé : 1 → 2 (rapides, N0), puis 6 (débloque 5), 4, 3 ; 7 après 1�
 - `android-tv/debloat.txt` : 19 paquets désactivés en 3 lots avec redémarrage entre chaque, aucun réactivé par le firmware ; annulation par `restore.ps1` sur la liste de travail et l'enregistrement `~/.cleanyourtv/`.
 - `MainActivity` : compteur de plantages (3 démarrages sans 15 s de stabilité en 2 min → réglages ; oublié après 2 min).
 - Accueil : Wi-Fi oublié puis rejoint, `setupwraith` coupé (forcé, 2e réseau fantôme), puis `launcherx` : Accueil ouvre `fr.jarvis.tv`. `set-home-activity` répond `Success` sans effet, c'est la coupure de `launcherx` qui fait l'accueil.
+
+## Finances : électricité en charge fixe (2026-11-07)
+- `budget.classify` : un débit Trade Republic de 78,00 € pile = « Électricité » (charge fixe, Logement), aussi listé dans les prélèvements récurrents. Limite : un PEA de 78,00 € pile serait pris pour l'électricité.

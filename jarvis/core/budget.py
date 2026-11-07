@@ -81,6 +81,8 @@ def classify(t: dict, plan_days: frozenset | set = frozenset()) -> tuple[str, di
     cents = round(out * 100) % 100 != 0
     if out == 24.99:
         return ("fixed", mk("🌐", "Internet", out, "Abonnements")) if d.day < 19 else ("fixed", mk("🏋️", "Basic Fit", out, "Sport"))
+    if out == 78:  # prélèvement mensuel fixe (le 5 novembre 2026) ; ponytail: un PEA de 78,00 € pile passerait pour l'électricité
+        return "fixed", mk("⚡", "Électricité", out, "Logement")
     if out in (1, 16):
         return "conso", mk("❤️", "Dons Fondation de France", out, "Dons")
     if 200 <= out <= 230 and d.month == 9 and d.day >= 22:
@@ -197,7 +199,7 @@ def report(txs: list[dict], today: date | None = None) -> dict | None:
         recos.append("🌱 Remonter le taux d'épargne vers le repère de 20 %.")
     if any(r["name"] == "Cotisation compte" for r in fixed):
         recos.append("🏦 Comparer la cotisation Crédit Mutuel (≈ 99 €/an) avec une offre gratuite.")
-    subs = [r for r in fixed if r["name"] in ("Charges de copropriété", "Assurance habitation", "Internet", "Basic Fit", "Cotisation compte")]
+    subs = [r for r in fixed if r["name"] in ("Charges de copropriété", "Assurance habitation", "Internet", "Basic Fit", "Cotisation compte", "Électricité")]
     subs += [r for r in conso if r["name"] == "Claude Code Pro"]
     week = None
     if today.weekday() == 0:

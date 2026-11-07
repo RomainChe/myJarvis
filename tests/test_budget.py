@@ -94,9 +94,14 @@ class BudgetTest(unittest.TestCase):
     def test_lot_date_du_lundi(self):
         r = report([tx(CM, "2026-10-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE")]
                    + [tx(TR, "2026-10-12", a) for a in (-10.0, -10.0, -7.0, -13.0, -15.0)]
-                   + [tx(TR, "2026-10-15", -78.0)], date(2026, 10, 17))  # lundi ; 78 € le jeudi sans plan : des courses
+                   + [tx(TR, "2026-10-15", -77.0)], date(2026, 10, 17))  # lundi ; 77 € le jeudi sans plan : des courses
         self.assertEqual(next(x for x in r["saving"]["items"] if x["name"] == "Épargne programmée")["amount"], 55)
-        self.assertEqual(next(x for x in r["conso"]["detail"] if x["name"] == "Courses")["amount"], 78)
+        self.assertEqual(next(x for x in r["conso"]["detail"] if x["name"] == "Courses")["amount"], 77)
+
+    def test_electricite_78_euros_en_charge_fixe(self):
+        r = report([tx(CM, "2026-11-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE"), tx(TR, "2026-11-05", -78.0)], date(2026, 11, 7))
+        self.assertEqual([(x["name"], x["amount"]) for x in r["fixed"]["items"]], [("Électricité", 78.0)])
+        self.assertEqual(classify(tx(TR, "2026-11-05", -78.5))[0], "conso")  # 78,50 € : pas l'électricité
 
     def test_voyage_et_comparaison_cycle_precedent(self):
         r = report([tx(CM, "2026-09-01", 2500.00, "VIR SEPA EMPLOYEUR SALAIRE"), tx(CM, "2026-09-10", -100.00, "CB CARREFOUR"),
